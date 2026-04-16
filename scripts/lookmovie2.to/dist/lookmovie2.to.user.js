@@ -1673,11 +1673,11 @@
   var buildInfo = {
     name: "lookmovie2.to",
     version: "1.2.0",
-    built: "2026-04-16T06:05:55.350Z",
-    commit: "277265e",
+    built: "2026-04-16T06:07:10.264Z",
+    commit: "7ddf3ed",
     branch: "main",
     author: "Lawrence Norton",
-    message: "feat(lookmovie2.to): log build version and timestamp on load",
+    message: "feat: inject git commit metadata into builds for runtime logging",
     dirty: true
   };
   function init() {
