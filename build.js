@@ -5,7 +5,6 @@ import * as esbuild from 'esbuild';
 import { glob } from 'glob';
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
 
 const isWatch = process.argv.includes('--watch');
 
@@ -33,44 +32,6 @@ function readVersion(scriptDir) {
   return match ? match[1] : '0.0.0';
 }
 
-/**
- * Gets current git commit info.
- */
-function getGitInfo() {
-  try {
-    const commitHash = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
-    const commitHashShort = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
-    const branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim();
-    const authorName = execSync('git log -1 --format="%an"', { encoding: 'utf8' }).trim();
-    const authorEmail = execSync('git log -1 --format="%ae"', { encoding: 'utf8' }).trim();
-    const commitDate = execSync('git log -1 --format="%ai"', { encoding: 'utf8' }).trim();
-    const commitMessage = execSync('git log -1 --format="%s"', { encoding: 'utf8' }).trim();
-    const isDirty = execSync('git status --porcelain', { encoding: 'utf8' }).trim().length > 0;
-
-    return {
-      commitHash,
-      commitHashShort,
-      branch,
-      authorName,
-      authorEmail,
-      commitDate,
-      commitMessage,
-      isDirty,
-    };
-  } catch {
-    return {
-      commitHash: 'unknown',
-      commitHashShort: 'unknown',
-      branch: 'unknown',
-      authorName: 'unknown',
-      authorEmail: 'unknown',
-      commitDate: 'unknown',
-      commitMessage: 'unknown',
-      isDirty: false,
-    };
-  }
-}
-
 async function buildScript(entryPoint) {
   const scriptDir = path.dirname(path.dirname(entryPoint)); // scripts/<name>
   const scriptName = path.basename(scriptDir);
@@ -82,7 +43,6 @@ async function buildScript(entryPoint) {
   const banner = readMetaBanner(scriptDir);
   const version = readVersion(scriptDir);
   const buildDate = new Date().toISOString();
-  const git = getGitInfo();
 
   const buildOptions = {
     entryPoints: [entryPoint],
@@ -101,14 +61,6 @@ async function buildScript(entryPoint) {
       __VERSION__: JSON.stringify(version),
       __BUILD_DATE__: JSON.stringify(buildDate),
       __SCRIPT_NAME__: JSON.stringify(scriptName),
-      __GIT_COMMIT_HASH__: JSON.stringify(git.commitHash),
-      __GIT_COMMIT_HASH_SHORT__: JSON.stringify(git.commitHashShort),
-      __GIT_BRANCH__: JSON.stringify(git.branch),
-      __GIT_AUTHOR_NAME__: JSON.stringify(git.authorName),
-      __GIT_AUTHOR_EMAIL__: JSON.stringify(git.authorEmail),
-      __GIT_COMMIT_DATE__: JSON.stringify(git.commitDate),
-      __GIT_COMMIT_MESSAGE__: JSON.stringify(git.commitMessage),
-      __GIT_IS_DIRTY__: JSON.stringify(git.isDirty),
     },
     logLevel: 'info',
   };

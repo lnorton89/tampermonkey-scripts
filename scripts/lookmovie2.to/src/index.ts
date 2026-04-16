@@ -123,21 +123,11 @@ function bootstrapDomFeatures(): void {
 declare const __VERSION__: string;
 declare const __BUILD_DATE__: string;
 declare const __SCRIPT_NAME__: string;
-declare const __GIT_COMMIT_HASH_SHORT__: string;
-declare const __GIT_BRANCH__: string;
-declare const __GIT_AUTHOR_NAME__: string;
-declare const __GIT_COMMIT_MESSAGE__: string;
-declare const __GIT_IS_DIRTY__: boolean;
 
 const buildInfo = {
   name: __SCRIPT_NAME__,
   version: __VERSION__,
   built: __BUILD_DATE__,
-  commit: __GIT_COMMIT_HASH_SHORT__,
-  branch: __GIT_BRANCH__,
-  author: __GIT_AUTHOR_NAME__,
-  message: __GIT_COMMIT_MESSAGE__,
-  dirty: __GIT_IS_DIRTY__,
 };
 
 // ---------------------------------------------------------------------------
@@ -145,11 +135,9 @@ const buildInfo = {
 // ---------------------------------------------------------------------------
 
 function init(): void {
-  const dirtyFlag = buildInfo.dirty ? ' (dirty)' : '';
   log.info(
-    `%c${buildInfo.name} v${buildInfo.version}${dirtyFlag} %c(${buildInfo.branch} @ ${buildInfo.commit})%c ${buildInfo.message}`,
+    `%c${buildInfo.name} v${buildInfo.version}%c loaded @ ${buildInfo.built}`,
     'font-weight: bold; color: #22c55e;',
-    'color: #94a3b8; font-style: italic;',
     'color: #64748b;'
   );
 

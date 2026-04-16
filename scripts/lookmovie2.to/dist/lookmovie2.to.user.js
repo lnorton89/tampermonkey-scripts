@@ -1673,19 +1673,12 @@
   var buildInfo = {
     name: "lookmovie2.to",
     version: "1.2.0",
-    built: "2026-04-16T06:12:18.012Z",
-    commit: "e0504f6",
-    branch: "main",
-    author: "Lawrence Norton",
-    message: "refactor: consolidate build info into single styled console line",
-    dirty: true
+    built: "2026-04-16T06:18:01.161Z"
   };
   function init() {
-    const dirtyFlag = buildInfo.dirty ? " (dirty)" : "";
     log.info(
-      `%c${buildInfo.name} v${buildInfo.version}${dirtyFlag} %c(${buildInfo.branch} @ ${buildInfo.commit})%c ${buildInfo.message}`,
+      `%c${buildInfo.name} v${buildInfo.version}%c loaded @ ${buildInfo.built}`,
       "font-weight: bold; color: #22c55e;",
-      "color: #94a3b8; font-style: italic;",
       "color: #64748b;"
     );
     onVideoPlayCallback(() => {
