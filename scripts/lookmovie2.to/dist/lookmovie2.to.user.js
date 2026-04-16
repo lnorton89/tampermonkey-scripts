@@ -970,9 +970,9 @@
     inset: 0;
     background: linear-gradient(
       to top,
-      rgba(0, 0, 0, 0.95) 0%,
-      rgba(0, 0, 0, 0.6) 35%,
-      transparent 65%
+      rgba(0, 0, 0, 0.9) 0%,
+      rgba(0, 0, 0, 0.4) 40%,
+      transparent 60%
     );
     pointer-events: none;
     z-index: 1;
@@ -1071,7 +1071,8 @@
     bottom: 0;
     left: 0;
     right: 0;
-    padding: 40px 10px 10px;
+    padding: 50px 10px 10px;
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
     z-index: 2;
   }
 
@@ -1870,7 +1871,7 @@
   var buildInfo = {
     name: "lookmovie2.to",
     version: "1.2.0",
-    built: "2026-04-16T06:48:41.222Z"
+    built: "2026-04-16T06:50:12.389Z"
   };
   function init() {
     log.info(
