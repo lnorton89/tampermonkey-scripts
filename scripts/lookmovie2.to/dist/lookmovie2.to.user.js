@@ -1673,14 +1673,25 @@
   var buildInfo = {
     name: "lookmovie2.to",
     version: "1.2.0",
-    built: "2026-04-16T06:03:36.295Z"
+    built: "2026-04-16T06:05:55.350Z",
+    commit: "277265e",
+    branch: "main",
+    author: "Lawrence Norton",
+    message: "feat(lookmovie2.to): log build version and timestamp on load",
+    dirty: true
   };
   function init() {
+    const dirtyFlag = buildInfo.dirty ? " (dirty)" : "";
     log.info(
-      `%c${buildInfo.name} v${buildInfo.version} loaded`,
-      "font-weight: bold; color: #22c55e;"
+      `%c${buildInfo.name} v${buildInfo.version} loaded%c${dirtyFlag}`,
+      "font-weight: bold; color: #22c55e;",
+      "color: #f59e0b;"
     );
-    log.info(`Build: ${buildInfo.built}`);
+    log.info(
+      `Branch: ${buildInfo.branch} | Commit: ${buildInfo.commit} | Author: ${buildInfo.author}`
+    );
+    log.info(`Commit: ${buildInfo.message}`);
+    log.info(`Built: ${buildInfo.built}`);
     onVideoPlayCallback(() => {
       maybeTrackWatchedEpisodeFromPlayer();
     });
