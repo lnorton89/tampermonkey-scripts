@@ -8,11 +8,13 @@ import path from 'path';
 
 const isWatch = process.argv.includes('--watch');
 
-/**
- * Reads the meta.ts banner comment from a script's src directory and returns
- * it as a string to prepend to the bundle. The meta block MUST be the first
- * thing in meta.ts as a block comment: /* ==UserScript== ... ==\/UserScript== *\/
- */
+const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+const repoUrl =
+  pkg.repository?.url?.replace('git+', '').replace('.git', '') ||
+  'https://github.com/unknown/tampermonkey-scripts';
+const rawUrl = repoUrl.replace('github.com', 'raw.githubusercontent.com');
+const branch = 'main';
+
 function readMetaBanner(scriptDir) {
   const metaPath = path.join(scriptDir, 'src', 'meta.ts');
   if (!fs.existsSync(metaPath)) return '';
@@ -21,9 +23,6 @@ function readMetaBanner(scriptDir) {
   return match ? match[0] + '\n\n' : '';
 }
 
-/**
- * Extracts version from meta.ts @version tag.
- */
 function readVersion(scriptDir) {
   const metaPath = path.join(scriptDir, 'src', 'meta.ts');
   if (!fs.existsSync(metaPath)) return '0.0.0';
@@ -32,8 +31,49 @@ function readVersion(scriptDir) {
   return match ? match[1] : '0.0.0';
 }
 
+function generateLoader(scriptDir, scriptName) {
+  const loaderPath = path.join(scriptDir, 'tampermonkey-loader.user.js');
+  const scriptUrl = `${rawUrl}/${branch}/${scriptName}/dist/${scriptName}.user.js`;
+
+  const template = `// ==UserScript==
+// @name         ${scriptName} (loader)
+// @namespace    ${pkg.repository?.url?.replace('git+', '').replace('.git', '') || 'http://tampermonkey.net/'}
+// @version      1.0.0
+// @description  Loader — fetches the latest build from GitHub
+// @match        *://*.example.com/*
+// @grant        GM_xmlhttpRequest
+// @connect      github.com
+// @connect      raw.githubusercontent.com
+// ==/UserScript==
+
+(function () {
+  'use strict';
+
+  const SCRIPT_URL = '${scriptUrl}';
+
+  GM_xmlhttpRequest({
+    method: 'GET',
+    url: SCRIPT_URL + '?_=' + Date.now(),
+    onload(res) {
+      if (res.status === 200) {
+        eval(res.responseText);
+      } else {
+        console.error('[loader] Failed to fetch script:', res.status, SCRIPT_URL);
+      }
+    },
+    onerror(err) {
+      console.error('[loader] Network error fetching script:', err);
+    },
+  });
+})();
+`;
+
+  fs.writeFileSync(loaderPath, template);
+  console.log(`[loader] ${scriptName} → ${loaderPath}`);
+}
+
 async function buildScript(entryPoint) {
-  const scriptDir = path.dirname(path.dirname(entryPoint)); // scripts/<name>
+  const scriptDir = path.dirname(path.dirname(entryPoint));
   const scriptName = path.basename(scriptDir);
   const outDir = path.join(scriptDir, 'dist');
   const outFile = path.join(outDir, `${scriptName}.user.js`);
@@ -52,7 +92,7 @@ async function buildScript(entryPoint) {
     platform: 'browser',
     target: 'es2020',
     sourcemap: false,
-    minify: false, // Keep readable — userscripts benefit from being human-inspectable
+    minify: false,
     banner: {
       js: banner,
     },
@@ -73,6 +113,8 @@ async function buildScript(entryPoint) {
     await esbuild.build(buildOptions);
     console.log(`[built] ${scriptName} → ${outFile}`);
   }
+
+  generateLoader(scriptDir, scriptName);
 }
 
 async function main() {

@@ -1,13 +1,5 @@
 import type { Settings, WatchlistEntry } from './types';
-import {
-  SCRIPT_ID,
-  UI_STYLE_ID,
-  UI_ROOT_ID,
-  escapeHtml,
-  formatEpisodeLabel,
-  log,
-  buildShowViewUrl,
-} from './utils';
+import { SCRIPT_ID, UI_STYLE_ID, UI_ROOT_ID, escapeHtml, log, buildShowViewUrl } from './utils';
 import {
   getWatchlistEntries,
   isLatestWatched,
@@ -336,6 +328,123 @@ const UI_STYLES = `
     object-position: center top;
     display: block;
     transition: transform 0.25s ease;
+  }
+
+  .${SCRIPT_ID}-watch-item:hover .${SCRIPT_ID}-watch-item-poster img {
+    transform: scale(1.06);
+  }
+
+  .${SCRIPT_ID}-watch-item-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 6px 8px;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .${SCRIPT_ID}-watch-item-title {
+    color: #f8fafc;
+    font-size: 11px;
+    font-weight: 700;
+    text-decoration: none;
+    line-height: 1.2;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .${SCRIPT_ID}-watch-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .${SCRIPT_ID}-watch-badge[data-state="new"] {
+    background: rgba(249, 115, 22, 0.9);
+    color: #fff;
+  }
+
+  .${SCRIPT_ID}-watch-badge[data-state="watched"] {
+    background: rgba(34, 197, 94, 0.9);
+    color: #fff;
+  }
+
+  .${SCRIPT_ID}-watch-badge[data-state="pending"] {
+    background: rgba(148, 163, 184, 0.4);
+    color: #e2e8f0;
+  }
+
+  .${SCRIPT_ID}-watch-item-actions {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+  }
+
+  .${SCRIPT_ID}-watch-open-btn {
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    transition: background 0.15s ease;
+  }
+
+  .${SCRIPT_ID}-watch-open-btn:hover {
+    background: rgba(37, 99, 235, 0.9);
+  }
+
+  .${SCRIPT_ID}-button,
+  .${SCRIPT_ID}-link-button {
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 999px;
+    padding: 5px 10px;
+    background: rgba(30, 41, 59, 0.9);
+    color: #e2e8f0;
+    font: 600 11px/1 Arial, sans-serif;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .${SCRIPT_ID}-button:hover,
+  .${SCRIPT_ID}-link-button:hover {
+    border-color: rgba(96, 165, 250, 0.65);
+    color: #f8fafc;
+  }
+
+  .${SCRIPT_ID}-button[disabled] {
+    cursor: wait;
+    opacity: 0.65;
+  }
+
+  .${SCRIPT_ID}-danger-button:hover {
+    border-color: rgba(251, 113, 133, 0.7);
   }
 
   .${SCRIPT_ID}-watch-item:hover .${SCRIPT_ID}-watch-item-poster img {
@@ -729,21 +838,10 @@ export function ensureUi(): void {
 
 function buildWatchlistItemMarkup(entry: WatchlistEntry): string {
   const state = entry.latestEpisode ? (isLatestWatched(entry) ? 'watched' : 'new') : 'pending';
-  const latestCopy = entry.latestEpisode
-    ? `Latest ${formatEpisodeLabel(entry.latestEpisode)}`
-    : 'Not synced';
-  const watchedCopy = entry.lastWatched
-    ? `Watched: ${formatEpisodeLabel(entry.lastWatched)}`
-    : 'Nothing watched';
-  const errorCopy = entry.lastSyncError ? `Error: ${entry.lastSyncError}` : '';
   const statusLabel = state === 'new' ? 'New' : state === 'watched' ? 'Current' : 'Pending';
   const openHref = buildShowViewUrl(entry.slug, entry.latestEpisode);
   const toggleLabel = isLatestWatched(entry) ? '✓' : '⊙';
-  const yearCopy = entry.year ? ` (${escapeHtml(entry.year)})` : '';
   const posterUrl = entry.poster || '';
-  const summaryPieces = [latestCopy, watchedCopy];
-
-  if (errorCopy) summaryPieces.push(errorCopy);
 
   const posterHtml = posterUrl
     ? `<img src="${escapeHtml(posterUrl)}" alt="${escapeHtml(entry.title)}" loading="lazy">`
@@ -754,14 +852,13 @@ function buildWatchlistItemMarkup(entry: WatchlistEntry): string {
       <div class="${SCRIPT_ID}-watch-item-poster">
         ${posterHtml}
         <div class="${SCRIPT_ID}-watch-item-info">
-          <a class="${SCRIPT_ID}-watch-item-title" href="${escapeHtml(openHref)}">${escapeHtml(entry.title)}${yearCopy}</a>
-          <p class="${SCRIPT_ID}-watch-item-copy">${escapeHtml(summaryPieces.join(' • '))}</p>
+          <a class="${SCRIPT_ID}-watch-item-title" href="${escapeHtml(openHref)}">${escapeHtml(entry.title)}</a>
           <span class="${SCRIPT_ID}-watch-badge" data-state="${state}">${escapeHtml(statusLabel)}</span>
         </div>
         <div class="${SCRIPT_ID}-watch-item-actions">
           <a class="${SCRIPT_ID}-watch-open-btn" href="${escapeHtml(openHref)}" title="Open">▶</a>
           <button class="${SCRIPT_ID}-watch-open-btn" type="button" data-watchlist-action="toggle-latest-watched" data-slug="${escapeHtml(entry.slug)}" title="${isLatestWatched(entry) ? 'Mark unwatched' : 'Mark watched'}">${toggleLabel}</button>
-          <button class="${SCRIPT_ID}-watch-open-btn" type="button" data-watchlist-action="remove" data-slug="${escapeHtml(entry.slug)}" title="Remove" style="font-size:12px;">✕</button>
+          <button class="${SCRIPT_ID}-watch-open-btn" type="button" data-watchlist-action="remove" data-slug="${escapeHtml(entry.slug)}" title="Remove" style="font-size:11px;">✕</button>
         </div>
       </div>
     </article>

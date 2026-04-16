@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lnorton89/tampermonkey-scripts.git"
+  },
   "scripts": {
     "build": "node build.js",
     "build:watch": "node build.js --watch",
