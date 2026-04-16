@@ -21,6 +21,17 @@ function readMetaBanner(scriptDir) {
   return match ? match[0] + '\n\n' : '';
 }
 
+/**
+ * Extracts version from meta.ts @version tag.
+ */
+function readVersion(scriptDir) {
+  const metaPath = path.join(scriptDir, 'src', 'meta.ts');
+  if (!fs.existsSync(metaPath)) return '0.0.0';
+  const content = fs.readFileSync(metaPath, 'utf8');
+  const match = content.match(/@version\s+(\S+)/);
+  return match ? match[1] : '0.0.0';
+}
+
 async function buildScript(entryPoint) {
   const scriptDir = path.dirname(path.dirname(entryPoint)); // scripts/<name>
   const scriptName = path.basename(scriptDir);
@@ -30,6 +41,8 @@ async function buildScript(entryPoint) {
   fs.mkdirSync(outDir, { recursive: true });
 
   const banner = readMetaBanner(scriptDir);
+  const version = readVersion(scriptDir);
+  const buildDate = new Date().toISOString();
 
   const buildOptions = {
     entryPoints: [entryPoint],
@@ -45,6 +58,9 @@ async function buildScript(entryPoint) {
     },
     define: {
       'process.env.NODE_ENV': '"production"',
+      __VERSION__: JSON.stringify(version),
+      __BUILD_DATE__: JSON.stringify(buildDate),
+      __SCRIPT_NAME__: JSON.stringify(scriptName),
     },
     logLevel: 'info',
   };

@@ -1670,8 +1670,17 @@
     syncShowViewWatchButton();
     void refreshWatchlistEntries();
   }
+  var buildInfo = {
+    name: "lookmovie2.to",
+    version: "1.2.0",
+    built: "2026-04-16T06:03:36.295Z"
+  };
   function init() {
-    log.info("Script loaded");
+    log.info(
+      `%c${buildInfo.name} v${buildInfo.version} loaded`,
+      "font-weight: bold; color: #22c55e;"
+    );
+    log.info(`Build: ${buildInfo.built}`);
     onVideoPlayCallback(() => {
       maybeTrackWatchedEpisodeFromPlayer();
     });

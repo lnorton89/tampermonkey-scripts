@@ -117,11 +117,29 @@ function bootstrapDomFeatures(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Build info (injected at build time)
+// ---------------------------------------------------------------------------
+
+declare const __VERSION__: string;
+declare const __BUILD_DATE__: string;
+declare const __SCRIPT_NAME__: string;
+
+const buildInfo = {
+  name: __SCRIPT_NAME__,
+  version: __VERSION__,
+  built: __BUILD_DATE__,
+};
+
+// ---------------------------------------------------------------------------
 // Init
 // ---------------------------------------------------------------------------
 
 function init(): void {
-  log.info('Script loaded');
+  log.info(
+    `%c${buildInfo.name} v${buildInfo.version} loaded`,
+    'font-weight: bold; color: #22c55e;'
+  );
+  log.info(`Build: ${buildInfo.built}`);
 
   // Wire up video play -> watchlist tracking
   onVideoPlayCallback(() => {
