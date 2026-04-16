@@ -6,10 +6,10 @@ import {
   escapeHtml,
   formatEpisodeLabel,
   log,
+  buildShowViewUrl,
 } from './utils';
 import {
   getWatchlistEntries,
-  getWatchlistEntry,
   isLatestWatched,
   countUnwatchedLatestEpisodes,
   sortWatchlistEntries,
@@ -19,9 +19,7 @@ import {
   refreshWatchlistEntries,
   removeShowFromWatchlist,
   toggleLatestEpisodeWatched,
-  onChange,
 } from './watchlist';
-import { buildShowViewUrl } from './utils';
 
 // ---------------------------------------------------------------------------
 // CSS styles
@@ -138,6 +136,9 @@ const UI_STYLES = `
 
   #${UI_ROOT_ID}-watchlist-panel {
     min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
   }
 
   @media (min-width: 980px) {
@@ -508,9 +509,9 @@ export function onSettingsChangeCallback(cb: (s: Settings) => void): void {
 
 function saveSettings(nextSettings: Settings): void {
   settings = {
-    adTimerBypass: !!nextSettings.adTimerBypass,
-    autoPlay: !!nextSettings.autoPlay,
-    autoFullscreen: !!nextSettings.autoFullscreen,
+    adTimerBypass: nextSettings.adTimerBypass,
+    autoPlay: nextSettings.autoPlay,
+    autoFullscreen: nextSettings.autoFullscreen,
   };
 
   try {
@@ -524,9 +525,14 @@ function saveSettings(nextSettings: Settings): void {
 }
 
 export function syncModalState(): void {
-  document.querySelectorAll<HTMLInputElement>(`#${UI_ROOT_ID} input[data-setting]`).forEach((checkbox) => {
-    checkbox.checked = !!settings[checkbox.dataset.setting as keyof Settings];
-  });
+  document
+    .querySelectorAll<HTMLInputElement>(`#${UI_ROOT_ID} input[data-setting]`)
+    .forEach((checkbox) => {
+      const settingKey = checkbox.dataset.setting as keyof Settings | undefined;
+      if (settingKey) {
+        checkbox.checked = settings[settingKey];
+      }
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -534,7 +540,7 @@ export function syncModalState(): void {
 // ---------------------------------------------------------------------------
 
 export function ensureUiStyle(): void {
-  if (!document.head || document.getElementById(UI_STYLE_ID)) return;
+  if (document.getElementById(UI_STYLE_ID)) return;
 
   const style = document.createElement('style');
   style.id = UI_STYLE_ID;
@@ -568,7 +574,7 @@ function settingMarkup(settingKey: keyof Settings, title: string, copy: string):
 export function ensureUi(): void {
   ensureUiStyle();
 
-  if (!document.body || document.getElementById(UI_ROOT_ID)) return;
+  if (document.getElementById(UI_ROOT_ID)) return;
 
   const root = document.createElement('div');
   root.id = UI_ROOT_ID;
@@ -647,25 +653,30 @@ export function ensureUi(): void {
   closeButton?.addEventListener('click', closeModal);
   if (overlayEl) {
     overlayEl.addEventListener('click', (event) => {
-      if (event.target === overlayEl) closeModal();
+      if (event.target === event.currentTarget) closeModal();
     });
   }
 
-  document.querySelectorAll<HTMLInputElement>(`#${UI_ROOT_ID} input[data-setting]`).forEach((checkbox) => {
-    checkbox.addEventListener('change', () => {
-      saveSettings({
-        ...settings,
-        [checkbox.dataset.setting!]: checkbox.checked,
+  document
+    .querySelectorAll<HTMLInputElement>(`#${UI_ROOT_ID} input[data-setting]`)
+    .forEach((checkbox) => {
+      checkbox.addEventListener('change', () => {
+        const settingKey = checkbox.dataset.setting as keyof Settings | undefined;
+        if (settingKey) {
+          saveSettings({
+            ...settings,
+            [settingKey]: checkbox.checked,
+          });
+        }
       });
     });
-  });
 
   root.addEventListener('click', (event) => {
-    const actionTarget = (event.target as HTMLElement).closest('[data-watchlist-action]');
+    const target = event.target as HTMLElement;
+    const actionTarget = target.closest<HTMLElement>('[data-watchlist-action]');
     if (!actionTarget) return;
 
-    const action = (actionTarget as HTMLElement).dataset.watchlistAction;
-    const slug = (actionTarget as HTMLElement).dataset.slug || '';
+    const { watchlistAction: action, slug = '' } = actionTarget.dataset;
 
     if (action === 'refresh') {
       void refreshWatchlistEntries({ force: true });
@@ -699,12 +710,15 @@ export function ensureUi(): void {
 
 function buildWatchlistItemMarkup(entry: WatchlistEntry): string {
   const state = entry.latestEpisode ? (isLatestWatched(entry) ? 'watched' : 'new') : 'pending';
-  const latestCopy = entry.latestEpisode ? `Latest ${formatEpisodeLabel(entry.latestEpisode)}` : 'Latest episode not synced yet';
+  const latestCopy = entry.latestEpisode
+    ? `Latest ${formatEpisodeLabel(entry.latestEpisode)}`
+    : 'Latest episode not synced yet';
   const watchedCopy = entry.lastWatched
     ? `Watched through ${formatEpisodeLabel(entry.lastWatched)}`
     : 'Nothing marked watched yet';
   const errorCopy = entry.lastSyncError ? `Sync issue: ${entry.lastSyncError}` : '';
-  const statusLabel = state === 'new' ? 'New episode' : (state === 'watched' ? 'Up to date' : 'Pending sync');
+  const statusLabel =
+    state === 'new' ? 'New episode' : state === 'watched' ? 'Up to date' : 'Pending sync';
   const openHref = buildShowViewUrl(entry.slug, entry.latestEpisode);
   const toggleLabel = isLatestWatched(entry) ? 'Unwatch latest' : 'Mark latest watched';
   const toggleDisabled = entry.latestEpisode ? '' : 'disabled';
@@ -752,13 +766,13 @@ export function renderWatchlist(): void {
   const entries = sortWatchlistEntries(getWatchlistEntries());
   const newCount = entries.filter((entry) => entry.latestEpisode && !isLatestWatched(entry)).length;
   summary.textContent = entries.length
-    ? `${entries.length} tracked ${entries.length === 1 ? 'show' : 'shows'}${newCount ? ` | ${newCount} with a newer latest episode` : ''}`
+    ? `${String(entries.length)} tracked ${entries.length === 1 ? 'show' : 'shows'}${newCount ? ` | ${String(newCount)} with a newer latest episode` : ''}`
     : 'Add shows from the latest episodes page to start tracking them.';
 
   status.dataset.tone = getWatchlistMessageTone();
   status.textContent = isWatchlistBusy()
-    ? (getWatchlistMessage() || 'Refreshing watchlist...')
-    : (getWatchlistMessage() || '');
+    ? getWatchlistMessage() || 'Refreshing watchlist...'
+    : getWatchlistMessage() || '';
 
   (refreshButton as HTMLButtonElement).disabled = isWatchlistBusy();
 

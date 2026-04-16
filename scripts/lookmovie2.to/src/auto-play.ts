@@ -1,5 +1,11 @@
 import { SCRIPT_ID, FULLSCREEN_STYLE_ID, log } from './utils';
 
+declare global {
+  interface HTMLVideoElement {
+    _lookmovieEnhancerAttached?: boolean;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Module state
 // ---------------------------------------------------------------------------
@@ -18,8 +24,6 @@ export function onVideoPlayCallback(cb: (() => void) | null): void {
 // ---------------------------------------------------------------------------
 
 function applyWindowedFullscreenFallback(): void {
-  if (!document.head) return;
-
   if (!document.getElementById(FULLSCREEN_STYLE_ID)) {
     const style = document.createElement('style');
     style.id = FULLSCREEN_STYLE_ID;
@@ -41,18 +45,14 @@ function applyWindowedFullscreenFallback(): void {
     document.head.appendChild(style);
   }
 
-  if (document.body) {
-    document.body.classList.add(`${SCRIPT_ID}-fullscreen`);
-  }
+  document.body.classList.add(`${SCRIPT_ID}-fullscreen`);
 }
 
 export function removeWindowedFullscreenFallback(): void {
   const style = document.getElementById(FULLSCREEN_STYLE_ID);
   if (style) style.remove();
 
-  if (document.body) {
-    document.body.classList.remove(`${SCRIPT_ID}-fullscreen`);
-  }
+  document.body.classList.remove(`${SCRIPT_ID}-fullscreen`);
 }
 
 function triggerVideoJsFullscreen(): boolean {
@@ -82,7 +82,7 @@ function dismissResumeModalIfPresent(): boolean {
   const dismissButton = document.getElementById('progress-from-beginning-button');
   if (dismissButton) {
     log.info('Dismissing playback modal.');
-    (dismissButton).click();
+    dismissButton.click();
     return true;
   }
 
@@ -101,14 +101,17 @@ function handleVideoPlay(): void {
   window.setTimeout(() => {
     const dismissed = dismissResumeModalIfPresent();
 
-    window.setTimeout(() => {
-      triggerVideoJsFullscreen();
-    }, dismissed ? 500 : 200);
+    window.setTimeout(
+      () => {
+        triggerVideoJsFullscreen();
+      },
+      dismissed ? 500 : 200
+    );
   }, 300);
 }
 
 function attachAutoplayLogic(videoElement: HTMLVideoElement): void {
-  if (!videoElement || videoElement._lookmovieEnhancerAttached) return;
+  if (videoElement._lookmovieEnhancerAttached) return;
 
   videoElement._lookmovieEnhancerAttached = true;
   videoElement.addEventListener('play', handleVideoPlay);
@@ -142,8 +145,6 @@ export function resetFullscreenState(): void {
 
 export function watchVideos(): void {
   const waitForBody = window.setInterval(() => {
-    if (!document.body) return;
-
     window.clearInterval(waitForBody);
     findAndAttachToVideos();
 
@@ -152,15 +153,14 @@ export function watchVideos(): void {
         if (mutation.type !== 'childList') return;
 
         mutation.addedNodes.forEach((node) => {
-          if (node?.nodeType !== Node.ELEMENT_NODE) return;
+          if (!(node instanceof Element)) return;
+          const element = node;
 
-          if ((node as Element).tagName === 'VIDEO') {
-            attachAutoplayLogic(node as HTMLVideoElement);
+          if (element.tagName === 'VIDEO') {
+            attachAutoplayLogic(element as HTMLVideoElement);
           }
 
-          if (typeof (node as Element).querySelectorAll === 'function') {
-            (node as Element).querySelectorAll<HTMLVideoElement>('video').forEach(attachAutoplayLogic);
-          }
+          element.querySelectorAll<HTMLVideoElement>('video').forEach(attachAutoplayLogic);
         });
       });
     });

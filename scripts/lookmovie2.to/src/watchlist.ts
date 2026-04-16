@@ -3,6 +3,7 @@ import type {
   WatchlistEntry,
   EpisodeRecord,
   ShowDetails,
+  PlayPageEpisodeContext,
 } from './types';
 import {
   SCRIPT_ID,
@@ -11,13 +12,9 @@ import {
   formatEpisodeLabel,
   sameEpisode,
   compareEpisodes,
-  extractShowSlugFromViewHref,
-  extractYearFromSlug,
-  buildShowViewUrl,
   decodeInlineJsString,
   log,
 } from './utils';
-import { syncLauncherState } from './ui';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -45,14 +42,19 @@ export function onChange(cb: ChangeCallback): void {
 }
 
 function emitChange(): void {
-  onChangeCallbacks.forEach((cb) => { cb(); });
+  onChangeCallbacks.forEach((cb) => {
+    cb();
+  });
 }
 
 // ---------------------------------------------------------------------------
 // Persistence
 // ---------------------------------------------------------------------------
 
-function normalizeWatchlistEntry(slug: string, entry: Partial<Record<string, unknown>>): WatchlistEntry | null {
+function normalizeWatchlistEntry(
+  slug: string,
+  entry: Partial<Record<string, unknown>> | null
+): WatchlistEntry | null {
   if (!entry || typeof entry !== 'object') return null;
 
   const normalizedSlug = typeof slug === 'string' && slug.trim() ? slug.trim() : '';
@@ -61,8 +63,12 @@ function normalizeWatchlistEntry(slug: string, entry: Partial<Record<string, unk
   return {
     slug: normalizedSlug,
     idShow: toPositiveInteger(entry.idShow ?? entry.id_show),
-    title: typeof entry.title === 'string' && entry.title.trim() ? entry.title.trim() : normalizedSlug,
-    year: typeof entry.year === 'string' || typeof entry.year === 'number' ? String(entry.year).trim() : '',
+    title:
+      typeof entry.title === 'string' && entry.title.trim() ? entry.title.trim() : normalizedSlug,
+    year:
+      typeof entry.year === 'string' || typeof entry.year === 'number'
+        ? String(entry.year).trim()
+        : '',
     poster: typeof entry.poster === 'string' ? entry.poster : '',
     addedAt: typeof entry.addedAt === 'number' ? entry.addedAt : Date.now(),
     lastSyncedAt: typeof entry.lastSyncedAt === 'number' ? entry.lastSyncedAt : 0,
@@ -74,10 +80,9 @@ function normalizeWatchlistEntry(slug: string, entry: Partial<Record<string, unk
 
 export function loadWatchlist(): WatchlistStore {
   try {
-    const parsed = JSON.parse(localStorage.getItem(WATCHLIST_KEY) || '{}');
-    const sourceShows = parsed && typeof parsed === 'object' && parsed.shows && typeof parsed.shows === 'object'
-      ? parsed.shows
-      : {};
+    const stored = localStorage.getItem(WATCHLIST_KEY);
+    const parsed = stored ? (JSON.parse(stored) as { shows?: Record<string, unknown> }) : {};
+    const sourceShows = parsed.shows ?? {};
     const shows: Record<string, WatchlistEntry> = {};
 
     Object.entries(sourceShows).forEach(([slug, entry]) => {
@@ -120,20 +125,21 @@ export function getWatchlistEntries(): WatchlistEntry[] {
 }
 
 export function getWatchlistEntry(slug: string): WatchlistEntry | null {
-  return slug ? watchlistStore.shows[slug] || null : null;
+  return slug ? (watchlistStore.shows[slug] ?? null) : null;
 }
 
 export function findWatchlistEntryByIdShow(idShow: number): WatchlistEntry | null {
   if (!idShow) return null;
-  return getWatchlistEntries().find((entry) => entry.idShow === idShow) || null;
+  return getWatchlistEntries().find((entry) => entry.idShow === idShow) ?? null;
 }
 
 export function isLatestWatched(entry: WatchlistEntry): boolean {
-  return !!entry && sameEpisode(entry.latestEpisode, entry.lastWatched);
+  return sameEpisode(entry.latestEpisode, entry.lastWatched);
 }
 
 export function countUnwatchedLatestEpisodes(): number {
-  return getWatchlistEntries().filter((entry) => entry.latestEpisode && !isLatestWatched(entry)).length;
+  return getWatchlistEntries().filter((entry) => entry.latestEpisode && !isLatestWatched(entry))
+    .length;
 }
 
 export function sortWatchlistEntries(entries: WatchlistEntry[]): WatchlistEntry[] {
@@ -162,13 +168,13 @@ export function isWatchlistBusy(): boolean {
 // ---------------------------------------------------------------------------
 
 export function setWatchlistMessage(message: string, tone: 'success' | 'danger' | 'muted'): void {
-  watchlistMessage = message || '';
-  watchlistMessageTone = tone || 'muted';
+  watchlistMessage = message;
+  watchlistMessageTone = tone;
   emitChange();
 }
 
 export async function addShowToWatchlist(showDetails: ShowDetails): Promise<void> {
-  if (!showDetails?.slug) return;
+  if (!showDetails.slug) return;
 
   const existingEntry = getWatchlistEntry(showDetails.slug);
   if (existingEntry) {
@@ -177,7 +183,7 @@ export async function addShowToWatchlist(showDetails: ShowDetails): Promise<void
     return;
   }
 
-  setWatchlistMessage(`Adding ${showDetails.title || showDetails.slug}...`, 'muted');
+  setWatchlistMessage(`Adding ${showDetails.title ?? showDetails.slug}...`, 'muted');
 
   let resolved: {
     slug: string;
@@ -188,9 +194,9 @@ export async function addShowToWatchlist(showDetails: ShowDetails): Promise<void
   } = {
     slug: showDetails.slug,
     idShow: 0,
-    title: showDetails.title || showDetails.slug,
-    year: showDetails.year || '',
-    poster: showDetails.poster || '',
+    title: showDetails.title ?? showDetails.slug,
+    year: showDetails.year ?? '',
+    poster: showDetails.poster ?? '',
   };
 
   try {
@@ -206,19 +212,22 @@ export async function addShowToWatchlist(showDetails: ShowDetails): Promise<void
     log.warn(`Failed to resolve show metadata for ${showDetails.slug}.`, error);
   }
 
-  watchlistStore.shows[showDetails.slug] = normalizeWatchlistEntry(showDetails.slug, {
+  const normalized = normalizeWatchlistEntry(showDetails.slug, {
     slug: showDetails.slug,
     idShow: resolved.idShow,
-    title: resolved.title || showDetails.title || showDetails.slug,
-    year: resolved.year || showDetails.year || '',
-    poster: resolved.poster || showDetails.poster || '',
+    title: resolved.title,
+    year: resolved.year,
+    poster: resolved.poster,
     addedAt: Date.now(),
-    latestEpisode: showDetails.episode || null,
+    latestEpisode: showDetails.episode ?? null,
     lastSyncedAt: 0,
-  })!;
+  });
+  if (normalized) {
+    watchlistStore.shows[showDetails.slug] = normalized;
+  }
 
   saveWatchlist();
-  setWatchlistMessage(`${resolved.title || showDetails.title || showDetails.slug} added to your watchlist.`, 'success');
+  setWatchlistMessage(`${resolved.title} added to your watchlist.`, 'success');
 
   await refreshWatchlistEntries({ force: true, slugs: [showDetails.slug] });
 }
@@ -227,7 +236,7 @@ export function removeShowFromWatchlist(slug: string): void {
   const entry = getWatchlistEntry(slug);
   if (!entry) return;
 
-  delete watchlistStore.shows[slug];
+  watchlistStore.shows[slug] = undefined as unknown as WatchlistEntry;
   saveWatchlist();
   setWatchlistMessage(`${entry.title} removed from your watchlist.`, 'muted');
 }
@@ -244,7 +253,10 @@ export function toggleLatestEpisodeWatched(slug: string): void {
       ...entry.latestEpisode,
       watchedAt: Date.now(),
     };
-    setWatchlistMessage(`${entry.title} marked watched through ${formatEpisodeLabel(entry.latestEpisode)}.`, 'success');
+    setWatchlistMessage(
+      `${entry.title} marked watched through ${formatEpisodeLabel(entry.latestEpisode)}.`,
+      'success'
+    );
   }
 
   saveWatchlist();
@@ -255,13 +267,15 @@ export function toggleLatestEpisodeWatched(slug: string): void {
 // ---------------------------------------------------------------------------
 
 function shouldRefreshEntry(entry: WatchlistEntry, now: number): boolean {
-  if (!entry) return false;
   if (!entry.idShow || !entry.latestEpisode) return true;
   return !entry.lastSyncedAt || now - entry.lastSyncedAt >= WATCHLIST_REFRESH_MS;
 }
 
-export async function refreshWatchlistEntries(options?: { force?: boolean; slugs?: string[] }): Promise<void> {
-  const force = !!(options?.force);
+export async function refreshWatchlistEntries(options?: {
+  force?: boolean;
+  slugs?: string[];
+}): Promise<void> {
+  const force = !!options?.force;
   const slugSet = options && Array.isArray(options.slugs) ? new Set(options.slugs) : null;
 
   if (watchlistRefreshPromise) return watchlistRefreshPromise;
@@ -278,9 +292,12 @@ export async function refreshWatchlistEntries(options?: { force?: boolean; slugs
   }
 
   watchlistBusy = true;
-  setWatchlistMessage(`Refreshing ${entries.length} watchlist ${entries.length === 1 ? 'show' : 'shows'}...`, 'muted');
+  setWatchlistMessage(
+    `Refreshing ${String(entries.length)} watchlist ${entries.length === 1 ? 'show' : 'shows'}...`,
+    'muted'
+  );
 
-  watchlistRefreshPromise = (async () => {
+  watchlistRefreshPromise = (async (): Promise<void> => {
     for (const entry of entries) {
       try {
         if (!entry.idShow) {
@@ -299,7 +316,7 @@ export async function refreshWatchlistEntries(options?: { force?: boolean; slugs
         entry.latestEpisode = latestEpisode;
         entry.lastSyncError = '';
         entry.lastSyncedAt = Date.now();
-      } catch (error) {
+      } catch (error: unknown) {
         entry.lastSyncError = error instanceof Error ? error.message : String(error);
         entry.lastSyncedAt = Date.now();
         log.warn(`Failed to refresh ${entry.slug}.`, error);
@@ -308,14 +325,16 @@ export async function refreshWatchlistEntries(options?: { force?: boolean; slugs
 
     saveWatchlist();
     setWatchlistMessage('Watchlist refreshed.', 'success');
-  })().catch((error) => {
-    log.warn('Watchlist refresh failed.', error);
-    setWatchlistMessage('Watchlist refresh failed.', 'danger');
-  }).finally(() => {
-    watchlistBusy = false;
-    emitChange();
-    watchlistRefreshPromise = null;
-  });
+  })()
+    .catch((error: unknown) => {
+      log.warn('Watchlist refresh failed.', error);
+      setWatchlistMessage('Watchlist refresh failed.', 'danger');
+    })
+    .finally(() => {
+      watchlistBusy = false;
+      emitChange();
+      watchlistRefreshPromise = null;
+    });
 
   return watchlistRefreshPromise;
 }
@@ -326,17 +345,20 @@ export async function refreshWatchlistEntries(options?: { force?: boolean; slugs
 
 async function fetchText(url: string): Promise<string> {
   const response = await fetch(url, { credentials: 'same-origin' });
-  if (!response.ok) throw new Error(`Request failed (${response.status})`);
+  if (!response.ok) throw new Error(`Request failed (${String(response.status)})`);
   return response.text();
 }
 
 async function fetchJson(url: string): Promise<unknown> {
   const response = await fetch(url, { credentials: 'same-origin' });
-  if (!response.ok) throw new Error(`Request failed (${response.status})`);
+  if (!response.ok) throw new Error(`Request failed (${String(response.status)})`);
   return response.json();
 }
 
-async function resolveShowRecordBySlug(slug: string, fallback?: Partial<ShowDetails>): Promise<ShowDetails> {
+async function resolveShowRecordBySlug(
+  slug: string,
+  fallback?: Partial<ShowDetails>
+): Promise<ShowDetails> {
   const html = await fetchText(`/shows/view/${slug}`);
   const idMatch = /id_show:\s*(\d+)/.exec(html);
   const titleMatch = /title:\s*'((?:\\'|[^'])*)'/.exec(html);
@@ -348,18 +370,18 @@ async function resolveShowRecordBySlug(slug: string, fallback?: Partial<ShowDeta
     idShow: idMatch ? toPositiveInteger(idMatch[1]) : 0,
     title: titleMatch?.[1] ? decodeInlineJsString(titleMatch[1]).trim() : (fallback?.title ?? slug),
     year: yearMatch?.[1] ? decodeInlineJsString(yearMatch[1]).trim() : (fallback?.year ?? ''),
-    poster: posterMatch?.[1] ? decodeInlineJsString(posterMatch[1]).trim() : (fallback?.poster ?? ''),
+    poster: posterMatch?.[1]
+      ? decodeInlineJsString(posterMatch[1]).trim()
+      : (fallback?.poster ?? ''),
   };
 }
 
 async function fetchLatestEpisodeByIdShow(idShow: number): Promise<EpisodeRecord | null> {
-  const payload = await fetchJson(`/api/v2/download/episode/list?id=${idShow}`) as { latest?: Partial<Record<string, unknown>> };
-  const latest = payload?.latest ? payload.latest : null;
-  const episodeRecord = normalizeEpisodeRecord({
-    season: latest?.season,
-    episode: latest?.episode,
-    idEpisode: latest?.id_episode,
-  });
+  const payload = (await fetchJson(`/api/v2/download/episode/list?id=${String(idShow)}`)) as {
+    latest?: Partial<Record<string, unknown>> | null;
+  };
+  const latest = payload.latest ?? null;
+  const episodeRecord = normalizeEpisodeRecord(latest);
 
   if (!episodeRecord) return null;
   episodeRecord.updatedAt = Date.now();
@@ -370,7 +392,7 @@ async function fetchLatestEpisodeByIdShow(idShow: number): Promise<EpisodeRecord
 // Play page tracking
 // ---------------------------------------------------------------------------
 
-export function readPlayPageEpisodeContext(): import('./types').PlayPageEpisodeContext | null {
+export function readPlayPageEpisodeContext(): PlayPageEpisodeContext | null {
   if (!location.pathname.startsWith('/shows/play/')) return null;
 
   const hashMatch = /^#S(\d+)-E(\d+)-(\d+)$/i.exec(location.hash);
@@ -392,7 +414,7 @@ export function maybeTrackWatchedEpisodeFromPlayer(): void {
   const context = readPlayPageEpisodeContext();
   if (!context) return;
 
-  const signature = `${context.idShow}:${context.idEpisode}`;
+  const signature = `${String(context.idShow)}:${String(context.idEpisode)}`;
   if (signature === lastTrackedEpisodeSignature) return;
 
   const entry = findWatchlistEntryByIdShow(context.idShow);
@@ -416,7 +438,10 @@ export function maybeTrackWatchedEpisodeFromPlayer(): void {
 
   lastTrackedEpisodeSignature = signature;
   saveWatchlist();
-  setWatchlistMessage(`${entry.title} updated to watched through ${formatEpisodeLabel(entry.lastWatched)}.`, 'success');
+  setWatchlistMessage(
+    `${entry.title} updated to watched through ${formatEpisodeLabel(entry.lastWatched)}.`,
+    'success'
+  );
 }
 
 export function resetTrackedEpisode(): void {

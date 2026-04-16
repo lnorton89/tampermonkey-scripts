@@ -1,4 +1,12 @@
-import { SCRIPT_ID, log } from './utils';
+import { log } from './utils';
+
+declare global {
+  interface Window {
+    _counterTimeout?: number;
+    enableWindowScroll?: () => void;
+    initPrePlaybackCounter?: (...args: unknown[]) => unknown;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Module state
@@ -28,11 +36,11 @@ function hidePrePlaybackAdUi(): void {
     adTimer.classList.add('tw-opacity-0');
   }
 
-  document.querySelectorAll('.pre-init-ads--close').forEach((button) => {
-    (button as HTMLElement).classList.remove('tw-hidden');
+  document.querySelectorAll<HTMLElement>('.pre-init-ads--close').forEach((button) => {
+    button.classList.remove('tw-hidden');
   });
-  document.querySelectorAll('.pre-init-ads--back-button').forEach((button) => {
-    (button as HTMLElement).classList.remove('tw-hidden');
+  document.querySelectorAll<HTMLElement>('.pre-init-ads--back-button').forEach((button) => {
+    button.classList.remove('tw-hidden');
   });
 
   if (typeof window._counterTimeout !== 'undefined') {
@@ -65,10 +73,11 @@ function bypassPrePlaybackCounter(): Promise<void> {
 export function tryInstallAdTimerBypass(enabled: boolean): boolean {
   if (!enabled) return false;
 
-  if (typeof window.initPrePlaybackCounter === 'function' && window.initPrePlaybackCounter !== bypassPrePlaybackCounter) {
-    if (!originalInitPrePlaybackCounter) {
-      originalInitPrePlaybackCounter = window.initPrePlaybackCounter;
-    }
+  if (
+    typeof window.initPrePlaybackCounter === 'function' &&
+    window.initPrePlaybackCounter !== bypassPrePlaybackCounter
+  ) {
+    originalInitPrePlaybackCounter ??= window.initPrePlaybackCounter;
     window.initPrePlaybackCounter = bypassPrePlaybackCounter;
     log.info('Installed ad timer bypass override.');
     return true;

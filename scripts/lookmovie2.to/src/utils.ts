@@ -1,9 +1,4 @@
-import type {
-  Settings,
-  EpisodeRecord,
-  EpisodeContext,
-  ParsedEpisodeCard,
-} from './types';
+import type { Settings, EpisodeRecord, EpisodeContext, ParsedEpisodeCard } from './types';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -27,9 +22,15 @@ export const DEFAULT_SETTINGS = Object.freeze({
 // ---------------------------------------------------------------------------
 
 export const log = {
-  info: (...args: unknown[]): void => { console.log(`[${SCRIPT_ID}]`, ...args); },
-  warn: (...args: unknown[]): void => { console.warn(`[${SCRIPT_ID}]`, ...args); },
-  error: (...args: unknown[]): void => { console.error(`[${SCRIPT_ID}]`, ...args); },
+  info: (...args: unknown[]): void => {
+    console.warn(`[${SCRIPT_ID}]`, ...args);
+  },
+  warn: (...args: unknown[]): void => {
+    console.warn(`[${SCRIPT_ID}]`, ...args);
+  },
+  error: (...args: unknown[]): void => {
+    console.error(`[${SCRIPT_ID}]`, ...args);
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -38,16 +39,14 @@ export const log = {
 
 export function loadSettings(): Settings {
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    const stored = localStorage.getItem(STORAGE_KEY);
+    const parsed = stored ? (JSON.parse(stored) as Partial<Settings>) : {};
     return {
       adTimerBypass:
         typeof parsed.adTimerBypass === 'boolean'
           ? parsed.adTimerBypass
           : DEFAULT_SETTINGS.adTimerBypass,
-      autoPlay:
-        typeof parsed.autoPlay === 'boolean'
-          ? parsed.autoPlay
-          : DEFAULT_SETTINGS.autoPlay,
+      autoPlay: typeof parsed.autoPlay === 'boolean' ? parsed.autoPlay : DEFAULT_SETTINGS.autoPlay,
       autoFullscreen:
         typeof parsed.autoFullscreen === 'boolean'
           ? parsed.autoFullscreen
@@ -69,7 +68,7 @@ export function toPositiveInteger(value: unknown): number {
 }
 
 export function escapeHtml(value: string): string {
-  return String(value)
+  return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -95,7 +94,11 @@ export function compareEpisodes(left: EpisodeRecord | null, right: EpisodeRecord
 
 export function sameEpisode(left: EpisodeRecord | null, right: EpisodeRecord | null): boolean {
   if (!left || !right) return false;
-  return left.idEpisode === right.idEpisode && left.season === right.season && left.episode === right.episode;
+  return (
+    left.idEpisode === right.idEpisode &&
+    left.season === right.season &&
+    left.episode === right.episode
+  );
 }
 
 export function decodeInlineJsString(value: string): string {
@@ -106,7 +109,9 @@ export function decodeInlineJsString(value: string): string {
 // Episode normalization
 // ---------------------------------------------------------------------------
 
-export function normalizeEpisodeRecord(raw: Partial<Record<string, unknown>>): EpisodeRecord | null {
+export function normalizeEpisodeRecord(
+  raw: Partial<Record<string, unknown>> | null
+): EpisodeRecord | null {
   if (!raw || typeof raw !== 'object') return null;
 
   const season = toPositiveInteger(raw.season);
@@ -168,32 +173,37 @@ export function extractYearFromSlug(slug: string): string {
 export function buildShowViewUrl(slug: string, episodeRecord: EpisodeRecord | null): string {
   if (!slug) return '/shows';
   if (!episodeRecord) return `/shows/view/${slug}`;
-  return `/shows/view/${slug}?season=${episodeRecord.season}&episode=${episodeRecord.episode}&id_episode=${episodeRecord.idEpisode}`;
+  return `/shows/view/${slug}?season=${String(episodeRecord.season)}&episode=${String(episodeRecord.episode)}&id_episode=${String(episodeRecord.idEpisode)}`;
 }
 
 // ---------------------------------------------------------------------------
 // Episode card parser
 // ---------------------------------------------------------------------------
 
-export function parseEpisodeCard(cardElement: Element): ParsedEpisodeCard | null {
+export function parseEpisodeCard(cardElement: Element | null): ParsedEpisodeCard | null {
   if (!cardElement) return null;
 
   const link = cardElement.querySelector<HTMLAnchorElement>('a[href*="/shows/view/"]');
   if (!link) return null;
 
-  const slug = extractShowSlugFromViewHref(link.getAttribute('href')!);
+  const href = link.getAttribute('href');
+  if (!href) return null;
+
+  const slug = extractShowSlugFromViewHref(href);
   if (!slug) return null;
 
   const titleNode = cardElement.querySelector('.mv-item-infor h6');
   const imageNode = cardElement.querySelector<HTMLImageElement>('img[data-src], img[src]');
-  const episodeContext = extractEpisodeContextFromHref(link.getAttribute('href')!);
+  const episodeContext = extractEpisodeContextFromHref(href);
 
   return {
     slug,
     title: titleNode ? titleNode.textContent.trim() : slug,
     year: extractYearFromSlug(slug),
-    poster: imageNode ? (imageNode.getAttribute('data-src') || imageNode.getAttribute('src') || '') : '',
-    href: new URL(link.getAttribute('href')!, location.origin).href,
+    poster: imageNode
+      ? (imageNode.getAttribute('data-src') ?? imageNode.getAttribute('src') ?? '')
+      : '',
+    href: new URL(href, location.origin).href,
     episode: episodeContext,
   };
 }

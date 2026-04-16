@@ -2,10 +2,7 @@
  * Waits for an element matching `selector` to appear in the DOM.
  * Resolves with the element or rejects after `timeout` ms.
  */
-export function waitForElement<T extends Element>(
-  selector: string,
-  timeout = 5000
-): Promise<T> {
+export function waitForElement<T extends Element>(selector: string, timeout = 5000): Promise<T> {
   return new Promise((resolve, reject) => {
     const existing = document.querySelector<T>(selector);
     if (existing) {
@@ -15,7 +12,7 @@ export function waitForElement<T extends Element>(
 
     const timer = setTimeout(() => {
       observer.disconnect();
-      reject(new Error(`waitForElement: "${selector}" not found within ${timeout}ms`));
+      reject(new Error(`waitForElement: "${selector}" not found within ${String(timeout)}ms`));
     }, timeout);
 
     const observer = new MutationObserver(() => {
@@ -49,7 +46,13 @@ export function addStyles(css: string): void {
  * Simple logger that prefixes messages so they're easy to filter in devtools.
  */
 export const log = {
-  info: (...args: unknown[]): void => { console.log('[example-site]', ...args); },
-  warn: (...args: unknown[]): void => { console.warn('[example-site]', ...args); },
-  error: (...args: unknown[]): void => { console.error('[example-site]', ...args); },
+  info: (...args: unknown[]): void => {
+    console.warn('[example-site]', ...args);
+  },
+  warn: (...args: unknown[]): void => {
+    console.warn('[example-site]', ...args);
+  },
+  error: (...args: unknown[]): void => {
+    console.error('[example-site]', ...args);
+  },
 };

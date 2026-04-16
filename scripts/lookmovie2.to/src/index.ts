@@ -1,4 +1,4 @@
-import { loadSettings, SCRIPT_ID, UI_ROOT_ID, ROUTE_POLL_MS, log } from './utils';
+import { loadSettings, UI_ROOT_ID, ROUTE_POLL_MS, log } from './utils';
 import {
   refreshWatchlistEntries,
   resetTrackedEpisode,
@@ -17,24 +17,18 @@ import {
   resetFullscreenState,
   watchVideos,
   refreshVideoAttachments,
-  removeWindowedFullscreenFallback,
   onVideoPlayCallback,
 } from './auto-play';
 import { maybeTrackWatchedEpisodeFromPlayer } from './watchlist';
-import type {
-  getSettings} from './ui';
+import type { getSettings } from './ui';
 import {
   initUI,
   ensureUi,
-  ensureUiStyle,
-  syncModalState,
   syncLauncherState,
   renderWatchlist,
   onSettingsChangeCallback,
 } from './ui';
 import {
-  isLatestShowsPage,
-  isShowViewPage,
   ensureEpisodeCardButtons,
   ensureShowViewWatchButton,
   syncEpisodeCardButtons,

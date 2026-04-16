@@ -1,13 +1,18 @@
-import type { EpisodeRecord, ShowViewData } from './types';
-import { SCRIPT_ID, parseEpisodeCard, normalizeEpisodeRecord, compareEpisodes, escapeHtml, buildShowViewUrl } from './utils';
-import {
-  getWatchlistEntry,
-  getWatchlistEntries,
-  findWatchlistEntryByIdShow,
-  isLatestWatched,
-  addShowToWatchlist,
-  removeShowFromWatchlist,
-} from './watchlist';
+import type { ShowViewData } from './types';
+import { SCRIPT_ID, parseEpisodeCard, normalizeEpisodeRecord, compareEpisodes } from './utils';
+import { getWatchlistEntry, addShowToWatchlist, removeShowFromWatchlist } from './watchlist';
+
+declare global {
+  interface Window {
+    show_storage?: {
+      slug?: string;
+      title?: string;
+      year?: string | number;
+      poster_medium?: string;
+      id_show?: number;
+    };
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Page detection
@@ -41,10 +46,14 @@ export function getCurrentShowViewData(): ShowViewData | null {
   return {
     slug,
     title: typeof window.show_storage.title === 'string' ? window.show_storage.title : slug,
-    year: typeof window.show_storage.year === 'string' || typeof window.show_storage.year === 'number'
-      ? String(window.show_storage.year)
-      : '',
-    poster: typeof window.show_storage.poster_medium === 'string' ? window.show_storage.poster_medium : '',
+    year:
+      typeof window.show_storage.year === 'string' || typeof window.show_storage.year === 'number'
+        ? String(window.show_storage.year)
+        : '',
+    poster:
+      typeof window.show_storage.poster_medium === 'string'
+        ? window.show_storage.poster_medium
+        : '',
     idShow: typeof window.show_storage.id_show === 'number' ? window.show_storage.id_show : 0,
     episode,
   };
@@ -55,7 +64,7 @@ export function getCurrentShowViewData(): ShowViewData | null {
 // ---------------------------------------------------------------------------
 
 function updateEpisodeCardButton(button: HTMLButtonElement): void {
-  const slug = button.dataset.watchlistSlug || '';
+  const slug = button.dataset.watchlistSlug ?? '';
   const entry = getWatchlistEntry(slug);
   const cardEpisode = normalizeEpisodeRecord({
     season: button.dataset.season,
@@ -71,7 +80,8 @@ function updateEpisodeCardButton(button: HTMLButtonElement): void {
     return;
   }
 
-  const hasNewEpisode = cardEpisode && (!entry.lastWatched || compareEpisodes(cardEpisode, entry.lastWatched) > 0);
+  const hasNewEpisode =
+    cardEpisode && (!entry.lastWatched || compareEpisodes(cardEpisode, entry.lastWatched) > 0);
   button.dataset.state = hasNewEpisode ? 'watching-new' : 'watching';
   button.textContent = 'Watching';
   button.title = hasNewEpisode
@@ -81,10 +91,12 @@ function updateEpisodeCardButton(button: HTMLButtonElement): void {
 }
 
 export function syncEpisodeCardButtons(): void {
-  document.querySelectorAll<HTMLButtonElement>(`.${SCRIPT_ID}-episode-watch-button`).forEach(updateEpisodeCardButton);
+  document
+    .querySelectorAll<HTMLButtonElement>(`.${SCRIPT_ID}-episode-watch-button`)
+    .forEach(updateEpisodeCardButton);
 }
 
-async function handleEpisodeButtonClick(button: HTMLButtonElement): Promise<void> {
+function handleEpisodeButtonClick(button: HTMLButtonElement): void {
   const slug = button.dataset.watchlistSlug;
   if (!slug) return;
 
@@ -97,11 +109,11 @@ async function handleEpisodeButtonClick(button: HTMLButtonElement): Promise<void
   button.textContent = 'Adding...';
   button.disabled = true;
 
-  await addShowToWatchlist({
+  void addShowToWatchlist({
     slug,
-    title: button.dataset.title || slug,
-    year: button.dataset.year || '',
-    poster: button.dataset.poster || '',
+    title: button.dataset.title ?? slug,
+    year: button.dataset.year ?? '',
+    poster: button.dataset.poster ?? '',
     episode: normalizeEpisodeRecord({
       season: button.dataset.season,
       episode: button.dataset.episode,
@@ -113,7 +125,7 @@ async function handleEpisodeButtonClick(button: HTMLButtonElement): Promise<void
 }
 
 export function ensureEpisodeCardButtons(): void {
-  if (!document.body || !isLatestShowsPage()) return;
+  if (!isLatestShowsPage()) return;
 
   document.querySelectorAll('.episode-item').forEach((cardElement) => {
     const card = parseEpisodeCard(cardElement);
@@ -126,10 +138,11 @@ export function ensureEpisodeCardButtons(): void {
       button.className = `${SCRIPT_ID}-episode-watch-button`;
       cardElement.appendChild(button);
 
-      button.addEventListener('click', async (event) => {
+      button.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
-        await handleEpisodeButtonClick(button!);
+        const target = event.currentTarget as HTMLButtonElement;
+        handleEpisodeButtonClick(target);
       });
     }
 
@@ -152,7 +165,7 @@ export function ensureEpisodeCardButtons(): void {
 // ---------------------------------------------------------------------------
 
 function updateShowViewWatchButton(button: HTMLButtonElement): void {
-  const slug = button.dataset.watchlistSlug || '';
+  const slug = button.dataset.watchlistSlug ?? '';
   const entry = getWatchlistEntry(slug);
   const pageEpisode = normalizeEpisodeRecord({
     season: button.dataset.season,
@@ -168,7 +181,8 @@ function updateShowViewWatchButton(button: HTMLButtonElement): void {
     return;
   }
 
-  const hasNewEpisode = pageEpisode && (!entry.lastWatched || compareEpisodes(pageEpisode, entry.lastWatched) > 0);
+  const hasNewEpisode =
+    pageEpisode && (!entry.lastWatched || compareEpisodes(pageEpisode, entry.lastWatched) > 0);
   button.dataset.state = hasNewEpisode ? 'watching-new' : 'watching';
   button.textContent = hasNewEpisode ? 'Watching: New Episode' : 'Watching';
   button.title = hasNewEpisode
@@ -178,10 +192,12 @@ function updateShowViewWatchButton(button: HTMLButtonElement): void {
 }
 
 export function syncShowViewWatchButton(): void {
-  document.querySelectorAll<HTMLButtonElement>(`.${SCRIPT_ID}-show-view-watch-button`).forEach(updateShowViewWatchButton);
+  document
+    .querySelectorAll<HTMLButtonElement>(`.${SCRIPT_ID}-show-view-watch-button`)
+    .forEach(updateShowViewWatchButton);
 }
 
-async function handleShowViewButtonClick(button: HTMLButtonElement): Promise<void> {
+function handleShowViewButtonClick(button: HTMLButtonElement): void {
   const slug = button.dataset.watchlistSlug;
   if (!slug) return;
 
@@ -194,11 +210,11 @@ async function handleShowViewButtonClick(button: HTMLButtonElement): Promise<voi
   button.textContent = 'Adding...';
   button.disabled = true;
 
-  await addShowToWatchlist({
+  void addShowToWatchlist({
     slug,
-    title: button.dataset.title || slug,
-    year: button.dataset.year || '',
-    poster: button.dataset.poster || '',
+    title: button.dataset.title ?? slug,
+    year: button.dataset.year ?? '',
+    poster: button.dataset.poster ?? '',
     episode: normalizeEpisodeRecord({
       season: button.dataset.season,
       episode: button.dataset.episode,
@@ -210,14 +226,15 @@ async function handleShowViewButtonClick(button: HTMLButtonElement): Promise<voi
 }
 
 export function ensureShowViewWatchButton(): void {
-  if (!document.body || !isShowViewPage()) return;
+  if (!isShowViewPage()) return;
 
   const show = getCurrentShowViewData();
   if (!show) return;
 
-  const actionHost = document.querySelector('.watch-heading')
-    || document.querySelector('.movie-single-ct.main-content')
-    || document.querySelector('.internal-page-container');
+  const actionHost =
+    document.querySelector('.watch-heading') ??
+    document.querySelector('.movie-single-ct.main-content') ??
+    document.querySelector('.internal-page-container');
   if (!actionHost) return;
 
   let wrap = document.querySelector(`.${SCRIPT_ID}-show-view-watch-wrap`);
@@ -234,8 +251,9 @@ export function ensureShowViewWatchButton(): void {
     button.className = `${SCRIPT_ID}-show-view-watch-button`;
     wrap.appendChild(button);
 
-    button.addEventListener('click', async () => {
-      await handleShowViewButtonClick(button!);
+    const newButton = button;
+    newButton.addEventListener('click', () => {
+      handleShowViewButtonClick(newButton);
     });
   }
 
@@ -334,7 +352,7 @@ const EPISODE_BUTTON_STYLES = `
 `;
 
 export function ensureEpisodeButtonStyles(): void {
-  if (!document.head || document.getElementById(EPISODE_BUTTON_STYLES_ID)) return;
+  if (document.getElementById(EPISODE_BUTTON_STYLES_ID)) return;
 
   const style = document.createElement('style');
   style.id = EPISODE_BUTTON_STYLES_ID;

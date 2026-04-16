@@ -14,7 +14,7 @@
   // Change YOUR_USERNAME and the branch if needed.
   // Point at the compiled dist file, not the source.
   const SCRIPT_URL =
-    'https://raw.githubusercontent.com/lnorton89/tampermonkey-scripts/main/scripts/lookmovie2.to/dist/lookmovie2-enhancer.user.js';
+    'https://raw.githubusercontent.com/lnorton89/tampermonkey-scripts/refs/heads/main/scripts/lookmovie2.to/dist/lookmovie2.to.user.js';
 
   GM_xmlhttpRequest({
     method: 'GET',
