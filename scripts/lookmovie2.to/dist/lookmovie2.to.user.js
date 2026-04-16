@@ -26,7 +26,7 @@
   });
   var log = {
     info: (...args) => {
-      console.log(`[${SCRIPT_ID}]`, ...args);
+      console.warn(`[${SCRIPT_ID}]`, ...args);
     },
     warn: (...args) => {
       console.warn(`[${SCRIPT_ID}]`, ...args);
@@ -37,7 +37,8 @@
   };
   function loadSettings() {
     try {
-      const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      const stored = localStorage.getItem(STORAGE_KEY);
+      const parsed = stored ? JSON.parse(stored) : {};
       return {
         adTimerBypass: typeof parsed.adTimerBypass === "boolean" ? parsed.adTimerBypass : DEFAULT_SETTINGS.adTimerBypass,
         autoPlay: typeof parsed.autoPlay === "boolean" ? parsed.autoPlay : DEFAULT_SETTINGS.autoPlay,
@@ -53,7 +54,7 @@
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
   }
   function escapeHtml(value) {
-    return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
   function formatEpisodeLabel(record) {
     if (!record) {
@@ -123,23 +124,25 @@
   function buildShowViewUrl(slug, episodeRecord) {
     if (!slug) return "/shows";
     if (!episodeRecord) return `/shows/view/${slug}`;
-    return `/shows/view/${slug}?season=${episodeRecord.season}&episode=${episodeRecord.episode}&id_episode=${episodeRecord.idEpisode}`;
+    return `/shows/view/${slug}?season=${String(episodeRecord.season)}&episode=${String(episodeRecord.episode)}&id_episode=${String(episodeRecord.idEpisode)}`;
   }
   function parseEpisodeCard(cardElement) {
     if (!cardElement) return null;
     const link = cardElement.querySelector('a[href*="/shows/view/"]');
     if (!link) return null;
-    const slug = extractShowSlugFromViewHref(link.getAttribute("href"));
+    const href = link.getAttribute("href");
+    if (!href) return null;
+    const slug = extractShowSlugFromViewHref(href);
     if (!slug) return null;
     const titleNode = cardElement.querySelector(".mv-item-infor h6");
     const imageNode = cardElement.querySelector("img[data-src], img[src]");
-    const episodeContext = extractEpisodeContextFromHref(link.getAttribute("href"));
+    const episodeContext = extractEpisodeContextFromHref(href);
     return {
       slug,
       title: titleNode ? titleNode.textContent.trim() : slug,
       year: extractYearFromSlug(slug),
-      poster: imageNode ? imageNode.getAttribute("data-src") || imageNode.getAttribute("src") || "" : "",
-      href: new URL(link.getAttribute("href"), location.origin).href,
+      poster: imageNode ? imageNode.getAttribute("data-src") ?? imageNode.getAttribute("src") ?? "" : "",
+      href: new URL(href, location.origin).href,
       episode: episodeContext
     };
   }
@@ -180,8 +183,9 @@
   }
   function loadWatchlist() {
     try {
-      const parsed = JSON.parse(localStorage.getItem(WATCHLIST_KEY) || "{}");
-      const sourceShows = parsed && typeof parsed === "object" && parsed.shows && typeof parsed.shows === "object" ? parsed.shows : {};
+      const stored = localStorage.getItem(WATCHLIST_KEY);
+      const parsed = stored ? JSON.parse(stored) : {};
+      const sourceShows = parsed.shows ?? {};
       const shows = {};
       Object.entries(sourceShows).forEach(([slug, entry]) => {
         const normalized = normalizeWatchlistEntry(slug, entry);
@@ -210,14 +214,14 @@
     return Object.values(watchlistStore.shows);
   }
   function getWatchlistEntry(slug) {
-    return slug ? watchlistStore.shows[slug] || null : null;
+    return slug ? watchlistStore.shows[slug] ?? null : null;
   }
   function findWatchlistEntryByIdShow(idShow) {
     if (!idShow) return null;
-    return getWatchlistEntries().find((entry) => entry.idShow === idShow) || null;
+    return getWatchlistEntries().find((entry) => entry.idShow === idShow) ?? null;
   }
   function isLatestWatched(entry) {
-    return !!entry && sameEpisode(entry.latestEpisode, entry.lastWatched);
+    return sameEpisode(entry.latestEpisode, entry.lastWatched);
   }
   function countUnwatchedLatestEpisodes() {
     return getWatchlistEntries().filter((entry) => entry.latestEpisode && !isLatestWatched(entry)).length;
@@ -240,25 +244,25 @@
     return watchlistBusy;
   }
   function setWatchlistMessage(message, tone) {
-    watchlistMessage = message || "";
-    watchlistMessageTone = tone || "muted";
+    watchlistMessage = message;
+    watchlistMessageTone = tone;
     emitChange();
   }
   async function addShowToWatchlist(showDetails) {
-    if (!showDetails?.slug) return;
+    if (!showDetails.slug) return;
     const existingEntry = getWatchlistEntry(showDetails.slug);
     if (existingEntry) {
       setWatchlistMessage(`${existingEntry.title} is already in your watchlist.`, "muted");
       emitChange();
       return;
     }
-    setWatchlistMessage(`Adding ${showDetails.title || showDetails.slug}...`, "muted");
+    setWatchlistMessage(`Adding ${showDetails.title ?? showDetails.slug}...`, "muted");
     let resolved = {
       slug: showDetails.slug,
       idShow: 0,
-      title: showDetails.title || showDetails.slug,
-      year: showDetails.year || "",
-      poster: showDetails.poster || ""
+      title: showDetails.title ?? showDetails.slug,
+      year: showDetails.year ?? "",
+      poster: showDetails.poster ?? ""
     };
     try {
       const fetched = await resolveShowRecordBySlug(showDetails.slug, showDetails);
@@ -272,24 +276,27 @@
     } catch (error) {
       log.warn(`Failed to resolve show metadata for ${showDetails.slug}.`, error);
     }
-    watchlistStore.shows[showDetails.slug] = normalizeWatchlistEntry(showDetails.slug, {
+    const normalized = normalizeWatchlistEntry(showDetails.slug, {
       slug: showDetails.slug,
       idShow: resolved.idShow,
-      title: resolved.title || showDetails.title || showDetails.slug,
-      year: resolved.year || showDetails.year || "",
-      poster: resolved.poster || showDetails.poster || "",
+      title: resolved.title,
+      year: resolved.year,
+      poster: resolved.poster,
       addedAt: Date.now(),
-      latestEpisode: showDetails.episode || null,
+      latestEpisode: showDetails.episode ?? null,
       lastSyncedAt: 0
     });
+    if (normalized) {
+      watchlistStore.shows[showDetails.slug] = normalized;
+    }
     saveWatchlist();
-    setWatchlistMessage(`${resolved.title || showDetails.title || showDetails.slug} added to your watchlist.`, "success");
+    setWatchlistMessage(`${resolved.title} added to your watchlist.`, "success");
     await refreshWatchlistEntries({ force: true, slugs: [showDetails.slug] });
   }
   function removeShowFromWatchlist(slug) {
     const entry = getWatchlistEntry(slug);
     if (!entry) return;
-    delete watchlistStore.shows[slug];
+    watchlistStore.shows[slug] = void 0;
     saveWatchlist();
     setWatchlistMessage(`${entry.title} removed from your watchlist.`, "muted");
   }
@@ -304,12 +311,14 @@
         ...entry.latestEpisode,
         watchedAt: Date.now()
       };
-      setWatchlistMessage(`${entry.title} marked watched through ${formatEpisodeLabel(entry.latestEpisode)}.`, "success");
+      setWatchlistMessage(
+        `${entry.title} marked watched through ${formatEpisodeLabel(entry.latestEpisode)}.`,
+        "success"
+      );
     }
     saveWatchlist();
   }
   function shouldRefreshEntry(entry, now) {
-    if (!entry) return false;
     if (!entry.idShow || !entry.latestEpisode) return true;
     return !entry.lastSyncedAt || now - entry.lastSyncedAt >= WATCHLIST_REFRESH_MS;
   }
@@ -327,7 +336,10 @@
       return Promise.resolve();
     }
     watchlistBusy = true;
-    setWatchlistMessage(`Refreshing ${entries.length} watchlist ${entries.length === 1 ? "show" : "shows"}...`, "muted");
+    setWatchlistMessage(
+      `Refreshing ${String(entries.length)} watchlist ${entries.length === 1 ? "show" : "shows"}...`,
+      "muted"
+    );
     watchlistRefreshPromise = (async () => {
       for (const entry of entries) {
         try {
@@ -365,12 +377,12 @@
   }
   async function fetchText(url) {
     const response = await fetch(url, { credentials: "same-origin" });
-    if (!response.ok) throw new Error(`Request failed (${response.status})`);
+    if (!response.ok) throw new Error(`Request failed (${String(response.status)})`);
     return response.text();
   }
   async function fetchJson(url) {
     const response = await fetch(url, { credentials: "same-origin" });
-    if (!response.ok) throw new Error(`Request failed (${response.status})`);
+    if (!response.ok) throw new Error(`Request failed (${String(response.status)})`);
     return response.json();
   }
   async function resolveShowRecordBySlug(slug, fallback) {
@@ -388,13 +400,9 @@
     };
   }
   async function fetchLatestEpisodeByIdShow(idShow) {
-    const payload = await fetchJson(`/api/v2/download/episode/list?id=${idShow}`);
-    const latest = payload?.latest ? payload.latest : null;
-    const episodeRecord = normalizeEpisodeRecord({
-      season: latest?.season,
-      episode: latest?.episode,
-      idEpisode: latest?.id_episode
-    });
+    const payload = await fetchJson(`/api/v2/download/episode/list?id=${String(idShow)}`);
+    const latest = payload.latest ?? null;
+    const episodeRecord = normalizeEpisodeRecord(latest);
     if (!episodeRecord) return null;
     episodeRecord.updatedAt = Date.now();
     return episodeRecord;
@@ -414,7 +422,7 @@
   function maybeTrackWatchedEpisodeFromPlayer() {
     const context = readPlayPageEpisodeContext();
     if (!context) return;
-    const signature = `${context.idShow}:${context.idEpisode}`;
+    const signature = `${String(context.idShow)}:${String(context.idEpisode)}`;
     if (signature === lastTrackedEpisodeSignature) return;
     const entry = findWatchlistEntryByIdShow(context.idShow);
     if (!entry) return;
@@ -434,7 +442,10 @@
     }
     lastTrackedEpisodeSignature = signature;
     saveWatchlist();
-    setWatchlistMessage(`${entry.title} updated to watched through ${formatEpisodeLabel(entry.lastWatched)}.`, "success");
+    setWatchlistMessage(
+      `${entry.title} updated to watched through ${formatEpisodeLabel(entry.lastWatched)}.`,
+      "success"
+    );
   }
   function resetTrackedEpisode() {
     lastTrackedEpisodeSignature = "";
@@ -485,9 +496,7 @@
   function tryInstallAdTimerBypass(enabled) {
     if (!enabled) return false;
     if (typeof window.initPrePlaybackCounter === "function" && window.initPrePlaybackCounter !== bypassPrePlaybackCounter) {
-      if (!originalInitPrePlaybackCounter) {
-        originalInitPrePlaybackCounter = window.initPrePlaybackCounter;
-      }
+      originalInitPrePlaybackCounter ?? (originalInitPrePlaybackCounter = window.initPrePlaybackCounter);
       window.initPrePlaybackCounter = bypassPrePlaybackCounter;
       log.info("Installed ad timer bypass override.");
       return true;
@@ -521,7 +530,6 @@
     onVideoPlay = cb;
   }
   function applyWindowedFullscreenFallback() {
-    if (!document.head) return;
     if (!document.getElementById(FULLSCREEN_STYLE_ID)) {
       const style = document.createElement("style");
       style.id = FULLSCREEN_STYLE_ID;
@@ -542,16 +550,12 @@
     `;
       document.head.appendChild(style);
     }
-    if (document.body) {
-      document.body.classList.add(`${SCRIPT_ID}-fullscreen`);
-    }
+    document.body.classList.add(`${SCRIPT_ID}-fullscreen`);
   }
   function removeWindowedFullscreenFallback() {
     const style = document.getElementById(FULLSCREEN_STYLE_ID);
     if (style) style.remove();
-    if (document.body) {
-      document.body.classList.remove(`${SCRIPT_ID}-fullscreen`);
-    }
+    document.body.classList.remove(`${SCRIPT_ID}-fullscreen`);
   }
   function triggerVideoJsFullscreen() {
     if (!autoFullscreenEnabled || fullscreenTriggered) return false;
@@ -581,13 +585,16 @@
     if (!autoPlayEnabled && !autoFullscreenEnabled) return;
     window.setTimeout(() => {
       const dismissed = dismissResumeModalIfPresent();
-      window.setTimeout(() => {
-        triggerVideoJsFullscreen();
-      }, dismissed ? 500 : 200);
+      window.setTimeout(
+        () => {
+          triggerVideoJsFullscreen();
+        },
+        dismissed ? 500 : 200
+      );
     }, 300);
   }
   function attachAutoplayLogic(videoElement) {
-    if (!videoElement || videoElement._lookmovieEnhancerAttached) return;
+    if (videoElement._lookmovieEnhancerAttached) return;
     videoElement._lookmovieEnhancerAttached = true;
     videoElement.addEventListener("play", handleVideoPlay);
   }
@@ -610,20 +617,18 @@
   }
   function watchVideos() {
     const waitForBody = window.setInterval(() => {
-      if (!document.body) return;
       window.clearInterval(waitForBody);
       findAndAttachToVideos();
       const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
           if (mutation.type !== "childList") return;
           mutation.addedNodes.forEach((node) => {
-            if (node?.nodeType !== Node.ELEMENT_NODE) return;
-            if (node.tagName === "VIDEO") {
-              attachAutoplayLogic(node);
+            if (!(node instanceof Element)) return;
+            const element = node;
+            if (element.tagName === "VIDEO") {
+              attachAutoplayLogic(element);
             }
-            if (typeof node.querySelectorAll === "function") {
-              node.querySelectorAll("video").forEach(attachAutoplayLogic);
-            }
+            element.querySelectorAll("video").forEach(attachAutoplayLogic);
           });
         });
       });
@@ -746,6 +751,9 @@
 
   #${UI_ROOT_ID}-watchlist-panel {
     min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
   }
 
   @media (min-width: 980px) {
@@ -1109,9 +1117,9 @@
   }
   function saveSettings(nextSettings) {
     settings = {
-      adTimerBypass: !!nextSettings.adTimerBypass,
-      autoPlay: !!nextSettings.autoPlay,
-      autoFullscreen: !!nextSettings.autoFullscreen
+      adTimerBypass: nextSettings.adTimerBypass,
+      autoPlay: nextSettings.autoPlay,
+      autoFullscreen: nextSettings.autoFullscreen
     };
     try {
       localStorage.setItem(`${SCRIPT_ID}:settings`, JSON.stringify(settings));
@@ -1123,11 +1131,14 @@
   }
   function syncModalState() {
     document.querySelectorAll(`#${UI_ROOT_ID} input[data-setting]`).forEach((checkbox) => {
-      checkbox.checked = !!settings[checkbox.dataset.setting];
+      const settingKey = checkbox.dataset.setting;
+      if (settingKey) {
+        checkbox.checked = settings[settingKey];
+      }
     });
   }
   function ensureUiStyle() {
-    if (!document.head || document.getElementById(UI_STYLE_ID)) return;
+    if (document.getElementById(UI_STYLE_ID)) return;
     const style = document.createElement("style");
     style.id = UI_STYLE_ID;
     style.textContent = UI_STYLES;
@@ -1155,7 +1166,7 @@
   }
   function ensureUi() {
     ensureUiStyle();
-    if (!document.body || document.getElementById(UI_ROOT_ID)) return;
+    if (document.getElementById(UI_ROOT_ID)) return;
     const root = document.createElement("div");
     root.id = UI_ROOT_ID;
     root.innerHTML = `
@@ -1227,22 +1238,25 @@
     closeButton?.addEventListener("click", closeModal);
     if (overlayEl) {
       overlayEl.addEventListener("click", (event) => {
-        if (event.target === overlayEl) closeModal();
+        if (event.target === event.currentTarget) closeModal();
       });
     }
     document.querySelectorAll(`#${UI_ROOT_ID} input[data-setting]`).forEach((checkbox) => {
       checkbox.addEventListener("change", () => {
-        saveSettings({
-          ...settings,
-          [checkbox.dataset.setting]: checkbox.checked
-        });
+        const settingKey = checkbox.dataset.setting;
+        if (settingKey) {
+          saveSettings({
+            ...settings,
+            [settingKey]: checkbox.checked
+          });
+        }
       });
     });
     root.addEventListener("click", (event) => {
-      const actionTarget = event.target.closest("[data-watchlist-action]");
+      const target = event.target;
+      const actionTarget = target.closest("[data-watchlist-action]");
       if (!actionTarget) return;
-      const action = actionTarget.dataset.watchlistAction;
-      const slug = actionTarget.dataset.slug || "";
+      const { watchlistAction: action, slug = "" } = actionTarget.dataset;
       if (action === "refresh") {
         void refreshWatchlistEntries({ force: true });
         return;
@@ -1306,7 +1320,7 @@
     if (!summary || !status || !list || !refreshButton) return;
     const entries = sortWatchlistEntries(getWatchlistEntries());
     const newCount = entries.filter((entry) => entry.latestEpisode && !isLatestWatched(entry)).length;
-    summary.textContent = entries.length ? `${entries.length} tracked ${entries.length === 1 ? "show" : "shows"}${newCount ? ` | ${newCount} with a newer latest episode` : ""}` : "Add shows from the latest episodes page to start tracking them.";
+    summary.textContent = entries.length ? `${String(entries.length)} tracked ${entries.length === 1 ? "show" : "shows"}${newCount ? ` | ${String(newCount)} with a newer latest episode` : ""}` : "Add shows from the latest episodes page to start tracking them.";
     status.dataset.tone = getWatchlistMessageTone();
     status.textContent = isWatchlistBusy() ? getWatchlistMessage() || "Refreshing watchlist..." : getWatchlistMessage() || "";
     refreshButton.disabled = isWatchlistBusy();
@@ -1362,7 +1376,7 @@
     };
   }
   function updateEpisodeCardButton(button) {
-    const slug = button.dataset.watchlistSlug || "";
+    const slug = button.dataset.watchlistSlug ?? "";
     const entry = getWatchlistEntry(slug);
     const cardEpisode = normalizeEpisodeRecord({
       season: button.dataset.season,
@@ -1385,7 +1399,7 @@
   function syncEpisodeCardButtons() {
     document.querySelectorAll(`.${SCRIPT_ID}-episode-watch-button`).forEach(updateEpisodeCardButton);
   }
-  async function handleEpisodeButtonClick(button) {
+  function handleEpisodeButtonClick(button) {
     const slug = button.dataset.watchlistSlug;
     if (!slug) return;
     if (getWatchlistEntry(slug)) {
@@ -1395,11 +1409,11 @@
     button.dataset.state = "adding";
     button.textContent = "Adding...";
     button.disabled = true;
-    await addShowToWatchlist({
+    void addShowToWatchlist({
       slug,
-      title: button.dataset.title || slug,
-      year: button.dataset.year || "",
-      poster: button.dataset.poster || "",
+      title: button.dataset.title ?? slug,
+      year: button.dataset.year ?? "",
+      poster: button.dataset.poster ?? "",
       episode: normalizeEpisodeRecord({
         season: button.dataset.season,
         episode: button.dataset.episode,
@@ -1409,7 +1423,7 @@
     updateEpisodeCardButton(button);
   }
   function ensureEpisodeCardButtons() {
-    if (!document.body || !isLatestShowsPage()) return;
+    if (!isLatestShowsPage()) return;
     document.querySelectorAll(".episode-item").forEach((cardElement) => {
       const card = parseEpisodeCard(cardElement);
       if (!card) return;
@@ -1419,10 +1433,11 @@
         button.type = "button";
         button.className = `${SCRIPT_ID}-episode-watch-button`;
         cardElement.appendChild(button);
-        button.addEventListener("click", async (event) => {
+        button.addEventListener("click", (event) => {
           event.preventDefault();
           event.stopPropagation();
-          await handleEpisodeButtonClick(button);
+          const target = event.currentTarget;
+          handleEpisodeButtonClick(target);
         });
       }
       button.dataset.watchlistSlug = card.slug;
@@ -1438,7 +1453,7 @@
     });
   }
   function updateShowViewWatchButton(button) {
-    const slug = button.dataset.watchlistSlug || "";
+    const slug = button.dataset.watchlistSlug ?? "";
     const entry = getWatchlistEntry(slug);
     const pageEpisode = normalizeEpisodeRecord({
       season: button.dataset.season,
@@ -1461,7 +1476,7 @@
   function syncShowViewWatchButton() {
     document.querySelectorAll(`.${SCRIPT_ID}-show-view-watch-button`).forEach(updateShowViewWatchButton);
   }
-  async function handleShowViewButtonClick(button) {
+  function handleShowViewButtonClick(button) {
     const slug = button.dataset.watchlistSlug;
     if (!slug) return;
     if (getWatchlistEntry(slug)) {
@@ -1471,11 +1486,11 @@
     button.dataset.state = "adding";
     button.textContent = "Adding...";
     button.disabled = true;
-    await addShowToWatchlist({
+    void addShowToWatchlist({
       slug,
-      title: button.dataset.title || slug,
-      year: button.dataset.year || "",
-      poster: button.dataset.poster || "",
+      title: button.dataset.title ?? slug,
+      year: button.dataset.year ?? "",
+      poster: button.dataset.poster ?? "",
       episode: normalizeEpisodeRecord({
         season: button.dataset.season,
         episode: button.dataset.episode,
@@ -1485,10 +1500,10 @@
     updateShowViewWatchButton(button);
   }
   function ensureShowViewWatchButton() {
-    if (!document.body || !isShowViewPage()) return;
+    if (!isShowViewPage()) return;
     const show = getCurrentShowViewData();
     if (!show) return;
-    const actionHost = document.querySelector(".watch-heading") || document.querySelector(".movie-single-ct.main-content") || document.querySelector(".internal-page-container");
+    const actionHost = document.querySelector(".watch-heading") ?? document.querySelector(".movie-single-ct.main-content") ?? document.querySelector(".internal-page-container");
     if (!actionHost) return;
     let wrap = document.querySelector(`.${SCRIPT_ID}-show-view-watch-wrap`);
     if (!wrap) {
@@ -1502,8 +1517,9 @@
       button.type = "button";
       button.className = `${SCRIPT_ID}-show-view-watch-button`;
       wrap.appendChild(button);
-      button.addEventListener("click", async () => {
-        await handleShowViewButtonClick(button);
+      const newButton = button;
+      newButton.addEventListener("click", () => {
+        handleShowViewButtonClick(newButton);
       });
     }
     button.dataset.watchlistSlug = show.slug;
@@ -1594,7 +1610,7 @@
   }
 `;
   function ensureEpisodeButtonStyles() {
-    if (!document.head || document.getElementById(EPISODE_BUTTON_STYLES_ID)) return;
+    if (document.getElementById(EPISODE_BUTTON_STYLES_ID)) return;
     const style = document.createElement("style");
     style.id = EPISODE_BUTTON_STYLES_ID;
     style.textContent = EPISODE_BUTTON_STYLES;

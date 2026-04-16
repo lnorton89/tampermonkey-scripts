@@ -24,7 +24,7 @@
       }
       const timer = setTimeout(() => {
         observer.disconnect();
-        reject(new Error(`waitForElement: "${selector}" not found within ${timeout}ms`));
+        reject(new Error(`waitForElement: "${selector}" not found within ${String(timeout)}ms`));
       }, timeout);
       const observer = new MutationObserver(() => {
         const el = document.querySelector(selector);
@@ -48,7 +48,7 @@
   }
   var log = {
     info: (...args) => {
-      console.log("[example-site]", ...args);
+      console.warn("[example-site]", ...args);
     },
     warn: (...args) => {
       console.warn("[example-site]", ...args);
