@@ -306,11 +306,14 @@ const UI_STYLES = `
   }
 
   .${SCRIPT_ID}-watch-item[data-state="new"] {
-    box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.6), 0 4px 12px rgba(249, 115, 22, 0.15);
+    outline: 2px solid rgba(249, 115, 22, 0.7);
+    outline-offset: -2px;
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2);
   }
 
   .${SCRIPT_ID}-watch-item[data-state="new"]:hover {
-    box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.8), 0 20px 40px rgba(249, 115, 22, 0.25);
+    outline-color: rgba(249, 115, 22, 0.9);
+    box-shadow: 0 20px 40px rgba(249, 115, 22, 0.3);
   }
 
   .${SCRIPT_ID}-watch-item-poster {
@@ -340,11 +343,12 @@ const UI_STYLES = `
     inset: 0;
     background: linear-gradient(
       to top,
-      rgba(0, 0, 0, 0.9) 0%,
-      rgba(0, 0, 0, 0.5) 30%,
-      transparent 60%
+      rgba(0, 0, 0, 0.95) 0%,
+      rgba(0, 0, 0, 0.6) 35%,
+      transparent 65%
     );
     pointer-events: none;
+    z-index: 1;
   }
 
   .${SCRIPT_ID}-watch-item-progress {
@@ -440,7 +444,8 @@ const UI_STYLES = `
     bottom: 0;
     left: 0;
     right: 0;
-    padding: 12px 10px 10px;
+    padding: 40px 10px 10px;
+    z-index: 2;
   }
 
   .${SCRIPT_ID}-watch-item-title {
