@@ -920,24 +920,24 @@
 
   .${SCRIPT_ID}-watch-item {
     position: relative;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    border-radius: 12px;
-    background: rgba(15, 23, 42, 0.85);
+    border-radius: 10px;
     overflow: hidden;
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    background: #0f172a;
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.22s ease;
+    cursor: pointer;
   }
 
   .${SCRIPT_ID}-watch-item:hover {
-    transform: translateY(-3px) scale(1.02);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+    transform: translateY(-4px) scale(1.03);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
   }
 
   .${SCRIPT_ID}-watch-item[data-state="new"] {
-    border-color: rgba(249, 115, 22, 0.55);
+    box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.6), 0 4px 12px rgba(249, 115, 22, 0.15);
   }
 
   .${SCRIPT_ID}-watch-item[data-state="new"]:hover {
-    box-shadow: 0 12px 32px rgba(249, 115, 22, 0.2);
+    box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.8), 0 20px 40px rgba(249, 115, 22, 0.25);
   }
 
   .${SCRIPT_ID}-watch-item-poster {
@@ -945,7 +945,7 @@
     width: 100%;
     aspect-ratio: 2 / 3;
     overflow: hidden;
-    background: linear-gradient(135deg, rgba(30, 41, 59, 0.5), rgba(15, 23, 42, 0.8));
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
   }
 
   .${SCRIPT_ID}-watch-item-poster img {
@@ -954,11 +954,112 @@
     object-fit: cover;
     object-position: center top;
     display: block;
-    transition: transform 0.25s ease;
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), filter 0.25s ease;
   }
 
   .${SCRIPT_ID}-watch-item:hover .${SCRIPT_ID}-watch-item-poster img {
-    transform: scale(1.06);
+    transform: scale(1.08);
+    filter: brightness(1.05);
+  }
+
+  .${SCRIPT_ID}-watch-item-gradient {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.9) 0%,
+      rgba(0, 0, 0, 0.5) 30%,
+      transparent 60%
+    );
+    pointer-events: none;
+  }
+
+  .${SCRIPT_ID}-watch-item-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  .${SCRIPT_ID}-watch-item-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #22c55e, #4ade80);
+    transition: width 0.3s ease;
+  }
+
+  .${SCRIPT_ID}-watch-item-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    backdrop-filter: blur(8px);
+  }
+
+  .${SCRIPT_ID}-watch-item-badge[data-state="new"] {
+    background: rgba(249, 115, 22, 0.95);
+    color: #fff;
+  }
+
+  .${SCRIPT_ID}-watch-item-badge[data-state="watched"] {
+    background: rgba(34, 197, 94, 0.9);
+    color: #fff;
+  }
+
+  .${SCRIPT_ID}-watch-item-badge[data-state="pending"] {
+    background: rgba(100, 116, 139, 0.85);
+    color: #e2e8f0;
+  }
+
+  .${SCRIPT_ID}-watch-item-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 6px;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .${SCRIPT_ID}-watch-item:hover .${SCRIPT_ID}-watch-item-actions {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .${SCRIPT_ID}-watch-action-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(12px);
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+
+  .${SCRIPT_ID}-watch-action-btn:hover {
+    background: rgba(37, 99, 235, 0.9);
+    transform: scale(1.1);
+  }
+
+  .${SCRIPT_ID}-watch-action-btn:active {
+    transform: scale(0.95);
+  }
+
+  .${SCRIPT_ID}-watch-action-btn[data-action="remove"]:hover {
+    background: rgba(220, 38, 38, 0.9);
   }
 
   .${SCRIPT_ID}-watch-item-info {
@@ -966,84 +1067,31 @@
     bottom: 0;
     left: 0;
     right: 0;
-    padding: 6px 8px;
-    background: rgba(0, 0, 0, 0.85);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 6px;
+    padding: 12px 10px 10px;
   }
 
   .${SCRIPT_ID}-watch-item-title {
-    color: #f8fafc;
-    font-size: 11px;
-    font-weight: 700;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
     text-decoration: none;
-    line-height: 1.2;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 4px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  }
+
+  .${SCRIPT_ID}-watch-item-meta {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 11px;
+    line-height: 1.4;
     display: -webkit-box;
     -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .${SCRIPT_ID}-watch-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    padding: 3px 6px;
-    border-radius: 4px;
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .${SCRIPT_ID}-watch-badge[data-state="new"] {
-    background: rgba(249, 115, 22, 0.9);
-    color: #fff;
-  }
-
-  .${SCRIPT_ID}-watch-badge[data-state="watched"] {
-    background: rgba(34, 197, 94, 0.9);
-    color: #fff;
-  }
-
-  .${SCRIPT_ID}-watch-badge[data-state="pending"] {
-    background: rgba(148, 163, 184, 0.4);
-    color: #e2e8f0;
-  }
-
-  .${SCRIPT_ID}-watch-item-actions {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    display: flex;
-    gap: 4px;
-    opacity: 0;
-    transition: opacity 0.18s ease;
-  }
-
-  .${SCRIPT_ID}-watch-open-btn {
-    width: 26px;
-    height: 26px;
-    border: none;
-    border-radius: 5px;
-    background: rgba(0, 0, 0, 0.75);
-    color: #fff;
-    font-size: 12px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(4px);
-    transition: background 0.15s ease;
-  }
-
-  .${SCRIPT_ID}-watch-open-btn:hover {
-    background: rgba(37, 99, 235, 0.9);
   }
 
   .${SCRIPT_ID}-button,
@@ -1420,25 +1468,41 @@
     const state = entry.latestEpisode ? isLatestWatched(entry) ? "watched" : "new" : "pending";
     const statusLabel = state === "new" ? "New" : state === "watched" ? "Current" : "Pending";
     const openHref = buildShowViewUrl(entry.slug, entry.latestEpisode);
-    const toggleLabel = isLatestWatched(entry) ? "\u2713" : "\u2299";
     const posterUrl = entry.poster || "";
-    const posterHtml = posterUrl ? `<img src="${escapeHtml(posterUrl)}" alt="${escapeHtml(entry.title)}" loading="lazy">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:48px;">\u{1F4FA}</div>`;
+    const yearDisplay = entry.year ? escapeHtml(entry.year) : "";
+    const metaText = entry.latestEpisode ? `Latest: S${String(entry.latestEpisode.season).padStart(2, "0")}E${String(entry.latestEpisode.episode).padStart(2, "0")}` : "Not synced";
+    const posterHtml = posterUrl ? `<img src="${escapeHtml(posterUrl)}" alt="${escapeHtml(entry.title)}" loading="lazy">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#475569;font-size:32px;">\u{1F4FA}</div>`;
+    const progressPercent = calculateProgress(entry);
     return `
     <article class="${SCRIPT_ID}-watch-item" data-state="${state}">
       <div class="${SCRIPT_ID}-watch-item-poster">
         ${posterHtml}
-        <div class="${SCRIPT_ID}-watch-item-info">
-          <a class="${SCRIPT_ID}-watch-item-title" href="${escapeHtml(openHref)}">${escapeHtml(entry.title)}</a>
-          <span class="${SCRIPT_ID}-watch-badge" data-state="${state}">${escapeHtml(statusLabel)}</span>
-        </div>
+        <div class="${SCRIPT_ID}-watch-item-gradient"></div>
+        <span class="${SCRIPT_ID}-watch-item-badge" data-state="${state}">${escapeHtml(statusLabel)}</span>
         <div class="${SCRIPT_ID}-watch-item-actions">
-          <a class="${SCRIPT_ID}-watch-open-btn" href="${escapeHtml(openHref)}" title="Open">\u25B6</a>
-          <button class="${SCRIPT_ID}-watch-open-btn" type="button" data-watchlist-action="toggle-latest-watched" data-slug="${escapeHtml(entry.slug)}" title="${isLatestWatched(entry) ? "Mark unwatched" : "Mark watched"}">${toggleLabel}</button>
-          <button class="${SCRIPT_ID}-watch-open-btn" type="button" data-watchlist-action="remove" data-slug="${escapeHtml(entry.slug)}" title="Remove" style="font-size:11px;">\u2715</button>
+          <button class="${SCRIPT_ID}-watch-action-btn" type="button" data-watchlist-action="toggle-latest-watched" data-slug="${escapeHtml(entry.slug)}" title="${isLatestWatched(entry) ? "Mark unwatched" : "Mark watched"}">${isLatestWatched(entry) ? "\u2713" : "\u2299"}</button>
+          <button class="${SCRIPT_ID}-watch-action-btn" type="button" data-action="remove" data-watchlist-action="remove" data-slug="${escapeHtml(entry.slug)}" title="Remove">\u2715</button>
+        </div>
+        ${progressPercent !== null ? `
+        <div class="${SCRIPT_ID}-watch-item-progress">
+          <div class="${SCRIPT_ID}-watch-item-progress-fill" style="width: ${String(progressPercent)}%"></div>
+        </div>
+        ` : ""}
+        <div class="${SCRIPT_ID}-watch-item-info">
+          <a class="${SCRIPT_ID}-watch-item-title" href="${escapeHtml(openHref)}">${escapeHtml(entry.title)}${yearDisplay ? ` <span style="opacity:0.6">(${yearDisplay})</span>` : ""}</a>
+          <span class="${SCRIPT_ID}-watch-item-meta">${escapeHtml(metaText)}</span>
         </div>
       </div>
     </article>
   `;
+  }
+  function calculateProgress(entry) {
+    if (!entry.latestEpisode || !entry.lastWatched) return null;
+    if (entry.lastWatched.season !== entry.latestEpisode.season) return null;
+    const totalEpisodes = entry.latestEpisode.episode;
+    if (totalEpisodes === 0) return null;
+    const watched = Math.min(entry.lastWatched.episode, totalEpisodes);
+    return Math.round(watched / totalEpisodes * 100);
   }
   function renderWatchlist() {
     const summary = document.getElementById(`${UI_ROOT_ID}-watchlist-summary`);
@@ -1801,7 +1865,7 @@
   var buildInfo = {
     name: "lookmovie2.to",
     version: "1.2.0",
-    built: "2026-04-16T06:35:27.541Z"
+    built: "2026-04-16T06:43:57.477Z"
   };
   function init() {
     log.info(
