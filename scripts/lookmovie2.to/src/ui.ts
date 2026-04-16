@@ -300,28 +300,25 @@ const UI_STYLES = `
   }
 
   .${SCRIPT_ID}-watch-item {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
+    position: relative;
     border: 1px solid rgba(148, 163, 184, 0.16);
     border-radius: 12px;
     background: rgba(15, 23, 42, 0.85);
     overflow: hidden;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
   }
 
   .${SCRIPT_ID}-watch-item:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
   }
 
   .${SCRIPT_ID}-watch-item[data-state="new"] {
     border-color: rgba(249, 115, 22, 0.55);
-    box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.18);
   }
 
   .${SCRIPT_ID}-watch-item[data-state="new"]:hover {
-    box-shadow: 0 8px 24px rgba(249, 115, 22, 0.15);
+    box-shadow: 0 12px 32px rgba(249, 115, 22, 0.2);
   }
 
   .${SCRIPT_ID}-watch-item-poster {
@@ -336,39 +333,28 @@ const UI_STYLES = `
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: center top;
     display: block;
+    transition: transform 0.25s ease;
   }
 
-  .${SCRIPT_ID}-watch-item-poster-overlay {
+  .${SCRIPT_ID}-watch-item:hover .${SCRIPT_ID}-watch-item-poster img {
+    transform: scale(1.05);
+  }
+
+  .${SCRIPT_ID}-watch-item-info {
     position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 8px 10px;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.85), transparent);
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-  }
-
-  .${SCRIPT_ID}-watch-item-body {
-    padding: 10px;
+    inset: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    flex: 1;
-  }
-
-  .${SCRIPT_ID}-watch-item-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 8px;
+    justify-content: flex-end;
+    padding: 10px;
+    background: linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.6) 50%, transparent 100%);
   }
 
   .${SCRIPT_ID}-watch-item-title {
     color: #f8fafc;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
     text-decoration: none;
     line-height: 1.3;
@@ -376,46 +362,79 @@ const UI_STYLES = `
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    margin-bottom: 4px;
   }
 
   .${SCRIPT_ID}-watch-item-copy {
-    margin: 3px 0 0;
     color: #94a3b8;
-    font-size: 11px;
+    font-size: 10px;
     line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 8px;
   }
 
   .${SCRIPT_ID}-watch-badge {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 5px 8px;
-    border-radius: 999px;
-    font-size: 11px;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.02em;
     white-space: nowrap;
   }
 
   .${SCRIPT_ID}-watch-badge[data-state="new"] {
-    background: rgba(249, 115, 22, 0.18);
-    color: #fdba74;
+    background: rgba(249, 115, 22, 0.9);
+    color: #fff;
   }
 
   .${SCRIPT_ID}-watch-badge[data-state="watched"] {
-    background: rgba(34, 197, 94, 0.18);
-    color: #86efac;
+    background: rgba(34, 197, 94, 0.9);
+    color: #fff;
   }
 
   .${SCRIPT_ID}-watch-badge[data-state="pending"] {
-    background: rgba(148, 163, 184, 0.18);
-    color: #cbd5e1;
+    background: rgba(148, 163, 184, 0.4);
+    color: #e2e8f0;
   }
 
-  .${SCRIPT_ID}-watch-actions {
+  .${SCRIPT_ID}-watch-item-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
     display: flex;
-    flex-wrap: wrap;
     gap: 6px;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+  }
+
+  .${SCRIPT_ID}-watch-item:hover .${SCRIPT_ID}-watch-item-actions {
+    opacity: 1;
+  }
+
+  .${SCRIPT_ID}-watch-open-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    transition: background 0.15s ease;
+  }
+
+  .${SCRIPT_ID}-watch-open-btn:hover {
+    background: rgba(37, 99, 235, 0.9);
   }
 
   .${SCRIPT_ID}-button,
@@ -712,16 +731,14 @@ function buildWatchlistItemMarkup(entry: WatchlistEntry): string {
   const state = entry.latestEpisode ? (isLatestWatched(entry) ? 'watched' : 'new') : 'pending';
   const latestCopy = entry.latestEpisode
     ? `Latest ${formatEpisodeLabel(entry.latestEpisode)}`
-    : 'Latest episode not synced yet';
+    : 'Not synced';
   const watchedCopy = entry.lastWatched
-    ? `Watched through ${formatEpisodeLabel(entry.lastWatched)}`
-    : 'Nothing marked watched yet';
-  const errorCopy = entry.lastSyncError ? `Sync issue: ${entry.lastSyncError}` : '';
-  const statusLabel =
-    state === 'new' ? 'New episode' : state === 'watched' ? 'Up to date' : 'Pending sync';
+    ? `Watched: ${formatEpisodeLabel(entry.lastWatched)}`
+    : 'Nothing watched';
+  const errorCopy = entry.lastSyncError ? `Error: ${entry.lastSyncError}` : '';
+  const statusLabel = state === 'new' ? 'New' : state === 'watched' ? 'Current' : 'Pending';
   const openHref = buildShowViewUrl(entry.slug, entry.latestEpisode);
-  const toggleLabel = isLatestWatched(entry) ? 'Unwatch latest' : 'Mark latest watched';
-  const toggleDisabled = entry.latestEpisode ? '' : 'disabled';
+  const toggleLabel = isLatestWatched(entry) ? '✓' : '⊙';
   const yearCopy = entry.year ? ` (${escapeHtml(entry.year)})` : '';
   const posterUrl = entry.poster || '';
   const summaryPieces = [latestCopy, watchedCopy];
@@ -736,19 +753,15 @@ function buildWatchlistItemMarkup(entry: WatchlistEntry): string {
     <article class="${SCRIPT_ID}-watch-item" data-state="${state}">
       <div class="${SCRIPT_ID}-watch-item-poster">
         ${posterHtml}
-        <div class="${SCRIPT_ID}-watch-item-poster-overlay">
-          <a class="${SCRIPT_ID}-link-button" href="${escapeHtml(openHref)}" style="font-size:11px;padding:6px 10px;">Open</a>
-          <span class="${SCRIPT_ID}-watch-badge" data-state="${state}">${escapeHtml(statusLabel)}</span>
-        </div>
-      </div>
-      <div class="${SCRIPT_ID}-watch-item-body">
-        <div>
+        <div class="${SCRIPT_ID}-watch-item-info">
           <a class="${SCRIPT_ID}-watch-item-title" href="${escapeHtml(openHref)}">${escapeHtml(entry.title)}${yearCopy}</a>
           <p class="${SCRIPT_ID}-watch-item-copy">${escapeHtml(summaryPieces.join(' • '))}</p>
+          <span class="${SCRIPT_ID}-watch-badge" data-state="${state}">${escapeHtml(statusLabel)}</span>
         </div>
-        <div class="${SCRIPT_ID}-watch-actions">
-          <button class="${SCRIPT_ID}-button" type="button" data-watchlist-action="toggle-latest-watched" data-slug="${escapeHtml(entry.slug)}" ${toggleDisabled}>${escapeHtml(toggleLabel)}</button>
-          <button class="${SCRIPT_ID}-button ${SCRIPT_ID}-danger-button" type="button" data-watchlist-action="remove" data-slug="${escapeHtml(entry.slug)}">Remove</button>
+        <div class="${SCRIPT_ID}-watch-item-actions">
+          <a class="${SCRIPT_ID}-watch-open-btn" href="${escapeHtml(openHref)}" title="Open">▶</a>
+          <button class="${SCRIPT_ID}-watch-open-btn" type="button" data-watchlist-action="toggle-latest-watched" data-slug="${escapeHtml(entry.slug)}" title="${isLatestWatched(entry) ? 'Mark unwatched' : 'Mark watched'}">${toggleLabel}</button>
+          <button class="${SCRIPT_ID}-watch-open-btn" type="button" data-watchlist-action="remove" data-slug="${escapeHtml(entry.slug)}" title="Remove" style="font-size:12px;">✕</button>
         </div>
       </div>
     </article>
