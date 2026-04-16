@@ -1673,11 +1673,11 @@
   var buildInfo = {
     name: "lookmovie2.to",
     version: "1.2.0",
-    built: "2026-04-16T06:10:11.708Z",
-    commit: "6a76d0f",
+    built: "2026-04-16T06:12:18.012Z",
+    commit: "e0504f6",
     branch: "main",
     author: "Lawrence Norton",
-    message: "chore: include updated dist file",
+    message: "refactor: consolidate build info into single styled console line",
     dirty: true
   };
   function init() {
