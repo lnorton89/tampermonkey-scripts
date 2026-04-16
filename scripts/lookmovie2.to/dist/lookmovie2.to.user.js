@@ -25,8 +25,12 @@
     autoFullscreen: true
   });
   var log = {
-    info: (...args) => {
-      console.warn(`[${SCRIPT_ID}]`, ...args);
+    info: (message, ...styles) => {
+      if (styles.length > 0) {
+        console.info(`%c[${SCRIPT_ID}]%c${message}`, "", ...styles);
+      } else {
+        console.info(`[${SCRIPT_ID}] ${message}`);
+      }
     },
     warn: (...args) => {
       console.warn(`[${SCRIPT_ID}]`, ...args);
@@ -1673,13 +1677,12 @@
   var buildInfo = {
     name: "lookmovie2.to",
     version: "1.2.0",
-    built: "2026-04-16T06:18:01.161Z"
+    built: "2026-04-16T06:21:20.282Z"
   };
   function init() {
     log.info(
-      `%c${buildInfo.name} v${buildInfo.version}%c loaded @ ${buildInfo.built}`,
-      "font-weight: bold; color: #22c55e;",
-      "color: #64748b;"
+      `${buildInfo.name} v${buildInfo.version} loaded @ ${buildInfo.built}`,
+      "font-weight: bold; color: #22c55e;"
     );
     onVideoPlayCallback(() => {
       maybeTrackWatchedEpisodeFromPlayer();

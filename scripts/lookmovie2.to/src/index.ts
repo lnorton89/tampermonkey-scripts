@@ -136,9 +136,8 @@ const buildInfo = {
 
 function init(): void {
   log.info(
-    `%c${buildInfo.name} v${buildInfo.version}%c loaded @ ${buildInfo.built}`,
-    'font-weight: bold; color: #22c55e;',
-    'color: #64748b;'
+    `${buildInfo.name} v${buildInfo.version} loaded @ ${buildInfo.built}`,
+    'font-weight: bold; color: #22c55e;'
   );
 
   // Wire up video play -> watchlist tracking

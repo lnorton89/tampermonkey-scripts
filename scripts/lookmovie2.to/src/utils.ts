@@ -22,8 +22,12 @@ export const DEFAULT_SETTINGS = Object.freeze({
 // ---------------------------------------------------------------------------
 
 export const log = {
-  info: (...args: unknown[]): void => {
-    console.warn(`[${SCRIPT_ID}]`, ...args);
+  info: (message: string, ...styles: unknown[]): void => {
+    if (styles.length > 0) {
+      console.info(`%c[${SCRIPT_ID}]%c${message}`, '', ...styles);
+    } else {
+      console.info(`[${SCRIPT_ID}] ${message}`);
+    }
   },
   warn: (...args: unknown[]): void => {
     console.warn(`[${SCRIPT_ID}]`, ...args);
