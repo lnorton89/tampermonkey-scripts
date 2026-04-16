@@ -1673,25 +1673,21 @@
   var buildInfo = {
     name: "lookmovie2.to",
     version: "1.2.0",
-    built: "2026-04-16T06:07:10.264Z",
-    commit: "7ddf3ed",
+    built: "2026-04-16T06:10:11.708Z",
+    commit: "6a76d0f",
     branch: "main",
     author: "Lawrence Norton",
-    message: "feat: inject git commit metadata into builds for runtime logging",
+    message: "chore: include updated dist file",
     dirty: true
   };
   function init() {
     const dirtyFlag = buildInfo.dirty ? " (dirty)" : "";
     log.info(
-      `%c${buildInfo.name} v${buildInfo.version} loaded%c${dirtyFlag}`,
+      `%c${buildInfo.name} v${buildInfo.version}${dirtyFlag} %c(${buildInfo.branch} @ ${buildInfo.commit})%c ${buildInfo.message}`,
       "font-weight: bold; color: #22c55e;",
-      "color: #f59e0b;"
+      "color: #94a3b8; font-style: italic;",
+      "color: #64748b;"
     );
-    log.info(
-      `Branch: ${buildInfo.branch} | Commit: ${buildInfo.commit} | Author: ${buildInfo.author}`
-    );
-    log.info(`Commit: ${buildInfo.message}`);
-    log.info(`Built: ${buildInfo.built}`);
     onVideoPlayCallback(() => {
       maybeTrackWatchedEpisodeFromPlayer();
     });

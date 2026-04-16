@@ -147,15 +147,11 @@ const buildInfo = {
 function init(): void {
   const dirtyFlag = buildInfo.dirty ? ' (dirty)' : '';
   log.info(
-    `%c${buildInfo.name} v${buildInfo.version} loaded%c${dirtyFlag}`,
+    `%c${buildInfo.name} v${buildInfo.version}${dirtyFlag} %c(${buildInfo.branch} @ ${buildInfo.commit})%c ${buildInfo.message}`,
     'font-weight: bold; color: #22c55e;',
-    'color: #f59e0b;'
+    'color: #94a3b8; font-style: italic;',
+    'color: #64748b;'
   );
-  log.info(
-    `Branch: ${buildInfo.branch} | Commit: ${buildInfo.commit} | Author: ${buildInfo.author}`
-  );
-  log.info(`Commit: ${buildInfo.message}`);
-  log.info(`Built: ${buildInfo.built}`);
 
   // Wire up video play -> watchlist tracking
   onVideoPlayCallback(() => {
