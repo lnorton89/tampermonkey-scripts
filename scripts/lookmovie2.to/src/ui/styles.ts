@@ -297,6 +297,9 @@ export function getUiStyleText() {
         #${UI_ROOT_ID}-watchlist-list {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
+            grid-auto-rows: max-content;
+            align-items: start;
+            align-content: start;
             gap: 14px;
             flex: 1;
             min-height: 0;
@@ -322,6 +325,7 @@ export function getUiStyleText() {
             display: flex;
             flex-direction: column;
             gap: 0;
+            min-width: 0;
             border: 1px solid rgba(148, 163, 184, 0.16);
             border-radius: 12px;
             background: rgba(15, 23, 42, 0.85);
@@ -382,11 +386,12 @@ export function getUiStyleText() {
         }
 
         .${SCRIPT_ID}-watch-item-body {
-            padding: 10px;
+            padding: 11px 10px 10px;
             display: flex;
             flex-direction: column;
             gap: 8px;
             flex: 1;
+            min-height: 112px;
         }
 
         .${SCRIPT_ID}-watch-item-title {
@@ -406,6 +411,10 @@ export function getUiStyleText() {
             color: #94a3b8;
             font-size: 11px;
             line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
 
         .${SCRIPT_ID}-watch-badge {
@@ -439,6 +448,7 @@ export function getUiStyleText() {
             display: flex;
             flex-wrap: wrap;
             gap: 6px;
+            margin-top: auto;
         }
 
         .${SCRIPT_ID}-button,
