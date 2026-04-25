@@ -7,11 +7,21 @@ on:
       - 'scripts/**/src/**'
       - 'build.js'
       - 'package.json'
+      - 'package-lock.json'
       - 'tsconfig.json'
+      - '.github/workflows/build.yml'
   pull_request:
     branches: [main]
     paths:
       - 'scripts/**/src/**'
+      - 'build.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - '.github/workflows/build.yml'
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -52,5 +62,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add scripts/*/dist/*.user.js
           # Only commit if there are actual changes to dist
-          git diff --staged --quiet || git commit -m "build: compile userscripts [skip ci]"
-          git push
+          if ! git diff --staged --quiet; then
+            git commit -m "build: compile userscripts [skip ci]"
+            git push
+          fi
