@@ -647,7 +647,6 @@ function maybeTrackWatchedEpisodeFromPlayer() {
 function hidePrePlaybackAdUi() {
   const playerPreInitAds = document.querySelector('.player-pre-init-ads');
   if (playerPreInitAds) {
-    playerPreInitAds.classList.add('tw-hidden');
     playerPreInitAds.classList.add('finished');
   }
 
