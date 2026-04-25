@@ -17,7 +17,7 @@ export function getUiStyleText() {
             display: inline-flex;
             align-items: center;
             flex: 0 0 auto;
-            margin: 0 8px;
+            margin-left: 12px;
             position: relative;
             z-index: 20;
         }
@@ -48,10 +48,10 @@ export function getUiStyleText() {
             justify-content: center;
             gap: 0;
             min-height: 31px;
-            min-width: 94px;
+            min-width: 96px;
             border: 2px solid transparent;
             border-radius: 999px;
-            padding: 6px 16px;
+            padding: 6px 15px;
             color: #ffffff;
             background:
                 linear-gradient(#13283c, #13283c) padding-box,
@@ -67,8 +67,11 @@ export function getUiStyleText() {
                 border-box;
             background-size: 100% 100%, 200% 100%;
             box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-            font: 700 12px/1 Arial, sans-serif;
-            letter-spacing: 0.02em;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1;
+            letter-spacing: 0;
             text-transform: uppercase;
             white-space: nowrap;
             cursor: pointer;
@@ -177,6 +180,37 @@ export function getUiStyleText() {
             font-family: Arial, sans-serif;
             display: flex;
             flex-direction: column;
+            scrollbar-color: rgba(125, 211, 252, 0.58) rgba(15, 23, 42, 0.72);
+            scrollbar-width: thin;
+        }
+
+        #${UI_ROOT_ID}-modal * {
+            scrollbar-color: rgba(125, 211, 252, 0.58) rgba(15, 23, 42, 0.72);
+            scrollbar-width: thin;
+        }
+
+        #${UI_ROOT_ID}-modal *::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        #${UI_ROOT_ID}-modal *::-webkit-scrollbar-track {
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.72);
+        }
+
+        #${UI_ROOT_ID}-modal *::-webkit-scrollbar-thumb {
+            border: 2px solid rgba(15, 23, 42, 0.72);
+            border-radius: 999px;
+            background:
+                linear-gradient(180deg, rgba(216, 180, 254, 0.82), rgba(125, 211, 252, 0.82), rgba(187, 247, 208, 0.82));
+            background-clip: padding-box;
+        }
+
+        #${UI_ROOT_ID}-modal *::-webkit-scrollbar-thumb:hover {
+            background:
+                linear-gradient(180deg, rgba(244, 194, 194, 0.95), rgba(125, 211, 252, 0.95), rgba(253, 230, 138, 0.95));
+            background-clip: padding-box;
         }
 
         #${UI_ROOT_ID}-header {

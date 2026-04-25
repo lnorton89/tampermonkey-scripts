@@ -31,49 +31,13 @@ function findVisibleControl(pattern) {
   });
 }
 
-function getCommonAncestor(leftElement, rightElement) {
-  const leftAncestors = new Set();
-  let current = leftElement;
-
-  while (current) {
-    leftAncestors.add(current);
-    current = current.parentElement;
-  }
-
-  current = rightElement;
-  while (current) {
-    if (leftAncestors.has(current)) {
-      return current;
-    }
-
-    current = current.parentElement;
-  }
-
-  return null;
-}
-
 function findTopBarHostTarget() {
   const signupControl = findVisibleControl(/\bsign\s*up\b|\bsignup\b|\bregister\b/i);
-  const loginControl = findVisibleControl(/\blog\s*in\b|\blogin\b|\bsign\s*in\b/i);
 
   if (signupControl) {
-    const authGroup = loginControl ? getCommonAncestor(loginControl, signupControl) : null;
-
-    if (
-      authGroup &&
-      authGroup.parentElement &&
-      authGroup !== document.body &&
-      authGroup.getBoundingClientRect().width <= 360
-    ) {
-      return {
-        parent: authGroup.parentElement,
-        before: authGroup,
-      };
-    }
-
     return {
       parent: signupControl.parentElement,
-      before: signupControl,
+      before: signupControl.nextSibling,
     };
   }
 
