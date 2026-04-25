@@ -1,9 +1,9 @@
 /* eslint-disable */
 // @ts-nocheck
-import { SCRIPT_ID } from './constants';
-import { normalizeEpisodeRecord, compareEpisodes } from './episodes';
-import { escapeHtml, toPositiveInteger } from './utils';
-import { addShowToWatchlist, getWatchlistEntry, removeShowFromWatchlist } from './watchlist';
+import { SCRIPT_ID } from '../../config/constants';
+import { normalizeEpisodeRecord, compareEpisodes } from '../../domain/episodes';
+import { escapeHtml, toPositiveInteger } from '../../core/utils';
+import { addShowToWatchlist, getWatchlistEntry, removeShowFromWatchlist } from '../watchlist';
 
 export function extractShowSlugFromViewHref(href) {
   try {

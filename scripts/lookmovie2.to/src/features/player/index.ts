@@ -1,8 +1,8 @@
 /* eslint-disable */
 // @ts-nocheck
-import { FULLSCREEN_STYLE_ID, SCRIPT_ID } from './constants';
-import { appState } from './state';
-import { maybeTrackWatchedEpisodeFromPlayer } from './watchlist';
+import { FULLSCREEN_STYLE_ID, SCRIPT_ID } from '../../config/constants';
+import { appState } from '../../core/state';
+import { maybeTrackWatchedEpisodeFromPlayer } from '../watchlist';
 
 export function dismissResumeModalIfPresent() {
   if (!appState.settings.autoPlay) {

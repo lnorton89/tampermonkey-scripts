@@ -2,6 +2,9 @@
   "name": "tampermonkey-scripts",
   "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "scripts/lookmovie2.to"
+  ],
   "type": "module",
   "repository": {
     "type": "git",
@@ -10,10 +13,10 @@
   "scripts": {
     "build": "node build.js",
     "build:watch": "node build.js --watch",
-    "lint": "eslint scripts/**/src/**/*.ts",
-    "lint:fix": "eslint scripts/**/src/**/*.ts --fix",
-    "format": "prettier --write scripts/**/src/**/*.ts",
-    "format:check": "prettier --check scripts/**/src/**/*.ts",
+    "lint": "eslint \"scripts/**/src/**/*.{ts,tsx}\"",
+    "lint:fix": "eslint \"scripts/**/src/**/*.{ts,tsx}\" --fix",
+    "format": "prettier --write \"scripts/**/src/**/*.{ts,tsx}\"",
+    "format:check": "prettier --check \"scripts/**/src/**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
     "prepare": "husky"
   },
@@ -31,7 +34,7 @@
     "typescript": "^5.8.0"
   },
   "lint-staged": {
-    "scripts/**/src/**/*.ts": [
+    "scripts/**/src/**/*.{ts,tsx}": [
       "eslint --fix",
       "prettier --write"
     ]

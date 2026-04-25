@@ -3,6 +3,7 @@
     "target": "ES2020",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "jsx": "react-jsx",
     "lib": ["ES2020", "DOM"],
     "strict": true,
     "noUncheckedIndexedAccess": true,
@@ -13,6 +14,6 @@
     "outDir": ".tsc-out",
     "rootDir": "."
   },
-  "include": ["scripts/**/src/**/*.ts", "build.js"],
+  "include": ["scripts/**/src/**/*.ts", "scripts/**/src/**/*.tsx", "build.js"],
   "exclude": ["node_modules"]
 }

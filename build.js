@@ -5,11 +5,15 @@ import * as esbuild from 'esbuild';
 import { glob } from 'glob';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 const isWatch = process.argv.includes('--watch');
 const isDebug = process.argv.includes('--debug');
+const scriptFilterIndex = process.argv.indexOf('--script');
+const scriptFilter = scriptFilterIndex >= 0 ? process.argv[scriptFilterIndex + 1] : '';
+const repoRoot = path.dirname(fileURLToPath(import.meta.url));
 
-const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
 
 // Default feature flags (can be overridden per-script via .build-flags.json)
 const DEFAULT_FLAGS = {
@@ -180,14 +184,17 @@ async function buildScript(entryPoint) {
 }
 
 async function main() {
-  const entries = await glob('scripts/*/src/index.ts');
+  const pattern = scriptFilter
+    ? `scripts/${scriptFilter}/src/index.ts`
+    : 'scripts/*/src/index.ts';
+  const entries = await glob(pattern, { cwd: repoRoot });
 
   if (entries.length === 0) {
     console.warn('No scripts found. Expected scripts/*/src/index.ts');
     process.exit(0);
   }
 
-  await Promise.all(entries.map(buildScript));
+  await Promise.all(entries.map((entry) => buildScript(path.join(repoRoot, entry))));
 
   if (!isWatch) {
     console.log(`\nBuilt ${entries.length} script(s).`);

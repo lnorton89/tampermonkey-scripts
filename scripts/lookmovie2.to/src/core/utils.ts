@@ -1,6 +1,6 @@
 /* eslint-disable */
 // @ts-nocheck
-import { SCRIPT_ID } from './constants';
+import { SCRIPT_ID } from '../config/constants';
 
 export function toPositiveInteger(value) {
   const parsed = Number.parseInt(String(value), 10);

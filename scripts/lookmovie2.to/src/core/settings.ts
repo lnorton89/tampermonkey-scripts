@@ -2,8 +2,8 @@
 // @ts-nocheck
 import { appState } from './state';
 import { persistSettings } from './storage';
-import { syncModalState } from './ui';
-import { removeWindowedFullscreenFallback } from './player';
+import { syncModalState } from '../ui';
+import { removeWindowedFullscreenFallback } from '../features/player';
 
 export function saveSettings(nextSettings) {
   appState.settings = {

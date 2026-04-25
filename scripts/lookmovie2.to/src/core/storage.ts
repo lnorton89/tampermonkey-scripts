@@ -1,7 +1,7 @@
 /* eslint-disable */
 // @ts-nocheck
-import { DEFAULT_SETTINGS, SCRIPT_ID, STORAGE_KEY, WATCHLIST_KEY } from './constants';
-import { normalizeEpisodeRecord } from './episodes';
+import { DEFAULT_SETTINGS, SCRIPT_ID, STORAGE_KEY, WATCHLIST_KEY } from '../config/constants';
+import { normalizeEpisodeRecord } from '../domain/episodes';
 import { toPositiveInteger } from './utils';
 
 export function loadSettings() {

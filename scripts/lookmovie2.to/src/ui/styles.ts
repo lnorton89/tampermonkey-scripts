@@ -1,29 +1,9 @@
 /* eslint-disable */
 // @ts-nocheck
-import { SCRIPT_ID, UI_ROOT_ID, UI_STYLE_ID } from './constants';
-import { appState } from './state';
-import { formatEpisodeLabel } from './episodes';
-import { escapeHtml } from './utils';
-import { saveSettings } from './settings';
-import { buildShowViewUrl } from './pages';
-import {
-  countUnwatchedLatestEpisodes,
-  getWatchlistEntries,
-  isLatestWatched,
-  refreshWatchlistEntries,
-  removeShowFromWatchlist,
-  sortWatchlistEntries,
-  toggleLatestEpisodeWatched,
-} from './watchlist';
+import { SCRIPT_ID, UI_ROOT_ID } from '../config/constants';
 
-export function ensureUiStyle() {
-  if (!document.head || document.getElementById(UI_STYLE_ID)) {
-    return;
-  }
-
-  const style = document.createElement('style');
-  style.id = UI_STYLE_ID;
-  style.textContent = `
+export function getUiStyleText() {
+  return `
         #${UI_ROOT_ID}-button {
             position: fixed;
             right: 20px;
@@ -156,10 +136,6 @@ export function ensureUiStyle() {
                 border-right: 1px solid rgba(148, 163, 184, 0.12);
                 padding-bottom: 0;
                 padding-right: 20px;
-            }
-
-            #${UI_ROOT_ID}-watchlist-panel {
-                padding-left: 0;
             }
         }
 
@@ -344,6 +320,17 @@ export function ensureUiStyle() {
             display: block;
         }
 
+        .${SCRIPT_ID}-watch-item-poster-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-size: 40px;
+            font-weight: 700;
+        }
+
         .${SCRIPT_ID}-watch-item-poster-overlay {
             position: absolute;
             bottom: 0;
@@ -362,13 +349,6 @@ export function ensureUiStyle() {
             flex-direction: column;
             gap: 8px;
             flex: 1;
-        }
-
-        .${SCRIPT_ID}-watch-item-head {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 8px;
         }
 
         .${SCRIPT_ID}-watch-item-title {
@@ -434,6 +414,11 @@ export function ensureUiStyle() {
             cursor: pointer;
             text-decoration: none;
             white-space: nowrap;
+        }
+
+        .${SCRIPT_ID}-open-link {
+            font-size: 11px;
+            padding: 6px 10px;
         }
 
         .${SCRIPT_ID}-button:hover,
@@ -572,255 +557,4 @@ export function ensureUiStyle() {
             }
         }
     `;
-
-  document.head.appendChild(style);
-}
-
-export function settingMarkup(settingKey, title, copy) {
-  return `
-        <label class="${SCRIPT_ID}-setting">
-            <div>
-                <p class="${SCRIPT_ID}-setting-title">${title}</p>
-                <p class="${SCRIPT_ID}-setting-copy">${copy}</p>
-            </div>
-            <span class="${SCRIPT_ID}-switch">
-                <input type="checkbox" data-setting="${settingKey}">
-                <span class="${SCRIPT_ID}-slider"></span>
-            </span>
-        </label>
-    `;
-}
-
-export function ensureUi() {
-  ensureUiStyle();
-
-  if (!document.body || document.getElementById(UI_ROOT_ID)) {
-    return;
-  }
-
-  const root = document.createElement('div');
-  root.id = UI_ROOT_ID;
-  root.innerHTML = `
-        <button id="${UI_ROOT_ID}-button" type="button" aria-haspopup="dialog" aria-expanded="false">
-            <span id="${UI_ROOT_ID}-button-label">LM Tools</span>
-            <span id="${UI_ROOT_ID}-button-badge" hidden>0</span>
-        </button>
-        <div id="${UI_ROOT_ID}-overlay" aria-hidden="true">
-            <div id="${UI_ROOT_ID}-modal" role="dialog" aria-modal="true" aria-labelledby="${UI_ROOT_ID}-title">
-                <div id="${UI_ROOT_ID}-header">
-                    <div>
-                        <h2 id="${UI_ROOT_ID}-title">LookMovie2 Enhancer</h2>
-                        <p id="${UI_ROOT_ID}-subtitle">Playback helpers plus a personal show watchlist with latest episode tracking.</p>
-                    </div>
-                    <button id="${UI_ROOT_ID}-close" type="button" aria-label="Close settings">&times;</button>
-                </div>
-                <div id="${UI_ROOT_ID}-content">
-                    <section id="${UI_ROOT_ID}-settings-panel">
-                        <h3 id="${UI_ROOT_ID}-settings-title">Playback Tools</h3>
-                        <div id="${UI_ROOT_ID}-settings">
-                            ${settingMarkup('autoPlay', 'Auto play', 'Clicks the resume or start button when the playback modal appears.')}
-                            ${settingMarkup('autoFullscreen', 'Auto fullscreen', 'Clicks fullscreen and applies the fullscreen fallback after playback starts.')}
-                        </div>
-                        <div id="${UI_ROOT_ID}-footer">Settings and watchlist data are saved locally in your browser.</div>
-                    </section>
-                    <section id="${UI_ROOT_ID}-watchlist-panel">
-                        <div id="${UI_ROOT_ID}-watchlist-toolbar">
-                            <div>
-                                <h3 id="${UI_ROOT_ID}-watchlist-title">Watchlist</h3>
-                                <div id="${UI_ROOT_ID}-watchlist-summary"></div>
-                            </div>
-                            <button id="${UI_ROOT_ID}-watchlist-refresh" class="${SCRIPT_ID}-button" type="button" data-watchlist-action="refresh">Refresh</button>
-                        </div>
-                        <div id="${UI_ROOT_ID}-watchlist-status" data-tone="muted"></div>
-                        <div id="${UI_ROOT_ID}-watchlist-list"></div>
-                    </section>
-                </div>
-            </div>
-        </div>
-    `;
-
-  document.body.appendChild(root);
-
-  const toggleButton = document.getElementById(`${UI_ROOT_ID}-button`);
-  const overlay = document.getElementById(`${UI_ROOT_ID}-overlay`);
-  const closeButton = document.getElementById(`${UI_ROOT_ID}-close`);
-
-  function openModal() {
-    overlay.classList.add(`${SCRIPT_ID}-open`);
-    overlay.setAttribute('aria-hidden', 'false');
-    toggleButton.setAttribute('aria-expanded', 'true');
-    refreshWatchlistEntries();
-  }
-
-  function closeModal() {
-    overlay.classList.remove(`${SCRIPT_ID}-open`);
-    overlay.setAttribute('aria-hidden', 'true');
-    toggleButton.setAttribute('aria-expanded', 'false');
-  }
-
-  toggleButton.addEventListener('click', () => {
-    if (overlay.classList.contains(`${SCRIPT_ID}-open`)) {
-      closeModal();
-    } else {
-      openModal();
-    }
-  });
-
-  closeButton.addEventListener('click', closeModal);
-  overlay.addEventListener('click', (event) => {
-    if (event.target === overlay) {
-      closeModal();
-    }
-  });
-
-  document.querySelectorAll(`#${UI_ROOT_ID} input[data-setting]`).forEach((checkbox) => {
-    checkbox.addEventListener('change', () => {
-      saveSettings({
-        ...appState.settings,
-        [checkbox.dataset.setting]: checkbox.checked,
-      });
-    });
-  });
-
-  root.addEventListener('click', (event) => {
-    const actionTarget = event.target.closest('[data-watchlist-action]');
-    if (!actionTarget) {
-      return;
-    }
-
-    const action = actionTarget.dataset.watchlistAction;
-    const slug = actionTarget.dataset.slug || '';
-
-    if (action === 'refresh') {
-      refreshWatchlistEntries({ force: true });
-      return;
-    }
-
-    if (action === 'toggle-latest-watched' && slug) {
-      toggleLatestEpisodeWatched(slug);
-      return;
-    }
-
-    if (action === 'remove' && slug) {
-      removeShowFromWatchlist(slug);
-    }
-  });
-
-  window.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      closeModal();
-    }
-  });
-
-  syncModalState();
-  renderWatchlist();
-  syncLauncherState();
-}
-
-export function syncLauncherState() {
-  const button = document.getElementById(`${UI_ROOT_ID}-button`);
-  const badge = document.getElementById(`${UI_ROOT_ID}-button-badge`);
-  const label = document.getElementById(`${UI_ROOT_ID}-button-label`);
-  if (!button || !badge || !label) {
-    return;
-  }
-
-  const newCount = countUnwatchedLatestEpisodes();
-  label.textContent = 'LM Tools';
-
-  if (newCount > 0) {
-    badge.hidden = false;
-    badge.textContent = String(newCount);
-    button.dataset.hasNew = 'true';
-  } else {
-    badge.hidden = true;
-    badge.textContent = '0';
-    button.dataset.hasNew = 'false';
-  }
-}
-
-export function buildWatchlistItemMarkup(entry) {
-  const state = entry.latestEpisode ? (isLatestWatched(entry) ? 'watched' : 'new') : 'pending';
-  const latestCopy = entry.latestEpisode
-    ? `Latest ${formatEpisodeLabel(entry.latestEpisode)}`
-    : 'Latest episode not synced yet';
-  const watchedCopy = entry.lastWatched
-    ? `Watched through ${formatEpisodeLabel(entry.lastWatched)}`
-    : 'Nothing marked watched yet';
-  const errorCopy = entry.lastSyncError ? `Sync issue: ${entry.lastSyncError}` : '';
-  const statusLabel =
-    state === 'new' ? 'New episode' : state === 'watched' ? 'Up to date' : 'Pending sync';
-  const openHref = buildShowViewUrl(entry.slug, entry.latestEpisode);
-  const toggleLabel = isLatestWatched(entry) ? 'Unwatch latest' : 'Mark latest watched';
-  const toggleDisabled = entry.latestEpisode ? '' : 'disabled';
-  const yearCopy = entry.year ? ` (${escapeHtml(entry.year)})` : '';
-  const posterUrl = entry.poster || '';
-  const summaryPieces = [latestCopy, watchedCopy];
-
-  if (errorCopy) {
-    summaryPieces.push(errorCopy);
-  }
-
-  const posterHtml = posterUrl
-    ? `<img src="${escapeHtml(posterUrl)}" alt="${escapeHtml(entry.title)}" loading="lazy">`
-    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:48px;">📺</div>`;
-
-  return `
-        <article class="${SCRIPT_ID}-watch-item" data-state="${state}">
-            <div class="${SCRIPT_ID}-watch-item-poster">
-                ${posterHtml}
-                <div class="${SCRIPT_ID}-watch-item-poster-overlay">
-                    <a class="${SCRIPT_ID}-link-button" href="${escapeHtml(openHref)}" style="font-size:11px;padding:6px 10px;">Open</a>
-                    <span class="${SCRIPT_ID}-watch-badge" data-state="${state}">${escapeHtml(statusLabel)}</span>
-                </div>
-            </div>
-            <div class="${SCRIPT_ID}-watch-item-body">
-                <div>
-                    <a class="${SCRIPT_ID}-watch-item-title" href="${escapeHtml(openHref)}">${escapeHtml(entry.title)}${yearCopy}</a>
-                    <p class="${SCRIPT_ID}-watch-item-copy">${escapeHtml(summaryPieces.join(' • '))}</p>
-                </div>
-                <div class="${SCRIPT_ID}-watch-actions">
-                    <button class="${SCRIPT_ID}-button" type="button" data-watchlist-action="toggle-latest-watched" data-slug="${escapeHtml(entry.slug)}" ${toggleDisabled}>${escapeHtml(toggleLabel)}</button>
-                    <button class="${SCRIPT_ID}-button ${SCRIPT_ID}-danger-button" type="button" data-watchlist-action="remove" data-slug="${escapeHtml(entry.slug)}">Remove</button>
-                </div>
-            </div>
-        </article>
-    `;
-}
-
-export function renderWatchlist() {
-  const summary = document.getElementById(`${UI_ROOT_ID}-watchlist-summary`);
-  const status = document.getElementById(`${UI_ROOT_ID}-watchlist-status`);
-  const list = document.getElementById(`${UI_ROOT_ID}-watchlist-list`);
-  const refreshButton = document.getElementById(`${UI_ROOT_ID}-watchlist-refresh`);
-
-  if (!summary || !status || !list || !refreshButton) {
-    return;
-  }
-
-  const entries = sortWatchlistEntries(getWatchlistEntries());
-  const newCount = entries.filter((entry) => entry.latestEpisode && !isLatestWatched(entry)).length;
-  summary.textContent = entries.length
-    ? `${entries.length} tracked ${entries.length === 1 ? 'show' : 'shows'}${newCount ? ` | ${newCount} with a newer latest episode` : ''}`
-    : 'Add shows from the latest episodes page to start tracking them.';
-
-  status.dataset.tone = appState.watchlistMessageTone;
-  status.textContent = appState.watchlistBusy
-    ? appState.watchlistMessage || 'Refreshing watchlist...'
-    : appState.watchlistMessage || '';
-
-  refreshButton.disabled = appState.watchlistBusy;
-
-  if (!entries.length) {
-    list.innerHTML = `<div class="${SCRIPT_ID}-watch-empty">On the <code>/shows</code> page, use the overlay button on any episode card to add that show to your personal watchlist.</div>`;
-    return;
-  }
-
-  list.innerHTML = entries.map(buildWatchlistItemMarkup).join('');
-}
-
-export function syncModalState() {
-  document.querySelectorAll(`#${UI_ROOT_ID} input[data-setting]`).forEach((checkbox) => {
-    checkbox.checked = !!appState.settings[checkbox.dataset.setting];
-  });
 }

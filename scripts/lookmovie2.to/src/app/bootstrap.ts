@@ -1,16 +1,20 @@
 /* eslint-disable */
 // @ts-nocheck
-import { ROUTE_POLL_MS, UI_ROOT_ID } from './constants';
-import { appState } from './state';
-import { findAndAttachToVideos, removeWindowedFullscreenFallback, watchVideos } from './player';
+import { ROUTE_POLL_MS, UI_ROOT_ID } from '../config/constants';
+import { appState } from '../core/state';
+import {
+  findAndAttachToVideos,
+  removeWindowedFullscreenFallback,
+  watchVideos,
+} from '../features/player';
 import {
   ensureEpisodeCardButtons,
   ensureShowViewWatchButton,
   syncEpisodeCardButtons,
   syncShowViewWatchButton,
-} from './pages';
-import { refreshWatchlistEntries } from './watchlist';
-import { ensureUi, renderWatchlist, syncLauncherState } from './ui';
+} from '../features/pages';
+import { refreshWatchlistEntries } from '../features/watchlist';
+import { ensureUi, renderWatchlist, syncLauncherState } from '../ui';
 
 export function watchNavigation() {
   window.setInterval(() => {

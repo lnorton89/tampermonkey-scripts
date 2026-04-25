@@ -1,17 +1,17 @@
 /* eslint-disable */
 // @ts-nocheck
-import { SCRIPT_ID, WATCHLIST_REFRESH_MS } from './constants';
-import { appState } from './state';
+import { SCRIPT_ID, WATCHLIST_REFRESH_MS } from '../../config/constants';
+import { appState } from '../../core/state';
 import {
   normalizeEpisodeRecord,
   formatEpisodeLabel,
   compareEpisodes,
   sameEpisode,
-} from './episodes';
-import { persistWatchlist } from './storage';
-import { decodeInlineJsString, fetchJson, fetchText, toPositiveInteger } from './utils';
-import { buildShowViewUrl, syncEpisodeCardButtons, syncShowViewWatchButton } from './pages';
-import { renderWatchlist, syncLauncherState } from './ui';
+} from '../../domain/episodes';
+import { normalizeWatchlistEntry, persistWatchlist } from '../../core/storage';
+import { decodeInlineJsString, fetchJson, fetchText, toPositiveInteger } from '../../core/utils';
+import { buildShowViewUrl, syncEpisodeCardButtons, syncShowViewWatchButton } from '../pages';
+import { renderWatchlist, syncLauncherState } from '../../ui';
 
 export function isLatestWatched(entry) {
   return !!entry && sameEpisode(entry.latestEpisode, entry.lastWatched);
@@ -61,6 +61,20 @@ export function shouldRefreshEntry(entry, now) {
   }
 
   return !entry.lastSyncedAt || now - entry.lastSyncedAt >= WATCHLIST_REFRESH_MS;
+}
+
+export function saveWatchlist() {
+  persistWatchlist(appState.watchlistStore);
+  renderWatchlist();
+  syncLauncherState();
+  syncEpisodeCardButtons();
+  syncShowViewWatchButton();
+}
+
+export function setWatchlistMessage(message, tone) {
+  appState.watchlistMessage = message || '';
+  appState.watchlistMessageTone = tone || 'muted';
+  renderWatchlist();
 }
 
 export async function fetchText(url) {
