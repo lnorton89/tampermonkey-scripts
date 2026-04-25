@@ -10,7 +10,7 @@
 // ==UserScript== */
 
 
-"use strict";(()=>{var o="lookmovie2-enhancer",tt=`${o}:settings`,et=`${o}:watchlist`,K=`${o}-style`,_=`${o}-fullscreen-style`,i=`${o}-root`,ft=1800*1e3,wt=1e3,k=Object.freeze({adTimerBypass:!0,autoPlay:!0,autoFullscreen:!0}),c=gt(),E=bt(),A=null,G=null,X=!1,Q=0,C=!1,Z=location.href,x=null,W=!1,F="",at="muted",M="";function gt(){try{let t=JSON.parse(localStorage.getItem(tt)||"{}");return{adTimerBypass:typeof t.adTimerBypass=="boolean"?t.adTimerBypass:k.adTimerBypass,autoPlay:typeof t.autoPlay=="boolean"?t.autoPlay:k.autoPlay,autoFullscreen:typeof t.autoFullscreen=="boolean"?t.autoFullscreen:k.autoFullscreen}}catch(t){return console.warn(`[${o}] Failed to load saved settings.`,t),{...k}}}function mt(t){c={adTimerBypass:!!t.adTimerBypass,autoPlay:!!t.autoPlay,autoFullscreen:!!t.autoFullscreen};try{localStorage.setItem(tt,JSON.stringify(c))}catch(e){console.warn(`[${o}] Failed to save settings.`,e)}pt(),c.adTimerBypass?(O(),j()):typeof A=="function"&&(window.initPrePlaybackCounter=A),c.autoFullscreen||(nt(),C=!1)}function f(t){if(!t||typeof t!="object")return null;let e=l(t.season),a=l(t.episode),s=l(t.idEpisode||t.id_episode);return!e||!a||!s?null:{season:e,episode:a,idEpisode:s,watchedAt:typeof t.watchedAt=="number"?t.watchedAt:void 0,updatedAt:typeof t.updatedAt=="number"?t.updatedAt:void 0}}function ot(t,e){if(!e||typeof e!="object")return null;let a=typeof t=="string"&&t.trim()?t.trim():"";return a?{slug:a,idShow:l(e.idShow||e.id_show),title:typeof e.title=="string"&&e.title.trim()?e.title.trim():a,year:typeof e.year=="string"||typeof e.year=="number"?String(e.year).trim():"",poster:typeof e.poster=="string"?e.poster:"",addedAt:typeof e.addedAt=="number"?e.addedAt:Date.now(),lastSyncedAt:typeof e.lastSyncedAt=="number"?e.lastSyncedAt:0,lastSyncError:typeof e.lastSyncError=="string"?e.lastSyncError:"",latestEpisode:f(e.latestEpisode),lastWatched:f(e.lastWatched)}:null}function bt(){try{let t=JSON.parse(localStorage.getItem(et)||"{}"),e=t&&typeof t=="object"&&t.shows&&typeof t.shows=="object"?t.shows:{},a={};return Object.entries(e).forEach(([s,n])=>{let r=ot(s,n);r&&(a[s]=r)}),{shows:a}}catch(t){return console.warn(`[${o}] Failed to load watchlist.`,t),{shows:{}}}}function yt(){try{localStorage.setItem(et,JSON.stringify(E))}catch(t){console.warn(`[${o}] Failed to save watchlist.`,t)}}function S(){yt(),g(),H(),y(),V()}function h(t,e){F=t||"",at=e||"muted",g()}function l(t){let e=Number.parseInt(String(t),10);return Number.isFinite(e)&&e>0?e:0}function u(t){return String(t).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#39;")}function L(t){return t?`S${String(t.season).padStart(2,"0")}E${String(t.episode).padStart(2,"0")}`:"Unknown episode"}function R(t,e){return!t&&!e?0:t?e?t.season!==e.season?t.season-e.season:t.episode!==e.episode?t.episode-e.episode:t.idEpisode-e.idEpisode:1:-1}function $t(t,e){return!t||!e?!1:t.idEpisode===e.idEpisode&&t.season===e.season&&t.episode===e.episode}function w(t){return!!t&&$t(t.latestEpisode,t.lastWatched)}function P(){return Object.values(E.shows)}function m(t){return t&&E.shows[t]||null}function xt(t){return t&&P().find(e=>e.idShow===t)||null}function vt(){return P().filter(t=>t.latestEpisode&&!w(t)).length}function Et(t){return[...t].sort((e,a)=>{let s=e.latestEpisode?w(e)?1:0:2,n=a.latestEpisode?w(a)?1:0:2;return s!==n?s-n:e.title.localeCompare(a.title)})}function St(t){try{let a=new URL(t,location.origin).pathname.match(/\/shows\/view\/([^/?#]+)/i);return a?a[1]:""}catch{return""}}function kt(t){try{let e=new URL(t,location.origin),a=l(e.searchParams.get("season")),s=l(e.searchParams.get("episode")),n=l(e.searchParams.get("id_episode"));return!a||!s||!n?null:{season:a,episode:s,idEpisode:n}}catch{return null}}function At(t){let e=typeof t=="string"?t.match(/-(\d{4})$/):null;return e?e[1]:""}function Ct(t){if(!t)return null;let e=t.querySelector('a[href*="/shows/view/"]');if(!e)return null;let a=St(e.getAttribute("href"));if(!a)return null;let s=t.querySelector(".mv-item-infor h6"),n=t.querySelector("img[data-src], img[src]"),r=kt(e.getAttribute("href"));return{slug:a,title:s?s.textContent.trim():a,year:At(a),poster:n&&(n.getAttribute("data-src")||n.getAttribute("src"))||"",href:new URL(e.getAttribute("href"),location.origin).href,episode:r}}function Wt(t,e){return t?e?`/shows/view/${t}?season=${e.season}&episode=${e.episode}&id_episode=${e.idEpisode}`:`/shows/view/${t}`:"/shows"}function Lt(t,e){return t?!t.idShow||!t.latestEpisode?!0:!t.lastSyncedAt||e-t.lastSyncedAt>=ft:!1}async function Pt(t){let e=await fetch(t,{credentials:"same-origin"});if(!e.ok)throw new Error(`Request failed (${e.status})`);return e.text()}async function Tt(t){let e=await fetch(t,{credentials:"same-origin"});if(!e.ok)throw new Error(`Request failed (${e.status})`);return e.json()}function T(t){return t.replaceAll("\\'","'").replaceAll("\\\\","\\")}async function st(t,e){let a=await Pt(`/shows/view/${t}`),s=a.match(/id_show:\s*(\d+)/),n=a.match(/title:\s*'((?:\\'|[^'])*)'/),r=a.match(/year:\s*'((?:\\'|[^'])*)'/),d=a.match(/poster_medium:\s*'((?:\\'|[^'])*)'/);return{slug:t,idShow:s?l(s[1]):0,title:n?T(n[1]).trim():e&&e.title?e.title:t,year:r?T(r[1]).trim():e&&e.year?e.year:"",poster:d?T(d[1]).trim():e&&e.poster?e.poster:""}}async function It(t){let e=await Tt(`/api/v2/download/episode/list?id=${t}`),a=e&&e.latest?e.latest:null,s=f({season:a&&a.season,episode:a&&a.episode,idEpisode:a&&a.id_episode});return s?(s.updatedAt=Date.now(),s):null}async function it(t){if(!t||!t.slug)return;let e=m(t.slug);if(e){h(`${e.title} is already in your watchlist.`,"muted"),y();return}h(`Adding ${t.title||t.slug}...`,"muted");let a={slug:t.slug,idShow:0,title:t.title||t.slug,year:t.year||"",poster:t.poster||""};try{a=await st(t.slug,t)}catch(s){console.warn(`[${o}] Failed to resolve show metadata for ${t.slug}.`,s)}E.shows[t.slug]=ot(t.slug,{slug:t.slug,idShow:a.idShow,title:a.title||t.title||t.slug,year:a.year||t.year||"",poster:a.poster||t.poster||"",addedAt:Date.now(),latestEpisode:t.episode||null,lastSyncedAt:0}),S(),h(`${a.title||t.title||t.slug} added to your watchlist.`,"success"),await v({force:!0,slugs:[t.slug]})}function U(t){let e=m(t);e&&(delete E.shows[t],S(),h(`${e.title} removed from your watchlist.`,"muted"))}function Bt(t){let e=m(t);!e||!e.latestEpisode||(w(e)?(e.lastWatched=null,h(`${e.title} marked as having an unwatched latest episode.`,"muted")):(e.lastWatched={...e.latestEpisode,watchedAt:Date.now()},h(`${e.title} marked watched through ${L(e.latestEpisode)}.`,"success")),S())}async function v(t){let e=!!(t&&t.force),a=t&&Array.isArray(t.slugs)?new Set(t.slugs):null;if(x)return x;let s=Date.now(),n=P().filter(r=>a&&!a.has(r.slug)?!1:e||Lt(r,s));return n.length?(W=!0,h(`Refreshing ${n.length} watchlist ${n.length===1?"show":"shows"}...`,"muted"),x=(async()=>{for(let r of n)try{if(!r.idShow){let p=await st(r.slug,r);r.idShow=p.idShow,r.title=p.title||r.title,r.year=p.year||r.year,r.poster=p.poster||r.poster}if(!r.idShow)throw new Error("Unable to resolve show id.");let d=await It(r.idShow);r.latestEpisode=d,r.lastSyncError="",r.lastSyncedAt=Date.now()}catch(d){r.lastSyncError=d instanceof Error?d.message:String(d),r.lastSyncedAt=Date.now(),console.warn(`[${o}] Failed to refresh ${r.slug}.`,d)}S(),h("Watchlist refreshed.","success")})().catch(r=>{console.warn(`[${o}] Watchlist refresh failed.`,r),h("Watchlist refresh failed.","danger")}).finally(()=>{W=!1,g(),y(),x=null}),x):(g(),y(),Promise.resolve())}function _t(){if(!location.pathname.startsWith("/shows/play/"))return null;let t=location.hash.match(/^#S(\d+)-E(\d+)-(\d+)$/i);if(!t)return null;let e=l(window.id_show),a=l(t[1]),s=l(t[2]),n=l(t[3]);return!e||!a||!s||!n?null:{idShow:e,season:a,episode:s,idEpisode:n}}function Ft(){let t=_t();if(!t)return;let e=`${t.idShow}:${t.idEpisode}`;if(e===M)return;let a=xt(t.idShow);a&&(a.lastWatched={season:t.season,episode:t.episode,idEpisode:t.idEpisode,watchedAt:Date.now()},(!a.latestEpisode||R(a.lastWatched,a.latestEpisode)>0)&&(a.latestEpisode={season:t.season,episode:t.episode,idEpisode:t.idEpisode,updatedAt:Date.now()}),M=e,S(),h(`${a.title} updated to watched through ${L(a.lastWatched)}.`,"success"))}function j(t={}){let e=!!t.hideContainer,a=document.querySelector(".player-pre-init-ads");a&&(e&&a.classList.add("tw-hidden"),a.classList.add("finished"));let s=document.querySelector(".pre-init-ads--loading-please-wait");s&&s.classList.add("tw-hidden");let n=document.querySelector(".player-pre-init-ads_timer");n&&n.classList.add("tw-opacity-0"),document.querySelectorAll(".pre-init-ads--close").forEach(r=>{r.classList.remove("tw-hidden")}),document.querySelectorAll(".pre-init-ads--back-button").forEach(r=>{r.classList.remove("tw-hidden")}),typeof window._counterTimeout<"u"&&(clearInterval(window._counterTimeout),window._counterTimeout=void 0),typeof window.enableWindowScroll=="function"&&window.enableWindowScroll()}function I(){return console.log(`[${o}] initPrePlaybackCounter bypassed.`),new Promise(t=>{j({hideContainer:!0}),t()}).finally(()=>{typeof window.enableWindowScroll=="function"&&window.enableWindowScroll()})}function O(){return c.adTimerBypass?typeof window.initPrePlaybackCounter=="function"&&window.initPrePlaybackCounter!==I?(A||(A=window.initPrePlaybackCounter),window.initPrePlaybackCounter=I,console.log(`[${o}] Installed ad timer bypass override.`),!0):window.initPrePlaybackCounter===I:!1}function Mt(){G||(G=window.setInterval(()=>{c.adTimerBypass&&(O(),j({hideContainer:!1}))},250))}function qt(){if(!c.autoPlay)return!1;let t=document.getElementById("progress-from-beginning-button");return t?(console.log(`[${o}] Dismissing playback modal.`),t.click(),!0):!1}function Nt(){if(!document.head)return!1;if(!document.getElementById(_)){let t=document.createElement("style");t.id=_,t.textContent=`
+"use strict";(()=>{var o="lookmovie2-enhancer",et=`${o}:settings`,at=`${o}:watchlist`,K=`${o}-style`,I=`${o}-fullscreen-style`,s=`${o}-root`,wt="__lookmovie2EnhancerAdBypassTrap",gt=1800*1e3,mt=1e3,P=Object.freeze({adTimerBypass:!0,autoPlay:!0,autoFullscreen:!0}),l=bt(),k=$t(),f=null,D=null,G=!1,X=0,C=!1,Q=location.href,E=null,T=!1,F="",ot="muted",M="",Z=!1;function bt(){try{let t=JSON.parse(localStorage.getItem(et)||"{}");return{adTimerBypass:typeof t.adTimerBypass=="boolean"?t.adTimerBypass:P.adTimerBypass,autoPlay:typeof t.autoPlay=="boolean"?t.autoPlay:P.autoPlay,autoFullscreen:typeof t.autoFullscreen=="boolean"?t.autoFullscreen:P.autoFullscreen}}catch(t){return console.warn(`[${o}] Failed to load saved settings.`,t),{...P}}}function yt(t){l={adTimerBypass:!!t.adTimerBypass,autoPlay:!!t.autoPlay,autoFullscreen:!!t.autoFullscreen};try{localStorage.setItem(et,JSON.stringify(l))}catch(e){console.warn(`[${o}] Failed to save settings.`,e)}ht(),l.adTimerBypass?(U(),R()):typeof f=="function"&&(window.initPrePlaybackCounter=f),l.autoFullscreen||(rt(),C=!1)}function w(t){if(!t||typeof t!="object")return null;let e=c(t.season),a=c(t.episode),i=c(t.idEpisode||t.id_episode);return!e||!a||!i?null:{season:e,episode:a,idEpisode:i,watchedAt:typeof t.watchedAt=="number"?t.watchedAt:void 0,updatedAt:typeof t.updatedAt=="number"?t.updatedAt:void 0}}function it(t,e){if(!e||typeof e!="object")return null;let a=typeof t=="string"&&t.trim()?t.trim():"";return a?{slug:a,idShow:c(e.idShow||e.id_show),title:typeof e.title=="string"&&e.title.trim()?e.title.trim():a,year:typeof e.year=="string"||typeof e.year=="number"?String(e.year).trim():"",poster:typeof e.poster=="string"?e.poster:"",addedAt:typeof e.addedAt=="number"?e.addedAt:Date.now(),lastSyncedAt:typeof e.lastSyncedAt=="number"?e.lastSyncedAt:0,lastSyncError:typeof e.lastSyncError=="string"?e.lastSyncError:"",latestEpisode:w(e.latestEpisode),lastWatched:w(e.lastWatched)}:null}function $t(){try{let t=JSON.parse(localStorage.getItem(at)||"{}"),e=t&&typeof t=="object"&&t.shows&&typeof t.shows=="object"?t.shows:{},a={};return Object.entries(e).forEach(([i,n])=>{let r=it(i,n);r&&(a[i]=r)}),{shows:a}}catch(t){return console.warn(`[${o}] Failed to load watchlist.`,t),{shows:{}}}}function xt(){try{localStorage.setItem(at,JSON.stringify(k))}catch(t){console.warn(`[${o}] Failed to save watchlist.`,t)}}function A(){xt(),m(),H(),x(),V()}function h(t,e){F=t||"",ot=e||"muted",m()}function c(t){let e=Number.parseInt(String(t),10);return Number.isFinite(e)&&e>0?e:0}function u(t){return String(t).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#39;")}function L(t){return t?`S${String(t.season).padStart(2,"0")}E${String(t.episode).padStart(2,"0")}`:"Unknown episode"}function j(t,e){return!t&&!e?0:t?e?t.season!==e.season?t.season-e.season:t.episode!==e.episode?t.episode-e.episode:t.idEpisode-e.idEpisode:1:-1}function vt(t,e){return!t||!e?!1:t.idEpisode===e.idEpisode&&t.season===e.season&&t.episode===e.episode}function g(t){return!!t&&vt(t.latestEpisode,t.lastWatched)}function W(){return Object.values(k.shows)}function b(t){return t&&k.shows[t]||null}function Et(t){return t&&W().find(e=>e.idShow===t)||null}function St(){return W().filter(t=>t.latestEpisode&&!g(t)).length}function kt(t){return[...t].sort((e,a)=>{let i=e.latestEpisode?g(e)?1:0:2,n=a.latestEpisode?g(a)?1:0:2;return i!==n?i-n:e.title.localeCompare(a.title)})}function At(t){try{let a=new URL(t,location.origin).pathname.match(/\/shows\/view\/([^/?#]+)/i);return a?a[1]:""}catch{return""}}function Pt(t){try{let e=new URL(t,location.origin),a=c(e.searchParams.get("season")),i=c(e.searchParams.get("episode")),n=c(e.searchParams.get("id_episode"));return!a||!i||!n?null:{season:a,episode:i,idEpisode:n}}catch{return null}}function Ct(t){let e=typeof t=="string"?t.match(/-(\d{4})$/):null;return e?e[1]:""}function Tt(t){if(!t)return null;let e=t.querySelector('a[href*="/shows/view/"]');if(!e)return null;let a=At(e.getAttribute("href"));if(!a)return null;let i=t.querySelector(".mv-item-infor h6"),n=t.querySelector("img[data-src], img[src]"),r=Pt(e.getAttribute("href"));return{slug:a,title:i?i.textContent.trim():a,year:Ct(a),poster:n&&(n.getAttribute("data-src")||n.getAttribute("src"))||"",href:new URL(e.getAttribute("href"),location.origin).href,episode:r}}function Lt(t,e){return t?e?`/shows/view/${t}?season=${e.season}&episode=${e.episode}&id_episode=${e.idEpisode}`:`/shows/view/${t}`:"/shows"}function Wt(t,e){return t?!t.idShow||!t.latestEpisode?!0:!t.lastSyncedAt||e-t.lastSyncedAt>=gt:!1}async function Bt(t){let e=await fetch(t,{credentials:"same-origin"});if(!e.ok)throw new Error(`Request failed (${e.status})`);return e.text()}async function _t(t){let e=await fetch(t,{credentials:"same-origin"});if(!e.ok)throw new Error(`Request failed (${e.status})`);return e.json()}function B(t){return t.replaceAll("\\'","'").replaceAll("\\\\","\\")}async function st(t,e){let a=await Bt(`/shows/view/${t}`),i=a.match(/id_show:\s*(\d+)/),n=a.match(/title:\s*'((?:\\'|[^'])*)'/),r=a.match(/year:\s*'((?:\\'|[^'])*)'/),d=a.match(/poster_medium:\s*'((?:\\'|[^'])*)'/);return{slug:t,idShow:i?c(i[1]):0,title:n?B(n[1]).trim():e&&e.title?e.title:t,year:r?B(r[1]).trim():e&&e.year?e.year:"",poster:d?B(d[1]).trim():e&&e.poster?e.poster:""}}async function It(t){let e=await _t(`/api/v2/download/episode/list?id=${t}`),a=e&&e.latest?e.latest:null,i=w({season:a&&a.season,episode:a&&a.episode,idEpisode:a&&a.id_episode});return i?(i.updatedAt=Date.now(),i):null}async function nt(t){if(!t||!t.slug)return;let e=b(t.slug);if(e){h(`${e.title} is already in your watchlist.`,"muted"),x();return}h(`Adding ${t.title||t.slug}...`,"muted");let a={slug:t.slug,idShow:0,title:t.title||t.slug,year:t.year||"",poster:t.poster||""};try{a=await st(t.slug,t)}catch(i){console.warn(`[${o}] Failed to resolve show metadata for ${t.slug}.`,i)}k.shows[t.slug]=it(t.slug,{slug:t.slug,idShow:a.idShow,title:a.title||t.title||t.slug,year:a.year||t.year||"",poster:a.poster||t.poster||"",addedAt:Date.now(),latestEpisode:t.episode||null,lastSyncedAt:0}),A(),h(`${a.title||t.title||t.slug} added to your watchlist.`,"success"),await S({force:!0,slugs:[t.slug]})}function O(t){let e=b(t);e&&(delete k.shows[t],A(),h(`${e.title} removed from your watchlist.`,"muted"))}function Ft(t){let e=b(t);!e||!e.latestEpisode||(g(e)?(e.lastWatched=null,h(`${e.title} marked as having an unwatched latest episode.`,"muted")):(e.lastWatched={...e.latestEpisode,watchedAt:Date.now()},h(`${e.title} marked watched through ${L(e.latestEpisode)}.`,"success")),A())}async function S(t){let e=!!(t&&t.force),a=t&&Array.isArray(t.slugs)?new Set(t.slugs):null;if(E)return E;let i=Date.now(),n=W().filter(r=>a&&!a.has(r.slug)?!1:e||Wt(r,i));return n.length?(T=!0,h(`Refreshing ${n.length} watchlist ${n.length===1?"show":"shows"}...`,"muted"),E=(async()=>{for(let r of n)try{if(!r.idShow){let p=await st(r.slug,r);r.idShow=p.idShow,r.title=p.title||r.title,r.year=p.year||r.year,r.poster=p.poster||r.poster}if(!r.idShow)throw new Error("Unable to resolve show id.");let d=await It(r.idShow);r.latestEpisode=d,r.lastSyncError="",r.lastSyncedAt=Date.now()}catch(d){r.lastSyncError=d instanceof Error?d.message:String(d),r.lastSyncedAt=Date.now(),console.warn(`[${o}] Failed to refresh ${r.slug}.`,d)}A(),h("Watchlist refreshed.","success")})().catch(r=>{console.warn(`[${o}] Watchlist refresh failed.`,r),h("Watchlist refresh failed.","danger")}).finally(()=>{T=!1,m(),x(),E=null}),E):(m(),x(),Promise.resolve())}function Mt(){if(!location.pathname.startsWith("/shows/play/"))return null;let t=location.hash.match(/^#S(\d+)-E(\d+)-(\d+)$/i);if(!t)return null;let e=c(window.id_show),a=c(t[1]),i=c(t[2]),n=c(t[3]);return!e||!a||!i||!n?null:{idShow:e,season:a,episode:i,idEpisode:n}}function qt(){let t=Mt();if(!t)return;let e=`${t.idShow}:${t.idEpisode}`;if(e===M)return;let a=Et(t.idShow);a&&(a.lastWatched={season:t.season,episode:t.episode,idEpisode:t.idEpisode,watchedAt:Date.now()},(!a.latestEpisode||j(a.lastWatched,a.latestEpisode)>0)&&(a.latestEpisode={season:t.season,episode:t.episode,idEpisode:t.idEpisode,updatedAt:Date.now()}),M=e,A(),h(`${a.title} updated to watched through ${L(a.lastWatched)}.`,"success"))}function R(t={}){let e=!!t.hideContainer,a=document.querySelector(".player-pre-init-ads");a&&(e&&a.classList.add("tw-hidden"),a.classList.add("finished"));let i=document.querySelector(".pre-init-ads--loading-please-wait");i&&i.classList.add("tw-hidden");let n=document.querySelector(".player-pre-init-ads_timer");n&&n.classList.add("tw-opacity-0"),document.querySelectorAll(".pre-init-ads--close").forEach(r=>{r.classList.remove("tw-hidden")}),document.querySelectorAll(".pre-init-ads--back-button").forEach(r=>{r.classList.remove("tw-hidden")}),typeof window._counterTimeout<"u"&&(clearInterval(window._counterTimeout),window._counterTimeout=void 0),typeof window.enableWindowScroll=="function"&&window.enableWindowScroll()}function $(){return console.log(`[${o}] initPrePlaybackCounter bypassed.`),new Promise(t=>{R({hideContainer:!0}),t()}).finally(()=>{typeof window.enableWindowScroll=="function"&&window.enableWindowScroll()})}function U(){return l.adTimerBypass?typeof window.initPrePlaybackCounter=="function"&&window.initPrePlaybackCounter!==$?(f||(f=window.initPrePlaybackCounter),window.initPrePlaybackCounter=$,console.log(`[${o}] Installed ad timer bypass override.`),!0):window.initPrePlaybackCounter===$:!1}function Nt(){if(Z)return!0;let t=Object.getOwnPropertyDescriptor(window,"initPrePlaybackCounter");if(t&&t.configurable===!1)return!1;let e=window[wt],a=e&&typeof e=="object"&&"currentValue"in e?e.currentValue:t&&typeof t.get=="function"?t.get.call(window):t?t.value:void 0;return typeof a=="function"&&a!==$&&!f&&(f=a),Object.defineProperty(window,"initPrePlaybackCounter",{configurable:!0,enumerable:t?t.enumerable:!0,get(){return l.adTimerBypass?$:a},set(i){l.adTimerBypass&&typeof i=="function"&&i!==$&&!f&&(f=i),a=i,e&&typeof e=="object"&&(e.currentValue=i)}}),Z=!0,!0}function zt(){D||(D=window.setInterval(()=>{l.adTimerBypass&&(U(),R({hideContainer:!1}))},250))}function jt(){if(!l.autoPlay)return!1;let t=document.getElementById("progress-from-beginning-button");return t?(console.log(`[${o}] Dismissing playback modal.`),t.click(),!0):!1}function Ot(){if(!document.head)return!1;if(!document.getElementById(I)){let t=document.createElement("style");t.id=I,t.textContent=`
             #video_player {
                 position: fixed !important;
                 top: 0 !important;
@@ -24,8 +24,8 @@
             body.${o}-fullscreen {
                 overflow: hidden !important;
             }
-        `,document.head.appendChild(t)}return document.body&&document.body.classList.add(`${o}-fullscreen`),!0}function nt(){let t=document.getElementById(_);t&&t.remove(),document.body&&document.body.classList.remove(`${o}-fullscreen`)}function zt(){if(!c.autoFullscreen||C)return!1;let t=document.getElementById("video_player");if(!t)return!1;let e=t.querySelector(".vjs-fullscreen-control");return e&&e.click(),console.log(`[${o}] Applying fullscreen behavior.`),Nt(),C=!0,!0}function Rt(){Ft(),!(!c.autoPlay&&!c.autoFullscreen)&&window.setTimeout(()=>{let t=qt();window.setTimeout(()=>{zt()},t?500:200)},300)}function q(t){!t||t._lookmovieEnhancerAttached||(t._lookmovieEnhancerAttached=!0,t.addEventListener("play",Rt))}function rt(){document.querySelectorAll("video").forEach(q)}function Ut(){let t=window.setInterval(()=>{if(!document.body)return;window.clearInterval(t),rt(),new MutationObserver(a=>{a.forEach(s=>{s.type==="childList"&&s.addedNodes.forEach(n=>{!n||n.nodeType!==Node.ELEMENT_NODE||(n.tagName==="VIDEO"&&q(n),typeof n.querySelectorAll=="function"&&n.querySelectorAll("video").forEach(q))})})}).observe(document.body,{childList:!0,subtree:!0})},100)}function jt(){window.setInterval(()=>{location.href!==Z&&(Z=location.href,C=!1,M="",nt(),rt(),dt(),g(),y(),ct(),V(),ut(),v())},wt)}function Ot(){if(!document.head||document.getElementById(K))return;let t=document.createElement("style");t.id=K,t.textContent=`
-        #${i}-button {
+        `,document.head.appendChild(t)}return document.body&&document.body.classList.add(`${o}-fullscreen`),!0}function rt(){let t=document.getElementById(I);t&&t.remove(),document.body&&document.body.classList.remove(`${o}-fullscreen`)}function Rt(){if(!l.autoFullscreen||C)return!1;let t=document.getElementById("video_player");if(!t)return!1;let e=t.querySelector(".vjs-fullscreen-control");return e&&e.click(),console.log(`[${o}] Applying fullscreen behavior.`),Ot(),C=!0,!0}function Ut(){qt(),!(!l.autoPlay&&!l.autoFullscreen)&&window.setTimeout(()=>{let t=jt();window.setTimeout(()=>{Rt()},t?500:200)},300)}function q(t){!t||t._lookmovieEnhancerAttached||(t._lookmovieEnhancerAttached=!0,t.addEventListener("play",Ut))}function dt(){document.querySelectorAll("video").forEach(q)}function Ht(){let t=window.setInterval(()=>{if(!document.body)return;window.clearInterval(t),dt(),new MutationObserver(a=>{a.forEach(i=>{i.type==="childList"&&i.addedNodes.forEach(n=>{!n||n.nodeType!==Node.ELEMENT_NODE||(n.tagName==="VIDEO"&&q(n),typeof n.querySelectorAll=="function"&&n.querySelectorAll("video").forEach(q))})})}).observe(document.body,{childList:!0,subtree:!0})},100)}function Vt(){window.setInterval(()=>{location.href!==Q&&(Q=location.href,C=!1,M="",rt(),dt(),lt(),m(),x(),ut(),V(),pt(),S())},mt)}function Yt(){if(!document.head||document.getElementById(K))return;let t=document.createElement("style");t.id=K,t.textContent=`
+        #${s}-button {
             position: fixed;
             right: 20px;
             bottom: 20px;
@@ -44,11 +44,11 @@
             cursor: pointer;
         }
 
-        #${i}-button[data-has-new="true"] {
+        #${s}-button[data-has-new="true"] {
             background: linear-gradient(135deg, rgba(30, 41, 59, 0.96), rgba(30, 64, 175, 0.96));
         }
 
-        #${i}-button-badge {
+        #${s}-button-badge {
             min-width: 20px;
             padding: 3px 7px;
             border-radius: 999px;
@@ -58,7 +58,7 @@
             text-align: center;
         }
 
-        #${i}-overlay {
+        #${s}-overlay {
             position: fixed;
             inset: 0;
             z-index: 2147483647;
@@ -69,11 +69,11 @@
             background: rgba(5, 10, 20, 0.65);
         }
 
-        #${i}-overlay.${o}-open {
+        #${s}-overlay.${o}-open {
             display: flex;
         }
 
-        #${i}-modal {
+        #${s}-modal {
             width: min(95vw, 1600px);
             height: min(92vh, 1100px);
             border: 1px solid rgba(148, 163, 184, 0.25);
@@ -87,7 +87,7 @@
             flex-direction: column;
         }
 
-        #${i}-header {
+        #${s}-header {
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
@@ -96,20 +96,20 @@
             border-bottom: 1px solid rgba(148, 163, 184, 0.12);
         }
 
-        #${i}-title {
+        #${s}-title {
             margin: 0;
             font-size: 18px;
             font-weight: 700;
         }
 
-        #${i}-subtitle {
+        #${s}-subtitle {
             margin: 6px 0 0;
             color: #94a3b8;
             font-size: 13px;
             line-height: 1.45;
         }
 
-        #${i}-close {
+        #${s}-close {
             border: 0;
             background: transparent;
             color: #cbd5e1;
@@ -118,7 +118,7 @@
             cursor: pointer;
         }
 
-        #${i}-content {
+        #${s}-content {
             display: flex;
             flex-direction: column;
             gap: 20px;
@@ -127,44 +127,44 @@
             min-height: 0;
         }
 
-        #${i}-settings-panel {
+        #${s}-settings-panel {
             min-width: 0;
             border-bottom: 1px solid rgba(148, 163, 184, 0.12);
             padding-bottom: 18px;
         }
 
-        #${i}-watchlist-panel {
+        #${s}-watchlist-panel {
             min-width: 0;
         }
 
         @media (min-width: 980px) {
-            #${i}-content {
+            #${s}-content {
                 display: grid;
                 grid-template-columns: 280px minmax(0, 1fr);
                 gap: 24px;
             }
 
-            #${i}-settings-panel {
+            #${s}-settings-panel {
                 border-bottom: none;
                 border-right: 1px solid rgba(148, 163, 184, 0.12);
                 padding-bottom: 0;
                 padding-right: 20px;
             }
 
-            #${i}-watchlist-panel {
+            #${s}-watchlist-panel {
                 padding-left: 0;
             }
         }
 
-        #${i}-settings-title,
-        #${i}-watchlist-title {
+        #${s}-settings-title,
+        #${s}-watchlist-title {
             margin: 0 0 12px;
             color: #f8fafc;
             font-size: 15px;
             font-weight: 700;
         }
 
-        #${i}-settings {
+        #${s}-settings {
             display: grid;
             gap: 12px;
         }
@@ -236,7 +236,7 @@
             transform: translateX(22px);
         }
 
-        #${i}-watchlist-toolbar {
+        #${s}-watchlist-toolbar {
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -246,32 +246,32 @@
             border-bottom: 1px solid rgba(148, 163, 184, 0.12);
         }
 
-        #${i}-watchlist-summary {
+        #${s}-watchlist-summary {
             color: #94a3b8;
             font-size: 13px;
             line-height: 1.45;
         }
 
-        #${i}-watchlist-status {
+        #${s}-watchlist-status {
             min-height: 18px;
             margin-bottom: 10px;
             font-size: 12px;
             line-height: 1.45;
         }
 
-        #${i}-watchlist-status[data-tone="success"] {
+        #${s}-watchlist-status[data-tone="success"] {
             color: #86efac;
         }
 
-        #${i}-watchlist-status[data-tone="danger"] {
+        #${s}-watchlist-status[data-tone="danger"] {
             color: #fda4af;
         }
 
-        #${i}-watchlist-status[data-tone="muted"] {
+        #${s}-watchlist-status[data-tone="muted"] {
             color: #94a3b8;
         }
 
-        #${i}-watchlist-list {
+        #${s}-watchlist-list {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
             gap: 14px;
@@ -442,7 +442,7 @@
             border-color: rgba(251, 113, 133, 0.7);
         }
 
-        #${i}-footer {
+        #${s}-footer {
             padding: 0 18px 18px;
             color: #94a3b8;
             font: 12px/1.45 Arial, sans-serif;
@@ -519,48 +519,48 @@
         }
 
         @media (max-width: 1400px) {
-            #${i}-watchlist-list {
+            #${s}-watchlist-list {
                 grid-template-columns: repeat(4, 1fr);
             }
         }
 
         @media (max-width: 1100px) {
-            #${i}-watchlist-list {
+            #${s}-watchlist-list {
                 grid-template-columns: repeat(3, 1fr);
             }
         }
 
         @media (max-width: 850px) {
-            #${i}-content {
+            #${s}-content {
                 display: flex;
                 flex-direction: column;
             }
 
-            #${i}-settings-panel {
+            #${s}-settings-panel {
                 border-bottom: 1px solid rgba(148, 163, 184, 0.12);
                 border-right: none;
                 padding-bottom: 16px;
                 padding-right: 0;
             }
 
-            #${i}-watchlist-list {
+            #${s}-watchlist-list {
                 grid-template-columns: repeat(3, 1fr);
             }
         }
 
         @media (max-width: 640px) {
-            #${i}-watchlist-list {
+            #${s}-watchlist-list {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 10px;
             }
 
-            #${i}-modal {
+            #${s}-modal {
                 width: 100vw;
                 height: 100vh;
                 border-radius: 0;
             }
         }
-    `,document.head.appendChild(t)}function B(t,e,a){return`
+    `,document.head.appendChild(t)}function _(t,e,a){return`
         <label class="${o}-setting">
             <div>
                 <p class="${o}-setting-title">${e}</p>
@@ -571,48 +571,48 @@
                 <span class="${o}-slider"></span>
             </span>
         </label>
-    `}function dt(){if(Ot(),!document.body||document.getElementById(i))return;let t=document.createElement("div");t.id=i,t.innerHTML=`
-        <button id="${i}-button" type="button" aria-haspopup="dialog" aria-expanded="false">
-            <span id="${i}-button-label">LM Tools</span>
-            <span id="${i}-button-badge" hidden>0</span>
+    `}function lt(){if(Yt(),!document.body||document.getElementById(s))return;let t=document.createElement("div");t.id=s,t.innerHTML=`
+        <button id="${s}-button" type="button" aria-haspopup="dialog" aria-expanded="false">
+            <span id="${s}-button-label">LM Tools</span>
+            <span id="${s}-button-badge" hidden>0</span>
         </button>
-        <div id="${i}-overlay" aria-hidden="true">
-            <div id="${i}-modal" role="dialog" aria-modal="true" aria-labelledby="${i}-title">
-                <div id="${i}-header">
+        <div id="${s}-overlay" aria-hidden="true">
+            <div id="${s}-modal" role="dialog" aria-modal="true" aria-labelledby="${s}-title">
+                <div id="${s}-header">
                     <div>
-                        <h2 id="${i}-title">LookMovie2 Enhancer</h2>
-                        <p id="${i}-subtitle">Playback helpers plus a personal show watchlist with latest episode tracking.</p>
+                        <h2 id="${s}-title">LookMovie2 Enhancer</h2>
+                        <p id="${s}-subtitle">Playback helpers plus a personal show watchlist with latest episode tracking.</p>
                     </div>
-                    <button id="${i}-close" type="button" aria-label="Close settings">&times;</button>
+                    <button id="${s}-close" type="button" aria-label="Close settings">&times;</button>
                 </div>
-                <div id="${i}-content">
-                    <section id="${i}-settings-panel">
-                        <h3 id="${i}-settings-title">Playback Tools</h3>
-                        <div id="${i}-settings">
-                            ${B("adTimerBypass","Ad timer bypass","Skips the pre-playback counter and hides the ad overlay.")}
-                            ${B("autoPlay","Auto play","Clicks the resume or start button when the playback modal appears.")}
-                            ${B("autoFullscreen","Auto fullscreen","Clicks fullscreen and applies the fullscreen fallback after playback starts.")}
+                <div id="${s}-content">
+                    <section id="${s}-settings-panel">
+                        <h3 id="${s}-settings-title">Playback Tools</h3>
+                        <div id="${s}-settings">
+                            ${_("adTimerBypass","Ad timer bypass","Skips the pre-playback counter and hides the ad overlay.")}
+                            ${_("autoPlay","Auto play","Clicks the resume or start button when the playback modal appears.")}
+                            ${_("autoFullscreen","Auto fullscreen","Clicks fullscreen and applies the fullscreen fallback after playback starts.")}
                         </div>
                     </section>
-                    <section id="${i}-watchlist-panel">
-                        <div id="${i}-watchlist-toolbar">
+                    <section id="${s}-watchlist-panel">
+                        <div id="${s}-watchlist-toolbar">
                             <div>
-                                <h3 id="${i}-watchlist-title">Watchlist</h3>
-                                <div id="${i}-watchlist-summary"></div>
+                                <h3 id="${s}-watchlist-title">Watchlist</h3>
+                                <div id="${s}-watchlist-summary"></div>
                             </div>
-                            <button id="${i}-watchlist-refresh" class="${o}-button" type="button" data-watchlist-action="refresh">Refresh</button>
+                            <button id="${s}-watchlist-refresh" class="${o}-button" type="button" data-watchlist-action="refresh">Refresh</button>
                         </div>
-                        <div id="${i}-watchlist-status" data-tone="muted"></div>
-                        <div id="${i}-watchlist-list"></div>
+                        <div id="${s}-watchlist-status" data-tone="muted"></div>
+                        <div id="${s}-watchlist-list"></div>
                     </section>
                 </div>
-                <div id="${i}-footer">Settings and watchlist data are saved locally in your browser.</div>
+                <div id="${s}-footer">Settings and watchlist data are saved locally in your browser.</div>
             </div>
         </div>
-    `,document.body.appendChild(t);let e=document.getElementById(`${i}-button`),a=document.getElementById(`${i}-overlay`),s=document.getElementById(`${i}-close`);function n(){a.classList.add(`${o}-open`),a.setAttribute("aria-hidden","false"),e.setAttribute("aria-expanded","true"),v()}function r(){a.classList.remove(`${o}-open`),a.setAttribute("aria-hidden","true"),e.setAttribute("aria-expanded","false")}e.addEventListener("click",()=>{a.classList.contains(`${o}-open`)?r():n()}),s.addEventListener("click",r),a.addEventListener("click",d=>{d.target===a&&r()}),document.querySelectorAll(`#${i} input[data-setting]`).forEach(d=>{d.addEventListener("change",()=>{mt({...c,[d.dataset.setting]:d.checked})})}),t.addEventListener("click",d=>{let p=d.target.closest("[data-watchlist-action]");if(!p)return;let $=p.dataset.watchlistAction,b=p.dataset.slug||"";if($==="refresh"){v({force:!0});return}if($==="toggle-latest-watched"&&b){Bt(b);return}$==="remove"&&b&&U(b)}),window.addEventListener("keydown",d=>{d.key==="Escape"&&r()}),pt(),g(),H()}function H(){let t=document.getElementById(`${i}-button`),e=document.getElementById(`${i}-button-badge`),a=document.getElementById(`${i}-button-label`);if(!t||!e||!a)return;let s=vt();a.textContent="LM Tools",s>0?(e.hidden=!1,e.textContent=String(s),t.dataset.hasNew="true"):(e.hidden=!0,e.textContent="0",t.dataset.hasNew="false")}function Ht(t){let e=t.latestEpisode?w(t)?"watched":"new":"pending",a=t.latestEpisode?`Latest ${L(t.latestEpisode)}`:"Latest episode not synced yet",s=t.lastWatched?`Watched through ${L(t.lastWatched)}`:"Nothing marked watched yet",n=t.lastSyncError?`Sync issue: ${t.lastSyncError}`:"",r=e==="new"?"New episode":e==="watched"?"Up to date":"Pending sync",d=Wt(t.slug,t.latestEpisode),p=w(t)?"Unwatch latest":"Mark latest watched",$=t.latestEpisode?"":"disabled",b=t.year?` (${u(t.year)})`:"",J=t.poster||"",Y=[a,s];n&&Y.push(n);let ht=J?`<img src="${u(J)}" alt="${u(t.title)}" loading="lazy">`:'<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:48px;">\u{1F4FA}</div>';return`
+    `,document.body.appendChild(t);let e=document.getElementById(`${s}-button`),a=document.getElementById(`${s}-overlay`),i=document.getElementById(`${s}-close`);function n(){a.classList.add(`${o}-open`),a.setAttribute("aria-hidden","false"),e.setAttribute("aria-expanded","true"),S()}function r(){a.classList.remove(`${o}-open`),a.setAttribute("aria-hidden","true"),e.setAttribute("aria-expanded","false")}e.addEventListener("click",()=>{a.classList.contains(`${o}-open`)?r():n()}),i.addEventListener("click",r),a.addEventListener("click",d=>{d.target===a&&r()}),document.querySelectorAll(`#${s} input[data-setting]`).forEach(d=>{d.addEventListener("change",()=>{yt({...l,[d.dataset.setting]:d.checked})})}),t.addEventListener("click",d=>{let p=d.target.closest("[data-watchlist-action]");if(!p)return;let v=p.dataset.watchlistAction,y=p.dataset.slug||"";if(v==="refresh"){S({force:!0});return}if(v==="toggle-latest-watched"&&y){Ft(y);return}v==="remove"&&y&&O(y)}),window.addEventListener("keydown",d=>{d.key==="Escape"&&r()}),ht(),m(),H()}function H(){let t=document.getElementById(`${s}-button`),e=document.getElementById(`${s}-button-badge`),a=document.getElementById(`${s}-button-label`);if(!t||!e||!a)return;let i=St();a.textContent="LM Tools",i>0?(e.hidden=!1,e.textContent=String(i),t.dataset.hasNew="true"):(e.hidden=!0,e.textContent="0",t.dataset.hasNew="false")}function Jt(t){let e=t.latestEpisode?g(t)?"watched":"new":"pending",a=t.latestEpisode?`Latest ${L(t.latestEpisode)}`:"Latest episode not synced yet",i=t.lastWatched?`Watched through ${L(t.lastWatched)}`:"Nothing marked watched yet",n=t.lastSyncError?`Sync issue: ${t.lastSyncError}`:"",r=e==="new"?"New episode":e==="watched"?"Up to date":"Pending sync",d=Lt(t.slug,t.latestEpisode),p=g(t)?"Unwatch latest":"Mark latest watched",v=t.latestEpisode?"":"disabled",y=t.year?` (${u(t.year)})`:"",Y=t.poster||"",J=[a,i];n&&J.push(n);let ft=Y?`<img src="${u(Y)}" alt="${u(t.title)}" loading="lazy">`:'<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:48px;">\u{1F4FA}</div>';return`
         <article class="${o}-watch-item" data-state="${e}">
             <div class="${o}-watch-item-poster">
-                ${ht}
+                ${ft}
                 <div class="${o}-watch-item-poster-overlay">
                     <a class="${o}-link-button" href="${u(d)}" style="font-size:11px;padding:6px 10px;">Open</a>
                     <span class="${o}-watch-badge" data-state="${e}">${u(r)}</span>
@@ -620,13 +620,13 @@
             </div>
             <div class="${o}-watch-item-body">
                 <div>
-                    <a class="${o}-watch-item-title" href="${u(d)}">${u(t.title)}${b}</a>
-                    <p class="${o}-watch-item-copy">${u(Y.join(" \u2022 "))}</p>
+                    <a class="${o}-watch-item-title" href="${u(d)}">${u(t.title)}${y}</a>
+                    <p class="${o}-watch-item-copy">${u(J.join(" \u2022 "))}</p>
                 </div>
                 <div class="${o}-watch-actions">
-                    <button class="${o}-button" type="button" data-watchlist-action="toggle-latest-watched" data-slug="${u(t.slug)}" ${$}>${u(p)}</button>
+                    <button class="${o}-button" type="button" data-watchlist-action="toggle-latest-watched" data-slug="${u(t.slug)}" ${v}>${u(p)}</button>
                     <button class="${o}-button ${o}-danger-button" type="button" data-watchlist-action="remove" data-slug="${u(t.slug)}">Remove</button>
                 </div>
             </div>
         </article>
-    `}function g(){let t=document.getElementById(`${i}-watchlist-summary`),e=document.getElementById(`${i}-watchlist-status`),a=document.getElementById(`${i}-watchlist-list`),s=document.getElementById(`${i}-watchlist-refresh`);if(!t||!e||!a||!s)return;let n=Et(P()),r=n.filter(d=>d.latestEpisode&&!w(d)).length;if(t.textContent=n.length?`${n.length} tracked ${n.length===1?"show":"shows"}${r?` | ${r} with a newer latest episode`:""}`:"Add shows from the latest episodes page to start tracking them.",e.dataset.tone=at,e.textContent=W?F||"Refreshing watchlist...":F||"",s.disabled=W,!n.length){a.innerHTML=`<div class="${o}-watch-empty">On the <code>/shows</code> page, use the overlay button on any episode card to add that show to your personal watchlist.</div>`;return}a.innerHTML=n.map(Ht).join("")}function Vt(){return location.pathname==="/shows"}function lt(){return location.pathname.startsWith("/shows/view/")}function Jt(){if(!lt()||!window.show_storage)return null;let t=typeof window.show_storage.slug=="string"?window.show_storage.slug:"";if(!t)return null;let e=new URLSearchParams(location.search),a=f({season:e.get("season"),episode:e.get("episode"),idEpisode:e.get("id_episode")});return{slug:t,title:typeof window.show_storage.title=="string"?window.show_storage.title:t,year:typeof window.show_storage.year=="string"||typeof window.show_storage.year=="number"?String(window.show_storage.year):"",poster:typeof window.show_storage.poster_medium=="string"?window.show_storage.poster_medium:"",idShow:l(window.show_storage.id_show),episode:a}}function N(t){let e=t.dataset.watchlistSlug||"",a=m(e),s=f({season:t.dataset.season,episode:t.dataset.episode,idEpisode:t.dataset.idEpisode});if(!a){t.dataset.state="add",t.textContent="+ Watch",t.title="Add this show to your watchlist",t.disabled=!1;return}let n=s&&(!a.lastWatched||R(s,a.lastWatched)>0);t.dataset.state=n?"watching-new":"watching",t.textContent="Watching",t.title=n?"This show is on your watchlist and this episode is newer than your watched progress. Click to remove from watchlist.":"This show is already in your watchlist. Click to remove it.",t.disabled=!1}function y(){document.querySelectorAll(`.${o}-episode-watch-button`).forEach(N)}function z(t){let e=t.dataset.watchlistSlug||"",a=m(e),s=f({season:t.dataset.season,episode:t.dataset.episode,idEpisode:t.dataset.idEpisode});if(!a){t.dataset.state="add",t.textContent="+ Add To Watchlist",t.title="Add this show to your watchlist",t.disabled=!1;return}let n=s&&(!a.lastWatched||R(s,a.lastWatched)>0);t.dataset.state=n?"watching-new":"watching",t.textContent=n?"Watching: New Episode":"Watching",t.title=n?"This show is on your watchlist and this episode is newer than your watched progress. Click to remove from watchlist.":"This show is already in your watchlist. Click to remove it.",t.disabled=!1}function V(){document.querySelectorAll(`.${o}-show-view-watch-button`).forEach(z)}function ct(){!document.body||!Vt()||document.querySelectorAll(".episode-item").forEach(t=>{let e=Ct(t);if(!e)return;let a=t.querySelector(`.${o}-episode-watch-button`);a||(a=document.createElement("button"),a.type="button",a.className=`${o}-episode-watch-button`,t.appendChild(a),a.addEventListener("click",async s=>{s.preventDefault(),s.stopPropagation();let n=a.dataset.watchlistSlug;if(n){if(m(n)){U(n);return}a.dataset.state="adding",a.textContent="Adding...",a.disabled=!0,await it({slug:n,title:a.dataset.title||n,year:a.dataset.year||"",poster:a.dataset.poster||"",episode:f({season:a.dataset.season,episode:a.dataset.episode,idEpisode:a.dataset.idEpisode})}),N(a)}})),a.dataset.watchlistSlug=e.slug,a.dataset.title=e.title,a.dataset.year=e.year,a.dataset.poster=e.poster,e.episode&&(a.dataset.season=String(e.episode.season),a.dataset.episode=String(e.episode.episode),a.dataset.idEpisode=String(e.episode.idEpisode)),N(a)})}function ut(){if(!document.body||!lt())return;let t=Jt();if(!t)return;let e=document.querySelector(".watch-heading")||document.querySelector(".movie-single-ct.main-content")||document.querySelector(".internal-page-container");if(!e)return;let a=document.querySelector(`.${o}-show-view-watch-wrap`);a||(a=document.createElement("div"),a.className=`${o}-show-view-watch-wrap`,e.appendChild(a));let s=a.querySelector(`.${o}-show-view-watch-button`);s||(s=document.createElement("button"),s.type="button",s.className=`${o}-show-view-watch-button`,a.appendChild(s),s.addEventListener("click",async()=>{let n=s.dataset.watchlistSlug;if(n){if(m(n)){U(n);return}s.dataset.state="adding",s.textContent="Adding...",s.disabled=!0,await it({slug:n,title:s.dataset.title||n,year:s.dataset.year||"",poster:s.dataset.poster||"",episode:f({season:s.dataset.season,episode:s.dataset.episode,idEpisode:s.dataset.idEpisode})}),z(s)}})),s.dataset.watchlistSlug=t.slug,s.dataset.title=t.title,s.dataset.year=t.year,s.dataset.poster=t.poster,t.episode?(s.dataset.season=String(t.episode.season),s.dataset.episode=String(t.episode.episode),s.dataset.idEpisode=String(t.episode.idEpisode)):(delete s.dataset.season,delete s.dataset.episode,delete s.dataset.idEpisode),z(s)}function pt(){document.querySelectorAll(`#${i} input[data-setting]`).forEach(t=>{t.checked=!!c[t.dataset.setting]})}function D(){if(X)return;X=!0,Ut(),jt();let t=window.setInterval(()=>{Q+=1,dt(),ct(),ut(),(document.getElementById(i)||Q>100)&&window.clearInterval(t)},100);g(),H(),y(),V(),v()}O();Mt();document.readyState==="loading"?document.addEventListener("DOMContentLoaded",D,{once:!0}):D();})();
+    `}function m(){let t=document.getElementById(`${s}-watchlist-summary`),e=document.getElementById(`${s}-watchlist-status`),a=document.getElementById(`${s}-watchlist-list`),i=document.getElementById(`${s}-watchlist-refresh`);if(!t||!e||!a||!i)return;let n=kt(W()),r=n.filter(d=>d.latestEpisode&&!g(d)).length;if(t.textContent=n.length?`${n.length} tracked ${n.length===1?"show":"shows"}${r?` | ${r} with a newer latest episode`:""}`:"Add shows from the latest episodes page to start tracking them.",e.dataset.tone=ot,e.textContent=T?F||"Refreshing watchlist...":F||"",i.disabled=T,!n.length){a.innerHTML=`<div class="${o}-watch-empty">On the <code>/shows</code> page, use the overlay button on any episode card to add that show to your personal watchlist.</div>`;return}a.innerHTML=n.map(Jt).join("")}function Kt(){return location.pathname==="/shows"}function ct(){return location.pathname.startsWith("/shows/view/")}function Dt(){if(!ct()||!window.show_storage)return null;let t=typeof window.show_storage.slug=="string"?window.show_storage.slug:"";if(!t)return null;let e=new URLSearchParams(location.search),a=w({season:e.get("season"),episode:e.get("episode"),idEpisode:e.get("id_episode")});return{slug:t,title:typeof window.show_storage.title=="string"?window.show_storage.title:t,year:typeof window.show_storage.year=="string"||typeof window.show_storage.year=="number"?String(window.show_storage.year):"",poster:typeof window.show_storage.poster_medium=="string"?window.show_storage.poster_medium:"",idShow:c(window.show_storage.id_show),episode:a}}function N(t){let e=t.dataset.watchlistSlug||"",a=b(e),i=w({season:t.dataset.season,episode:t.dataset.episode,idEpisode:t.dataset.idEpisode});if(!a){t.dataset.state="add",t.textContent="+ Watch",t.title="Add this show to your watchlist",t.disabled=!1;return}let n=i&&(!a.lastWatched||j(i,a.lastWatched)>0);t.dataset.state=n?"watching-new":"watching",t.textContent="Watching",t.title=n?"This show is on your watchlist and this episode is newer than your watched progress. Click to remove from watchlist.":"This show is already in your watchlist. Click to remove it.",t.disabled=!1}function x(){document.querySelectorAll(`.${o}-episode-watch-button`).forEach(N)}function z(t){let e=t.dataset.watchlistSlug||"",a=b(e),i=w({season:t.dataset.season,episode:t.dataset.episode,idEpisode:t.dataset.idEpisode});if(!a){t.dataset.state="add",t.textContent="+ Add To Watchlist",t.title="Add this show to your watchlist",t.disabled=!1;return}let n=i&&(!a.lastWatched||j(i,a.lastWatched)>0);t.dataset.state=n?"watching-new":"watching",t.textContent=n?"Watching: New Episode":"Watching",t.title=n?"This show is on your watchlist and this episode is newer than your watched progress. Click to remove from watchlist.":"This show is already in your watchlist. Click to remove it.",t.disabled=!1}function V(){document.querySelectorAll(`.${o}-show-view-watch-button`).forEach(z)}function ut(){!document.body||!Kt()||document.querySelectorAll(".episode-item").forEach(t=>{let e=Tt(t);if(!e)return;let a=t.querySelector(`.${o}-episode-watch-button`);a||(a=document.createElement("button"),a.type="button",a.className=`${o}-episode-watch-button`,t.appendChild(a),a.addEventListener("click",async i=>{i.preventDefault(),i.stopPropagation();let n=a.dataset.watchlistSlug;if(n){if(b(n)){O(n);return}a.dataset.state="adding",a.textContent="Adding...",a.disabled=!0,await nt({slug:n,title:a.dataset.title||n,year:a.dataset.year||"",poster:a.dataset.poster||"",episode:w({season:a.dataset.season,episode:a.dataset.episode,idEpisode:a.dataset.idEpisode})}),N(a)}})),a.dataset.watchlistSlug=e.slug,a.dataset.title=e.title,a.dataset.year=e.year,a.dataset.poster=e.poster,e.episode&&(a.dataset.season=String(e.episode.season),a.dataset.episode=String(e.episode.episode),a.dataset.idEpisode=String(e.episode.idEpisode)),N(a)})}function pt(){if(!document.body||!ct())return;let t=Dt();if(!t)return;let e=document.querySelector(".watch-heading")||document.querySelector(".movie-single-ct.main-content")||document.querySelector(".internal-page-container");if(!e)return;let a=document.querySelector(`.${o}-show-view-watch-wrap`);a||(a=document.createElement("div"),a.className=`${o}-show-view-watch-wrap`,e.appendChild(a));let i=a.querySelector(`.${o}-show-view-watch-button`);i||(i=document.createElement("button"),i.type="button",i.className=`${o}-show-view-watch-button`,a.appendChild(i),i.addEventListener("click",async()=>{let n=i.dataset.watchlistSlug;if(n){if(b(n)){O(n);return}i.dataset.state="adding",i.textContent="Adding...",i.disabled=!0,await nt({slug:n,title:i.dataset.title||n,year:i.dataset.year||"",poster:i.dataset.poster||"",episode:w({season:i.dataset.season,episode:i.dataset.episode,idEpisode:i.dataset.idEpisode})}),z(i)}})),i.dataset.watchlistSlug=t.slug,i.dataset.title=t.title,i.dataset.year=t.year,i.dataset.poster=t.poster,t.episode?(i.dataset.season=String(t.episode.season),i.dataset.episode=String(t.episode.episode),i.dataset.idEpisode=String(t.episode.idEpisode)):(delete i.dataset.season,delete i.dataset.episode,delete i.dataset.idEpisode),z(i)}function ht(){document.querySelectorAll(`#${s} input[data-setting]`).forEach(t=>{t.checked=!!l[t.dataset.setting]})}function tt(){if(G)return;G=!0,Ht(),Vt();let t=window.setInterval(()=>{X+=1,lt(),ut(),pt(),(document.getElementById(s)||X>100)&&window.clearInterval(t)},100);m(),H(),x(),V(),S()}Nt();U();zt();document.readyState==="loading"?document.addEventListener("DOMContentLoaded",tt,{once:!0}):tt();})();

@@ -5,6 +5,7 @@
 // @description  Loader — fetches the latest build from GitHub
 // @match        https://example.com/*
 // @match        https://www.example.com/*
+// @run-at       document-idle
 // @grant        GM_xmlhttpRequest
 // @connect      github.com
 // @connect      raw.githubusercontent.com

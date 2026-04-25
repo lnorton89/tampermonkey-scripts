@@ -8,6 +8,7 @@ const WATCHLIST_KEY = `${SCRIPT_ID}:watchlist`;
 const UI_STYLE_ID = `${SCRIPT_ID}-style`;
 const FULLSCREEN_STYLE_ID = `${SCRIPT_ID}-fullscreen-style`;
 const UI_ROOT_ID = `${SCRIPT_ID}-root`;
+const LOADER_AD_BYPASS_TRAP_KEY = '__lookmovie2EnhancerAdBypassTrap';
 const WATCHLIST_REFRESH_MS = 30 * 60 * 1000;
 const ROUTE_POLL_MS = 1000;
 const DEFAULT_SETTINGS = Object.freeze({
@@ -29,6 +30,7 @@ let watchlistBusy = false;
 let watchlistMessage = '';
 let watchlistMessageTone = 'muted';
 let lastTrackedEpisodeSignature = '';
+let adBypassTrapInstalled = false;
 
 function loadSettings() {
   try {
@@ -712,6 +714,61 @@ function tryInstallAdTimerBypass() {
   }
 
   return window.initPrePlaybackCounter === bypassPrePlaybackCounter;
+}
+
+function installAdTimerBypassTrap() {
+  if (adBypassTrapInstalled) {
+    return true;
+  }
+
+  const descriptor = Object.getOwnPropertyDescriptor(window, 'initPrePlaybackCounter');
+  if (descriptor && descriptor.configurable === false) {
+    return false;
+  }
+
+  const loaderTrapState = window[LOADER_AD_BYPASS_TRAP_KEY];
+  let currentValue =
+    loaderTrapState && typeof loaderTrapState === 'object' && 'currentValue' in loaderTrapState
+      ? loaderTrapState.currentValue
+      : descriptor && typeof descriptor.get === 'function'
+        ? descriptor.get.call(window)
+        : descriptor
+          ? descriptor.value
+          : undefined;
+
+  if (
+    typeof currentValue === 'function' &&
+    currentValue !== bypassPrePlaybackCounter &&
+    !originalInitPrePlaybackCounter
+  ) {
+    originalInitPrePlaybackCounter = currentValue;
+  }
+
+  Object.defineProperty(window, 'initPrePlaybackCounter', {
+    configurable: true,
+    enumerable: descriptor ? descriptor.enumerable : true,
+    get() {
+      return settings.adTimerBypass ? bypassPrePlaybackCounter : currentValue;
+    },
+    set(nextValue) {
+      if (
+        settings.adTimerBypass &&
+        typeof nextValue === 'function' &&
+        nextValue !== bypassPrePlaybackCounter &&
+        !originalInitPrePlaybackCounter
+      ) {
+        originalInitPrePlaybackCounter = nextValue;
+      }
+
+      currentValue = nextValue;
+      if (loaderTrapState && typeof loaderTrapState === 'object') {
+        loaderTrapState.currentValue = nextValue;
+      }
+    },
+  });
+
+  adBypassTrapInstalled = true;
+  return true;
 }
 
 function startAdTimerPolling() {
@@ -1971,6 +2028,7 @@ function bootstrapDomFeatures() {
   refreshWatchlistEntries();
 }
 
+installAdTimerBypassTrap();
 tryInstallAdTimerBypass();
 startAdTimerPolling();
 
