@@ -644,9 +644,13 @@ function maybeTrackWatchedEpisodeFromPlayer() {
   );
 }
 
-function hidePrePlaybackAdUi() {
+function hidePrePlaybackAdUi(options = {}) {
+  const hideContainer = !!options.hideContainer;
   const playerPreInitAds = document.querySelector('.player-pre-init-ads');
   if (playerPreInitAds) {
+    if (hideContainer) {
+      playerPreInitAds.classList.add('tw-hidden');
+    }
     playerPreInitAds.classList.add('finished');
   }
 
@@ -681,7 +685,7 @@ function bypassPrePlaybackCounter() {
   console.log(`[${SCRIPT_ID}] initPrePlaybackCounter bypassed.`);
 
   return new Promise((resolve) => {
-    hidePrePlaybackAdUi();
+    hidePrePlaybackAdUi({ hideContainer: true });
     resolve();
   }).finally(() => {
     if (typeof window.enableWindowScroll === 'function') {
@@ -718,7 +722,7 @@ function startAdTimerPolling() {
   adBypassPoller = window.setInterval(() => {
     if (settings.adTimerBypass) {
       tryInstallAdTimerBypass();
-      hidePrePlaybackAdUi();
+      hidePrePlaybackAdUi({ hideContainer: false });
     }
   }, 250);
 }
