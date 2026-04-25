@@ -4,37 +4,145 @@ import { SCRIPT_ID, UI_ROOT_ID } from '../config/constants';
 
 export function getUiStyleText() {
   return `
-        #${UI_ROOT_ID}-button {
+        @keyframes ${SCRIPT_ID}-rainbow-border {
+            0% {
+                background-position: 0% 50%;
+            }
+            100% {
+                background-position: 200% 50%;
+            }
+        }
+
+        #${UI_ROOT_ID}-launcher-host {
+            display: inline-flex;
+            align-items: center;
+            margin: 0 10px;
+            position: relative;
+            z-index: 20;
+        }
+
+        #${UI_ROOT_ID} > #${UI_ROOT_ID}-launcher {
             position: fixed;
             right: 20px;
             bottom: 20px;
             z-index: 2147483647;
+        }
+
+        #${UI_ROOT_ID}-launcher-host #${UI_ROOT_ID}-launcher {
+            position: relative;
+            right: auto;
+            bottom: auto;
+            z-index: auto;
+        }
+
+        #${UI_ROOT_ID}-launcher {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
+        }
+
+        #${UI_ROOT_ID}-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             gap: 8px;
-            border: 0;
+            min-height: 31px;
+            border: 2px solid transparent;
             border-radius: 999px;
-            padding: 10px 14px;
+            padding: 6px 15px;
             color: #ffffff;
-            background: rgba(17, 24, 39, 0.92);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-            font: 700 14px/1 Arial, sans-serif;
-            letter-spacing: 0.04em;
+            background:
+                linear-gradient(#13283c, #13283c) padding-box,
+                linear-gradient(
+                    90deg,
+                    #ffd1dc,
+                    #ffe7a6,
+                    #c6f6d5,
+                    #bde7ff,
+                    #d9c7ff,
+                    #ffd1dc
+                )
+                border-box;
+            background-size: 100% 100%, 200% 100%;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+            font: 700 12px/1 Arial, sans-serif;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
             cursor: pointer;
+            animation: ${SCRIPT_ID}-rainbow-border 2.6s linear infinite;
         }
 
         #${UI_ROOT_ID}-button[data-has-new="true"] {
-            background: linear-gradient(135deg, rgba(30, 41, 59, 0.96), rgba(30, 64, 175, 0.96));
+            color: #fff7ed;
         }
 
         #${UI_ROOT_ID}-button-badge {
             min-width: 20px;
-            padding: 3px 7px;
+            padding: 3px 6px;
             border-radius: 999px;
-            background: #f97316;
-            color: #fff7ed;
-            font-size: 11px;
+            background: rgba(255, 255, 255, 0.16);
+            color: #ffffff;
+            font-size: 10px;
             text-align: center;
+        }
+
+        #${UI_ROOT_ID}-quick-settings {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            z-index: 2147483647;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px;
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.96);
+            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36);
+            opacity: 0;
+            transform: translateY(-4px);
+            pointer-events: none;
+            transition: opacity 0.14s ease, transform 0.14s ease;
+        }
+
+        #${UI_ROOT_ID}-launcher:hover #${UI_ROOT_ID}-quick-settings,
+        #${UI_ROOT_ID}-launcher:focus-within #${UI_ROOT_ID}-quick-settings {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .${SCRIPT_ID}-quick-setting {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            border-radius: 50%;
+            padding: 0;
+            background: rgba(30, 41, 59, 0.78);
+            color: #64748b;
+            cursor: pointer;
+            transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease, color 0.14s ease;
+        }
+
+        .${SCRIPT_ID}-quick-setting:hover {
+            transform: translateY(-1px);
+            border-color: rgba(226, 232, 240, 0.45);
+        }
+
+        .${SCRIPT_ID}-quick-setting[data-enabled="true"] {
+            border-color: rgba(186, 230, 253, 0.72);
+            background: rgba(14, 116, 144, 0.34);
+            color: #bae6fd;
+            box-shadow: 0 0 16px rgba(186, 230, 253, 0.16);
+        }
+
+        .${SCRIPT_ID}-quick-setting svg {
+            width: 17px;
+            height: 17px;
+            fill: currentColor;
         }
 
         #${UI_ROOT_ID}-overlay {
