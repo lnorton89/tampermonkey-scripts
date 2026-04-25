@@ -12,54 +12,7 @@
 // ==UserScript== */
 
 
-"use strict";
-(() => {
-  // scripts/example-site/src/utils.ts
-  function waitForElement(selector, timeout = 5e3) {
-    return new Promise((resolve, reject) => {
-      const existing = document.querySelector(selector);
-      if (existing) {
-        resolve(existing);
-        return;
-      }
-      const timer = setTimeout(() => {
-        observer.disconnect();
-        reject(new Error(`waitForElement: "${selector}" not found within ${String(timeout)}ms`));
-      }, timeout);
-      const observer = new MutationObserver(() => {
-        const el = document.querySelector(selector);
-        if (el) {
-          clearTimeout(timer);
-          observer.disconnect();
-          resolve(el);
-        }
-      });
-      observer.observe(document.body, { childList: true, subtree: true });
-    });
-  }
-  function addStyles(css) {
-    if (typeof GM_addStyle !== "undefined") {
-      GM_addStyle(css);
-      return;
-    }
-    const style = document.createElement("style");
-    style.textContent = css;
-    document.head.appendChild(style);
-  }
-  var log = {
-    info: (...args) => {
-      console.warn("[example-site]", ...args);
-    },
-    warn: (...args) => {
-      console.warn("[example-site]", ...args);
-    },
-    error: (...args) => {
-      console.error("[example-site]", ...args);
-    }
-  };
-
-  // scripts/example-site/src/index.ts
-  var STYLES = `
+"use strict";(()=>{function a(e,n=5e3){return new Promise((i,l)=>{let d=document.querySelector(e);if(d){i(d);return}let m=setTimeout(()=>{o.disconnect(),l(new Error(`waitForElement: "${e}" not found within ${String(n)}ms`))},n),o=new MutationObserver(()=>{let r=document.querySelector(e);r&&(clearTimeout(m),o.disconnect(),i(r))});o.observe(document.body,{childList:!0,subtree:!0})})}function c(e){if(typeof GM_addStyle<"u"){GM_addStyle(e);return}let n=document.createElement("style");n.textContent=e,document.head.appendChild(n)}var t={info:(...e)=>{console.warn("[example-site]",...e)},warn:(...e)=>{console.warn("[example-site]",...e)},error:(...e)=>{console.error("[example-site]",...e)}};var u=`
   .tm-hidden-ad {
     display: none !important;
   }
@@ -68,30 +21,4 @@
     border-left: 3px solid gold;
     padding-left: 8px;
   }
-`;
-  function hideAds() {
-    document.querySelectorAll('[class*="ad-"], [id*="ad-"]').forEach((el) => {
-      el.classList.add("tm-hidden-ad");
-    });
-  }
-  async function tweakMainContent() {
-    try {
-      const main = await waitForElement("main, #content, .main-content");
-      main.classList.add("tm-highlight");
-      log.info("Main content found and tweaked");
-    } catch (err) {
-      log.warn("Main content not found:", err);
-    }
-  }
-  function init() {
-    log.info("Script loaded");
-    addStyles(STYLES);
-    hideAds();
-    void tweakMainContent();
-  }
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
-})();
+`;function f(){document.querySelectorAll('[class*="ad-"], [id*="ad-"]').forEach(e=>{e.classList.add("tm-hidden-ad")})}async function w(){try{(await a("main, #content, .main-content")).classList.add("tm-highlight"),t.info("Main content found and tweaked")}catch(e){t.warn("Main content not found:",e)}}function s(){t.info("Script loaded"),c(u),f(),w()}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",s):s();})();

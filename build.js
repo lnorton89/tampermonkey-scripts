@@ -7,8 +7,44 @@ import fs from 'fs';
 import path from 'path';
 
 const isWatch = process.argv.includes('--watch');
+const isDebug = process.argv.includes('--debug');
 
 const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+
+// Default feature flags (can be overridden per-script via .build-flags.json)
+const DEFAULT_FLAGS = {
+  __ENABLE_AD_BYPASS__: 'true',
+  __ENABLE_AUTO_FULLSCREEN__: 'true',
+  __ENABLE_AUTO_PLAY__: 'true',
+  __ENABLE_WATCHLIST__: 'true',
+  __ENABLE_UI_OVERLAY__: 'true',
+  __ENABLE_PAGE_HELPERS__: 'true',
+  __ENABLE_VIDEO_OBSERVER__: 'true',
+};
+
+function readScriptFlags(scriptDir) {
+  const flagsFile = isDebug ? '.build-flags-debug.json' : '.build-flags.json';
+  const flagsPath = path.join(scriptDir, flagsFile);
+  if (!fs.existsSync(flagsPath)) return { ...DEFAULT_FLAGS };
+
+  try {
+    const customFlags = JSON.parse(fs.readFileSync(flagsPath, 'utf8'));
+    const flags = {
+      __ENABLE_AD_BYPASS__: customFlags.adBypass ? 'true' : 'false',
+      __ENABLE_AUTO_FULLSCREEN__: customFlags.autoFullscreen ? 'true' : 'false',
+      __ENABLE_AUTO_PLAY__: customFlags.autoPlay ? 'true' : 'false',
+      __ENABLE_WATCHLIST__: customFlags.watchlist ? 'true' : 'false',
+      __ENABLE_UI_OVERLAY__: customFlags.uiOverlay ? 'true' : 'false',
+      __ENABLE_PAGE_HELPERS__: customFlags.pageHelpers ? 'true' : 'false',
+      __ENABLE_VIDEO_OBSERVER__: customFlags.videoObserver ? 'true' : 'false',
+    };
+    console.log(`[build] Loaded flags from ${flagsPath}:`, flags);
+    return flags;
+  } catch (e) {
+    console.warn(`[build] Failed to read flags from ${flagsPath}, using defaults`);
+    return { ...DEFAULT_FLAGS };
+  }
+}
 const repoUrl =
   pkg.repository?.url?.replace('git+', '').replace('.git', '') ||
   'https://github.com/unknown/tampermonkey-scripts';
@@ -31,16 +67,28 @@ function readVersion(scriptDir) {
   return match ? match[1] : '0.0.0';
 }
 
+function readMetaMatches(scriptDir) {
+  const metaPath = path.join(scriptDir, 'src', 'meta.ts');
+  if (!fs.existsSync(metaPath)) return ['*://*.example.com/*'];
+
+  const content = fs.readFileSync(metaPath, 'utf8');
+  const matches = [...content.matchAll(/@match\s+(.+)/g)].map((match) => match[1].trim());
+  return matches.length ? matches : ['*://*.example.com/*'];
+}
+
 function generateLoader(scriptDir, scriptName) {
   const loaderPath = path.join(scriptDir, 'tampermonkey-loader.user.js');
-  const scriptUrl = `${rawUrl}/${branch}/${scriptName}/dist/${scriptName}.user.js`;
+  const scriptUrl = `${rawUrl}/${branch}/scripts/${scriptName}/dist/${scriptName}.user.js`;
+  const matchLines = readMetaMatches(scriptDir)
+    .map((match) => `// @match        ${match}`)
+    .join('\n');
 
   const template = `// ==UserScript==
 // @name         ${scriptName} (loader)
 // @namespace    ${pkg.repository?.url?.replace('git+', '').replace('.git', '') || 'http://tampermonkey.net/'}
 // @version      1.0.0
 // @description  Loader — fetches the latest build from GitHub
-// @match        *://*.example.com/*
+${matchLines}
 // @grant        GM_xmlhttpRequest
 // @connect      github.com
 // @connect      raw.githubusercontent.com
@@ -75,14 +123,15 @@ function generateLoader(scriptDir, scriptName) {
 async function buildScript(entryPoint) {
   const scriptDir = path.dirname(path.dirname(entryPoint));
   const scriptName = path.basename(scriptDir);
-  const outDir = path.join(scriptDir, 'dist');
-  const outFile = path.join(outDir, `${scriptName}.user.js`);
+  const outDir = path.join(scriptDir, isDebug ? 'dist-debug' : 'dist');
+  const outFile = path.join(outDir, `${scriptName}${isDebug ? '.debug' : ''}.user.js`);
 
   fs.mkdirSync(outDir, { recursive: true });
 
   const banner = readMetaBanner(scriptDir);
   const version = readVersion(scriptDir);
   const buildDate = new Date().toISOString();
+  const scriptFlags = readScriptFlags(scriptDir);
 
   const buildOptions = {
     entryPoints: [entryPoint],
@@ -92,7 +141,7 @@ async function buildScript(entryPoint) {
     platform: 'browser',
     target: 'es2020',
     sourcemap: false,
-    minify: false,
+    minify: true,
     banner: {
       js: banner,
     },
@@ -101,6 +150,7 @@ async function buildScript(entryPoint) {
       __VERSION__: JSON.stringify(version),
       __BUILD_DATE__: JSON.stringify(buildDate),
       __SCRIPT_NAME__: JSON.stringify(scriptName),
+      ...scriptFlags,
     },
     logLevel: 'info',
   };
@@ -108,10 +158,10 @@ async function buildScript(entryPoint) {
   if (isWatch) {
     const ctx = await esbuild.context(buildOptions);
     await ctx.watch();
-    console.log(`[watch] ${scriptName}`);
+    console.log(`[watch${isDebug ? ' DEBUG' : ''}] ${scriptName}`);
   } else {
     await esbuild.build(buildOptions);
-    console.log(`[built] ${scriptName} → ${outFile}`);
+    console.log(`[built${isDebug ? ' DEBUG' : ''}] ${scriptName} → ${outFile}`);
   }
 
   generateLoader(scriptDir, scriptName);

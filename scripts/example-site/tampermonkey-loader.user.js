@@ -3,7 +3,8 @@
 // @namespace    https://github.com/lnorton89/tampermonkey-scripts
 // @version      1.0.0
 // @description  Loader — fetches the latest build from GitHub
-// @match        *://*.example.com/*
+// @match        https://example.com/*
+// @match        https://www.example.com/*
 // @grant        GM_xmlhttpRequest
 // @connect      github.com
 // @connect      raw.githubusercontent.com
@@ -12,7 +13,7 @@
 (function () {
   'use strict';
 
-  const SCRIPT_URL = 'https://raw.githubusercontent.com/lnorton89/tampermonkey-scripts/main/example-site/dist/example-site.user.js';
+  const SCRIPT_URL = 'https://raw.githubusercontent.com/lnorton89/tampermonkey-scripts/main/scripts/example-site/dist/example-site.user.js';
 
   GM_xmlhttpRequest({
     method: 'GET',

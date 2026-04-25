@@ -1,6 +1,6 @@
 /* ==UserScript==
 // @name         LookMovie2 Enhancer
-// @namespace    http://tampermonkey.net/
+// @namespace    https://github.com/lnorton89/tampermonkey-scripts
 // @version      1.2.0
 // @description  Combines playback helpers with a persistent show watchlist for latest episode tracking.
 // @author       Lawrence
