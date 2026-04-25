@@ -2,6 +2,7 @@
 // @ts-nocheck
 import { useEffect, useState } from 'react';
 import { SCRIPT_ID, UI_ROOT_ID } from '../config/constants';
+import { countUnwatchedMovies } from '../features/movies';
 import { countUnwatchedLatestEpisodes, refreshWatchlistEntries } from '../features/watchlist';
 import { SettingToggle } from './components/SettingToggle';
 import { WatchlistPanel } from './components/WatchlistPanel';
@@ -10,7 +11,7 @@ import { subscribeUi } from './events';
 export function LookMovieToolsApp() {
   const [isOpen, setIsOpen] = useState(false);
   const [, setRevision] = useState(0);
-  const newCount = countUnwatchedLatestEpisodes();
+  const newCount = countUnwatchedLatestEpisodes() + countUnwatchedMovies();
 
   useEffect(() => subscribeUi(() => setRevision((revision) => revision + 1)), []);
 

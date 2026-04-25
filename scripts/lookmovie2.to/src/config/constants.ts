@@ -3,6 +3,7 @@
 export const SCRIPT_ID = 'lookmovie2-enhancer';
 export const STORAGE_KEY = `${SCRIPT_ID}:settings`;
 export const WATCHLIST_KEY = `${SCRIPT_ID}:watchlist`;
+export const MOVIE_WATCHLIST_KEY = `${SCRIPT_ID}:movie-watchlist`;
 export const UI_STYLE_ID = `${SCRIPT_ID}-style`;
 export const FULLSCREEN_STYLE_ID = `${SCRIPT_ID}-fullscreen-style`;
 export const UI_ROOT_ID = `${SCRIPT_ID}-root`;

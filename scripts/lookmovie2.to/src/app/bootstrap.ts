@@ -9,8 +9,12 @@ import {
 } from '../features/player';
 import {
   ensureEpisodeCardButtons,
+  ensureMovieCardButtons,
+  ensureMovieViewWatchButton,
   ensureShowViewWatchButton,
   syncEpisodeCardButtons,
+  syncMovieCardButtons,
+  syncMovieViewWatchButton,
   syncShowViewWatchButton,
 } from '../features/pages';
 import { refreshWatchlistEntries } from '../features/watchlist';
@@ -33,6 +37,10 @@ export function watchNavigation() {
     ensureEpisodeCardButtons();
     syncShowViewWatchButton();
     ensureShowViewWatchButton();
+    syncMovieCardButtons();
+    ensureMovieCardButtons();
+    syncMovieViewWatchButton();
+    ensureMovieViewWatchButton();
     refreshWatchlistEntries();
   }, ROUTE_POLL_MS);
 }
@@ -51,6 +59,8 @@ export function bootstrapDomFeatures() {
     ensureUi();
     ensureEpisodeCardButtons();
     ensureShowViewWatchButton();
+    ensureMovieCardButtons();
+    ensureMovieViewWatchButton();
 
     if (document.getElementById(UI_ROOT_ID) || appState.uiBootAttempts > 100) {
       window.clearInterval(uiBootstrapper);
@@ -61,5 +71,7 @@ export function bootstrapDomFeatures() {
   syncLauncherState();
   syncEpisodeCardButtons();
   syncShowViewWatchButton();
+  syncMovieCardButtons();
+  syncMovieViewWatchButton();
   refreshWatchlistEntries();
 }

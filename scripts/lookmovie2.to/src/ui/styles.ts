@@ -236,6 +236,44 @@ export function getUiStyleText() {
             line-height: 1.45;
         }
 
+        .${SCRIPT_ID}-tabs {
+            display: inline-flex;
+            gap: 4px;
+            margin: 0 0 8px;
+            padding: 3px;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.7);
+        }
+
+        .${SCRIPT_ID}-tab {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            border: 0;
+            border-radius: 999px;
+            padding: 6px 10px;
+            background: transparent;
+            color: #94a3b8;
+            font: 700 12px/1 Arial, sans-serif;
+            cursor: pointer;
+        }
+
+        .${SCRIPT_ID}-tab[data-active="true"] {
+            background: rgba(37, 99, 235, 0.88);
+            color: #eff6ff;
+        }
+
+        .${SCRIPT_ID}-tab span {
+            min-width: 18px;
+            padding: 2px 6px;
+            border-radius: 999px;
+            background: rgba(249, 115, 22, 0.92);
+            color: #fff7ed;
+            font-size: 10px;
+            text-align: center;
+        }
+
         #${UI_ROOT_ID}-watchlist-status {
             min-height: 18px;
             margin-bottom: 10px;

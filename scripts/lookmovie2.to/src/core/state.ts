@@ -1,10 +1,11 @@
 /* eslint-disable */
 // @ts-nocheck
-import { loadSettings, loadWatchlist } from './storage';
+import { loadMovieWatchlist, loadSettings, loadWatchlist } from './storage';
 
 export const appState = {
   settings: loadSettings(),
   watchlistStore: loadWatchlist(),
+  movieWatchlistStore: loadMovieWatchlist(),
   domBootstrapped: false,
   uiBootAttempts: 0,
   fullscreenTriggered: false,

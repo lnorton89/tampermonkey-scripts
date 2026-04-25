@@ -1,9 +1,10 @@
 /* eslint-disable */
 // @ts-nocheck
-import { SCRIPT_ID } from '../../config/constants';
-import { normalizeEpisodeRecord, compareEpisodes } from '../../domain/episodes';
-import { escapeHtml, toPositiveInteger } from '../../core/utils';
-import { addShowToWatchlist, getWatchlistEntry, removeShowFromWatchlist } from '../watchlist';
+import { SCRIPT_ID } from '../config/constants';
+import { normalizeEpisodeRecord, compareEpisodes } from '../domain/episodes';
+import { escapeHtml, toPositiveInteger } from '../core/utils';
+import { addShowToWatchlist, getWatchlistEntry, removeShowFromWatchlist } from './watchlist';
+import { addMovieToWatchlist, getMovieWatchlistEntry, removeMovieFromWatchlist } from './movies';
 
 export function extractShowSlugFromViewHref(href) {
   try {
@@ -35,6 +36,16 @@ export function extractEpisodeContextFromHref(href) {
 export function extractYearFromSlug(slug) {
   const yearMatch = typeof slug === 'string' ? slug.match(/-(\d{4})$/) : null;
   return yearMatch ? yearMatch[1] : '';
+}
+
+export function extractMovieSlugFromViewHref(href) {
+  try {
+    const url = new URL(href, location.origin);
+    const pathMatch = url.pathname.match(/\/movies\/view\/([^/?#]+)/i);
+    return pathMatch ? pathMatch[1] : '';
+  } catch (error) {
+    return '';
+  }
 }
 
 export function parseEpisodeCard(cardElement) {
@@ -80,12 +91,28 @@ export function buildShowViewUrl(slug, episodeRecord) {
   return `/shows/view/${slug}?season=${episodeRecord.season}&episode=${episodeRecord.episode}&id_episode=${episodeRecord.idEpisode}`;
 }
 
+export function buildMovieViewUrl(slug) {
+  return slug ? `/movies/view/${slug}` : '/movies';
+}
+
 export function isLatestShowsPage() {
   return location.pathname === '/shows';
 }
 
 export function isShowViewPage() {
   return location.pathname.startsWith('/shows/view/');
+}
+
+export function isMoviesPage() {
+  return location.pathname === '/movies';
+}
+
+export function isMoviePlayPage() {
+  return location.pathname.startsWith('/movies/play/');
+}
+
+export function isMovieViewPage() {
+  return location.pathname.startsWith('/movies/view/');
 }
 
 export function getCurrentShowViewData() {
@@ -118,6 +145,93 @@ export function getCurrentShowViewData() {
         : '',
     idShow: toPositiveInteger(window.show_storage.id_show),
     episode,
+  };
+}
+
+export function parseMovieCard(cardElement) {
+  if (!cardElement) {
+    return null;
+  }
+
+  const link = cardElement.querySelector('a[href*="/movies/view/"]');
+  if (!link) {
+    return null;
+  }
+
+  const slug = extractMovieSlugFromViewHref(link.getAttribute('href'));
+  if (!slug) {
+    return null;
+  }
+
+  const titleNode = cardElement.querySelector(
+    '.slide-item__title, .mv-item-infor h6, h6, h5, .title'
+  );
+  const imageNode = cardElement.querySelector('img[data-src-portrait], img[data-src], img[src]');
+  const backgroundNode = cardElement.querySelector(
+    '[data-background-image], [data-src-portrait], [data-src]'
+  );
+  const yearNode = cardElement.querySelector('.year');
+  const titleText = titleNode ? titleNode.textContent.trim() : '';
+  const yearFromTitle = titleText.match(/\((\d{4})\)/);
+  const poster =
+    imageNode?.getAttribute('data-src-portrait') ||
+    imageNode?.getAttribute('data-src') ||
+    imageNode?.getAttribute('src') ||
+    backgroundNode?.getAttribute('data-background-image') ||
+    backgroundNode?.getAttribute('data-src-portrait') ||
+    backgroundNode?.getAttribute('data-src') ||
+    '';
+
+  return {
+    slug,
+    title: titleText ? titleText.replace(/\s*\(\d{4}\)\s*$/, '').trim() : slug,
+    year: yearNode ? yearNode.textContent.trim() : yearFromTitle?.[1] || extractYearFromSlug(slug),
+    poster,
+    href: new URL(link.getAttribute('href'), location.origin).href,
+  };
+}
+
+export function getCurrentMovieViewData() {
+  if (!isMovieViewPage()) {
+    return null;
+  }
+
+  const slug = extractMovieSlugFromViewHref(location.href);
+  if (!slug) {
+    return null;
+  }
+
+  const movieStorage = window.movie_storage || window.movie || {};
+  const titleNode =
+    document.querySelector('.movie-single-ct h1') ||
+    document.querySelector('.movie-single-ct h2') ||
+    document.querySelector('.internal-page-container h1') ||
+    document.querySelector('.internal-page-container h2');
+  const imageNode = document.querySelector(
+    '.movie-single-ct img[data-src], .movie-single-ct img[src], .internal-page-container img[data-src], .internal-page-container img[src]'
+  );
+
+  return {
+    slug,
+    title:
+      typeof movieStorage.title === 'string' && movieStorage.title.trim()
+        ? movieStorage.title.trim()
+        : titleNode
+          ? titleNode.textContent.trim()
+          : slug,
+    year:
+      typeof movieStorage.year === 'string' || typeof movieStorage.year === 'number'
+        ? String(movieStorage.year)
+        : extractYearFromSlug(slug),
+    poster:
+      typeof movieStorage.movie_poster === 'string' && movieStorage.movie_poster
+        ? movieStorage.movie_poster
+        : typeof movieStorage.poster_medium === 'string' && movieStorage.poster_medium
+          ? movieStorage.poster_medium
+          : imageNode
+            ? imageNode.getAttribute('data-src') || imageNode.getAttribute('src') || ''
+            : '',
+    href: location.href,
   };
 }
 
@@ -183,6 +297,56 @@ export function syncShowViewWatchButton() {
   document
     .querySelectorAll(`.${SCRIPT_ID}-show-view-watch-button`)
     .forEach(updateShowViewWatchButton);
+}
+
+export function updateMovieCardButton(button) {
+  const slug = button.dataset.watchlistSlug || '';
+  const entry = getMovieWatchlistEntry(slug);
+
+  if (!entry) {
+    button.dataset.state = 'add';
+    button.textContent = '+ Movie';
+    button.title = 'Add this movie to your watchlist';
+    button.disabled = false;
+    return;
+  }
+
+  button.dataset.state = entry.watched ? 'watching' : 'watching-new';
+  button.textContent = entry.watched ? 'Watched' : 'Movie List';
+  button.title = entry.watched
+    ? 'This movie is marked watched. Click to remove it from your movie watchlist.'
+    : 'This movie is in your movie watchlist. Click to remove it.';
+  button.disabled = false;
+}
+
+export function syncMovieCardButtons() {
+  document.querySelectorAll(`.${SCRIPT_ID}-movie-watch-button`).forEach(updateMovieCardButton);
+}
+
+export function updateMovieViewWatchButton(button) {
+  const slug = button.dataset.watchlistSlug || '';
+  const entry = getMovieWatchlistEntry(slug);
+
+  if (!entry) {
+    button.dataset.state = 'add';
+    button.textContent = '+ Add Movie To Watchlist';
+    button.title = 'Add this movie to your watchlist';
+    button.disabled = false;
+    return;
+  }
+
+  button.dataset.state = entry.watched ? 'watching' : 'watching-new';
+  button.textContent = entry.watched ? 'Movie Watched' : 'In Movie Watchlist';
+  button.title = entry.watched
+    ? 'This movie is marked watched. Click to remove it from your movie watchlist.'
+    : 'This movie is in your movie watchlist. Click to remove it.';
+  button.disabled = false;
+}
+
+export function syncMovieViewWatchButton() {
+  document
+    .querySelectorAll(`.${SCRIPT_ID}-movie-view-watch-button`)
+    .forEach(updateMovieViewWatchButton);
 }
 
 export function ensureEpisodeCardButtons() {
@@ -329,4 +493,138 @@ export function ensureShowViewWatchButton() {
   }
 
   updateShowViewWatchButton(button);
+}
+
+export function ensureMovieCardButtons() {
+  if (!document.body || isMoviePlayPage()) {
+    return;
+  }
+
+  document.querySelectorAll('a[href*="/movies/view/"]').forEach((linkElement) => {
+    const cardElement =
+      linkElement.closest('.slide-item') ||
+      linkElement.closest('.movie-item') ||
+      linkElement.closest('.mv-item') ||
+      linkElement.closest('.movie-item-style-2') ||
+      linkElement.closest('.slide-item__backdrop--wrapper') ||
+      linkElement.closest('.item') ||
+      linkElement.parentElement;
+    const card = parseMovieCard(cardElement);
+    if (!card || !cardElement) {
+      return;
+    }
+
+    const buttonHost =
+      cardElement.querySelector('.slide-item__buttons') ||
+      cardElement.querySelector('.image__placeholder') ||
+      cardElement;
+    let button = buttonHost.querySelector(`.${SCRIPT_ID}-movie-watch-button`);
+    if (!button) {
+      button = document.createElement('button');
+      button.type = 'button';
+      button.className = `${SCRIPT_ID}-movie-watch-button ${SCRIPT_ID}-episode-watch-button`;
+      buttonHost.appendChild(button);
+
+      if (getComputedStyle(buttonHost).position === 'static') {
+        buttonHost.style.position = 'relative';
+      }
+
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const slug = button.dataset.watchlistSlug;
+        if (!slug) {
+          return;
+        }
+
+        if (getMovieWatchlistEntry(slug)) {
+          removeMovieFromWatchlist(slug);
+          return;
+        }
+
+        addMovieToWatchlist({
+          slug,
+          title: button.dataset.title || slug,
+          year: button.dataset.year || '',
+          poster: button.dataset.poster || '',
+          href: button.dataset.href || buildMovieViewUrl(slug),
+        });
+
+        updateMovieCardButton(button);
+      });
+    }
+
+    button.dataset.watchlistSlug = card.slug;
+    button.dataset.title = card.title;
+    button.dataset.year = card.year;
+    button.dataset.poster = card.poster;
+    button.dataset.href = card.href;
+
+    updateMovieCardButton(button);
+  });
+}
+
+export function ensureMovieViewWatchButton() {
+  if (!document.body || !isMovieViewPage()) {
+    return;
+  }
+
+  const movie = getCurrentMovieViewData();
+  if (!movie) {
+    return;
+  }
+
+  const actionHost =
+    document.querySelector('.watch-heading') ||
+    document.querySelector('.movie-single-ct.main-content') ||
+    document.querySelector('.internal-page-container');
+  if (!actionHost) {
+    return;
+  }
+
+  let wrap = document.querySelector(`.${SCRIPT_ID}-movie-view-watch-wrap`);
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.className = `${SCRIPT_ID}-show-view-watch-wrap ${SCRIPT_ID}-movie-view-watch-wrap`;
+    actionHost.appendChild(wrap);
+  }
+
+  let button = wrap.querySelector(`.${SCRIPT_ID}-movie-view-watch-button`);
+  if (!button) {
+    button = document.createElement('button');
+    button.type = 'button';
+    button.className = `${SCRIPT_ID}-show-view-watch-button ${SCRIPT_ID}-movie-view-watch-button`;
+    wrap.appendChild(button);
+
+    button.addEventListener('click', () => {
+      const slug = button.dataset.watchlistSlug;
+      if (!slug) {
+        return;
+      }
+
+      if (getMovieWatchlistEntry(slug)) {
+        removeMovieFromWatchlist(slug);
+        return;
+      }
+
+      addMovieToWatchlist({
+        slug,
+        title: button.dataset.title || slug,
+        year: button.dataset.year || '',
+        poster: button.dataset.poster || '',
+        href: button.dataset.href || buildMovieViewUrl(slug),
+      });
+
+      updateMovieViewWatchButton(button);
+    });
+  }
+
+  button.dataset.watchlistSlug = movie.slug;
+  button.dataset.title = movie.title;
+  button.dataset.year = movie.year;
+  button.dataset.poster = movie.poster;
+  button.dataset.href = movie.href;
+
+  updateMovieViewWatchButton(button);
 }
