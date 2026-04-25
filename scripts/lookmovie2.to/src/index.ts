@@ -8,7 +8,6 @@ const WATCHLIST_KEY = `${SCRIPT_ID}:watchlist`;
 const UI_STYLE_ID = `${SCRIPT_ID}-style`;
 const FULLSCREEN_STYLE_ID = `${SCRIPT_ID}-fullscreen-style`;
 const UI_ROOT_ID = `${SCRIPT_ID}-root`;
-const LOADER_AD_BYPASS_TRAP_KEY = '__lookmovie2EnhancerAdBypassTrap';
 const WATCHLIST_REFRESH_MS = 30 * 60 * 1000;
 const ROUTE_POLL_MS = 1000;
 const DEFAULT_SETTINGS = Object.freeze({
@@ -19,8 +18,6 @@ const DEFAULT_SETTINGS = Object.freeze({
 
 let settings = loadSettings();
 let watchlistStore = loadWatchlist();
-let originalInitPrePlaybackCounter = null;
-let adBypassPoller = null;
 let domBootstrapped = false;
 let uiBootAttempts = 0;
 let fullscreenTriggered = false;
@@ -30,7 +27,6 @@ let watchlistBusy = false;
 let watchlistMessage = '';
 let watchlistMessageTone = 'muted';
 let lastTrackedEpisodeSignature = '';
-let adBypassTrapInstalled = false;
 
 function loadSettings() {
   try {
@@ -69,9 +65,6 @@ function saveSettings(nextSettings) {
 
   if (settings.adTimerBypass) {
     tryInstallAdTimerBypass();
-    hidePrePlaybackAdUi();
-  } else if (typeof originalInitPrePlaybackCounter === 'function') {
-    window.initPrePlaybackCounter = originalInitPrePlaybackCounter;
   }
 
   if (!settings.autoFullscreen) {
@@ -646,161 +639,61 @@ function maybeTrackWatchedEpisodeFromPlayer() {
   );
 }
 
-function hidePrePlaybackAdUi(options = {}) {
-  const hideContainer = !!options.hideContainer;
-  const playerPreInitAds = document.querySelector('.player-pre-init-ads');
-  if (playerPreInitAds) {
-    if (hideContainer) {
-      playerPreInitAds.classList.add('tw-hidden');
-    }
-    playerPreInitAds.classList.add('finished');
-  }
-
-  const loadingPleaseWait = document.querySelector('.pre-init-ads--loading-please-wait');
-  if (loadingPleaseWait) {
-    loadingPleaseWait.classList.add('tw-hidden');
-    loadingPleaseWait.classList.add('!tw-hidden');
-  }
-
-  const adTimer = document.querySelector('.player-pre-init-ads_timer');
-  if (adTimer) {
-    adTimer.classList.add('tw-hidden');
-    adTimer.classList.add('tw-opacity-0');
-  }
-
-  document.querySelectorAll('.player-pre-init-ads_timer__value').forEach((timerValue) => {
-    timerValue.textContent = '0';
-  });
-
-  document.querySelectorAll('.pre-init-ads--close').forEach((button) => {
-    button.classList.remove('tw-hidden');
-  });
-  document.querySelectorAll('.pre-init-ads--back-button').forEach((button) => {
-    button.classList.remove('tw-hidden');
-  });
-
-  if (typeof window._counterTimeout !== 'undefined') {
-    clearInterval(window._counterTimeout);
-    window._counterTimeout = undefined;
-  }
-
-  if (typeof window.enableWindowScroll === 'function') {
-    window.enableWindowScroll();
-  }
-}
-
-function bypassPrePlaybackCounter() {
-  console.log(`[${SCRIPT_ID}] initPrePlaybackCounter bypassed.`);
-
-  window._preInitAdsTimestamp = Date.now();
-
-  const bypassPromise = new Promise((resolve) => {
-    hidePrePlaybackAdUi({ hideContainer: true });
-    resolve();
-  }).finally(() => {
-    if (typeof window.enableWindowScroll === 'function') {
-      window.enableWindowScroll();
-    }
-  });
-
-  bypassPromise.cancel = () => {
-    if (typeof window._counterTimeout !== 'undefined') {
-      clearInterval(window._counterTimeout);
-      window._counterTimeout = undefined;
-    }
-    hidePrePlaybackAdUi({ hideContainer: true });
-  };
-
-  return bypassPromise;
-}
-
 function tryInstallAdTimerBypass() {
   if (!settings.adTimerBypass) {
     return false;
   }
 
-  if (
-    typeof window.initPrePlaybackCounter === 'function' &&
-    window.initPrePlaybackCounter !== bypassPrePlaybackCounter
-  ) {
-    if (!originalInitPrePlaybackCounter) {
-      originalInitPrePlaybackCounter = window.initPrePlaybackCounter;
-    }
-    window.initPrePlaybackCounter = bypassPrePlaybackCounter;
-    console.log(`[${SCRIPT_ID}] Installed ad timer bypass override.`);
+  if (typeof window.initPrePlaybackCounter !== 'undefined') {
+    window.initPrePlaybackCounter = function () {
+      console.log('initPrePlaybackCounter function bypassed!');
+
+      return new Promise((resolve) => {
+        const playerPreInitAds = document.querySelector('.player-pre-init-ads');
+        if (playerPreInitAds) {
+          playerPreInitAds.classList.add('tw-hidden');
+          playerPreInitAds.classList.add('finished');
+        }
+
+        const loadingPleaseWait = document.querySelector('.pre-init-ads--loading-please-wait');
+        if (loadingPleaseWait) {
+          loadingPleaseWait.classList.add('tw-hidden');
+        }
+
+        const adTimer = document.querySelector('.player-pre-init-ads_timer');
+        if (adTimer) {
+          adTimer.classList.add('tw-opacity-0');
+        }
+
+        document.querySelectorAll('.pre-init-ads--close').forEach((button) => {
+          button.classList.remove('tw-hidden');
+        });
+        document.querySelectorAll('.pre-init-ads--back-button').forEach((button) => {
+          button.classList.remove('tw-hidden');
+        });
+
+        if (typeof window._counterTimeout !== 'undefined') {
+          clearInterval(window._counterTimeout);
+          window._counterTimeout = undefined;
+        }
+
+        if (typeof window.enableWindowScroll === 'function') {
+          window.enableWindowScroll();
+        }
+
+        resolve();
+      }).finally(() => {
+        if (typeof window.enableWindowScroll === 'function') {
+          window.enableWindowScroll();
+        }
+      });
+    };
+
     return true;
   }
 
-  return window.initPrePlaybackCounter === bypassPrePlaybackCounter;
-}
-
-function installAdTimerBypassTrap() {
-  const descriptor = Object.getOwnPropertyDescriptor(window, 'initPrePlaybackCounter');
-  if (descriptor && descriptor.configurable === false) {
-    return false;
-  }
-
-  const loaderTrapState = window[LOADER_AD_BYPASS_TRAP_KEY];
-  const descriptorHasGetter = !!descriptor && typeof descriptor.get === 'function';
-  const descriptorValue = descriptorHasGetter
-    ? descriptor.get.call(window)
-    : descriptor
-      ? descriptor.value
-      : undefined;
-  let currentValue =
-    adBypassTrapInstalled && descriptorHasGetter
-      ? originalInitPrePlaybackCounter
-      : loaderTrapState && typeof loaderTrapState === 'object' && 'currentValue' in loaderTrapState
-        ? loaderTrapState.currentValue
-        : descriptorValue;
-
-  if (
-    typeof currentValue === 'function' &&
-    currentValue !== bypassPrePlaybackCounter &&
-    !originalInitPrePlaybackCounter
-  ) {
-    originalInitPrePlaybackCounter = currentValue;
-  }
-
-  Object.defineProperty(window, 'initPrePlaybackCounter', {
-    configurable: true,
-    enumerable: descriptor ? descriptor.enumerable : true,
-    get() {
-      return settings.adTimerBypass ? bypassPrePlaybackCounter : currentValue;
-    },
-    set(nextValue) {
-      if (
-        settings.adTimerBypass &&
-        typeof nextValue === 'function' &&
-        nextValue !== bypassPrePlaybackCounter &&
-        !originalInitPrePlaybackCounter
-      ) {
-        originalInitPrePlaybackCounter = nextValue;
-      }
-
-      currentValue = nextValue;
-      if (loaderTrapState && typeof loaderTrapState === 'object') {
-        loaderTrapState.currentValue = nextValue;
-      }
-    },
-  });
-
-  adBypassTrapInstalled = true;
-  return true;
-}
-
-function startAdTimerPolling() {
-  if (adBypassPoller) {
-    return;
-  }
-
-  adBypassPoller = window.setInterval(() => {
-    if (settings.adTimerBypass) {
-      installAdTimerBypassTrap();
-      tryInstallAdTimerBypass();
-      hidePrePlaybackAdUi({ hideContainer: false });
-    }
-  }, 250);
+  console.warn('initPrePlaybackCounter function not found. The script might not be effective.');
+  return false;
 }
 
 function dismissResumeModalIfPresent() {
@@ -2047,9 +1940,7 @@ function bootstrapDomFeatures() {
   refreshWatchlistEntries();
 }
 
-installAdTimerBypassTrap();
 tryInstallAdTimerBypass();
-startAdTimerPolling();
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', bootstrapDomFeatures, { once: true });

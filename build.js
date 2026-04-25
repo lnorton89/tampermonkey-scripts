@@ -92,154 +92,23 @@ function generateLoader(scriptDir, scriptName) {
     .map((match) => `// @match        ${match}`)
     .join('\n');
   const runAt = readMetaRunAt(scriptDir);
-  const adBypassBootstrap =
-    scriptName === 'lookmovie2.to'
-      ? `  const SCRIPT_ID = 'lookmovie2-enhancer';
-  const STORAGE_KEY = SCRIPT_ID + ':settings';
-  const TRAP_KEY = '__lookmovie2EnhancerAdBypassTrap';
-  const pageWindow = typeof unsafeWindow === 'undefined' ? window : unsafeWindow;
-  const pageDocument = pageWindow.document;
-
-  function isAdBypassEnabled() {
-    try {
-      const parsed = JSON.parse(pageWindow.localStorage.getItem(STORAGE_KEY) || '{}');
-      return typeof parsed.adTimerBypass === 'boolean' ? parsed.adTimerBypass : true;
-    } catch (_) {
-      return true;
-    }
-  }
-
-  function hidePrePlaybackAdUi() {
-    const playerPreInitAds = pageDocument.querySelector('.player-pre-init-ads');
-    if (playerPreInitAds) {
-      playerPreInitAds.classList.add('tw-hidden');
-      playerPreInitAds.classList.add('finished');
-    }
-
-    const loadingPleaseWait = pageDocument.querySelector('.pre-init-ads--loading-please-wait');
-    if (loadingPleaseWait) {
-      loadingPleaseWait.classList.add('tw-hidden');
-      loadingPleaseWait.classList.add('!tw-hidden');
-    }
-
-    const adTimer = pageDocument.querySelector('.player-pre-init-ads_timer');
-    if (adTimer) {
-      adTimer.classList.add('tw-hidden');
-      adTimer.classList.add('tw-opacity-0');
-    }
-
-    pageDocument.querySelectorAll('.player-pre-init-ads_timer__value').forEach((timerValue) => {
-      timerValue.textContent = '0';
-    });
-
-    pageDocument.querySelectorAll('.pre-init-ads--close').forEach((button) => {
-      button.classList.remove('tw-hidden');
-    });
-    pageDocument.querySelectorAll('.pre-init-ads--back-button').forEach((button) => {
-      button.classList.remove('tw-hidden');
-    });
-
-    if (typeof pageWindow._counterTimeout !== 'undefined') {
-      pageWindow.clearInterval(pageWindow._counterTimeout);
-      pageWindow._counterTimeout = undefined;
-    }
-
-    if (typeof pageWindow.enableWindowScroll === 'function') {
-      pageWindow.enableWindowScroll();
-    }
-  }
-
-  function bypassPrePlaybackCounter() {
-    console.log('[' + SCRIPT_ID + '] initPrePlaybackCounter bypassed by loader.');
-    pageWindow._preInitAdsTimestamp = Date.now();
-
-    const bypassPromise = Promise.resolve()
-      .then(hidePrePlaybackAdUi)
-      .finally(() => {
-        if (typeof pageWindow.enableWindowScroll === 'function') {
-          pageWindow.enableWindowScroll();
-        }
-      });
-
-    bypassPromise.cancel = () => {
-      if (typeof pageWindow._counterTimeout !== 'undefined') {
-        pageWindow.clearInterval(pageWindow._counterTimeout);
-        pageWindow._counterTimeout = undefined;
-      }
-      hidePrePlaybackAdUi();
-    };
-
-    return bypassPromise;
-  }
-
-  function installAdBypassTrap() {
-    const existingTrapState = pageWindow[TRAP_KEY];
-    const trapState =
-      existingTrapState && typeof existingTrapState === 'object' ? existingTrapState : {};
-    pageWindow[TRAP_KEY] = trapState;
-
-    const descriptor = Object.getOwnPropertyDescriptor(pageWindow, 'initPrePlaybackCounter');
-    if (descriptor && descriptor.configurable === false) {
-      return;
-    }
-
-    const descriptorHasGetter = !!descriptor && typeof descriptor.get === 'function';
-    const descriptorValue = descriptorHasGetter
-      ? descriptor.get.call(pageWindow)
-      : descriptor
-        ? descriptor.value
-        : undefined;
-    let currentValue =
-      trapState.installed && descriptorHasGetter && 'currentValue' in trapState
-        ? trapState.currentValue
-        : descriptorValue;
-    trapState.installed = true;
-    trapState.currentValue = currentValue;
-
-    Object.defineProperty(pageWindow, 'initPrePlaybackCounter', {
-      configurable: true,
-      enumerable: descriptor ? descriptor.enumerable : true,
-      get() {
-        return isAdBypassEnabled() ? bypassPrePlaybackCounter : currentValue;
-      },
-      set(nextValue) {
-        currentValue = nextValue;
-        trapState.currentValue = nextValue;
-      },
-    });
-  }
-
-  installAdBypassTrap();
-  hidePrePlaybackAdUi();
-  pageWindow.setInterval(() => {
-    if (isAdBypassEnabled()) {
-      installAdBypassTrap();
-      hidePrePlaybackAdUi();
-    }
-  }, 250);
-
-`
-      : '';
-  const unsafeWindowGrant = scriptName === 'lookmovie2.to' ? '// @grant        unsafeWindow\n' : '';
-  const loaderBootstrap = adBypassBootstrap;
-  const loaderVersion = scriptName === 'lookmovie2.to' ? '1.0.1' : '1.0.0';
 
   const template = `// ==UserScript==
 // @name         ${scriptName} (loader)
 // @namespace    ${pkg.repository?.url?.replace('git+', '').replace('.git', '') || 'http://tampermonkey.net/'}
-// @version      ${loaderVersion}
+// @version      1.0.0
 // @description  Loader — fetches the latest build from GitHub
 ${matchLines}
 // @run-at       ${runAt}
 // @grant        GM_xmlhttpRequest
-${unsafeWindowGrant}// @connect      github.com
+// @connect      github.com
 // @connect      raw.githubusercontent.com
 // ==/UserScript==
 
 (function () {
   'use strict';
 
-  const SCRIPT_URL = '${scriptUrl}';${loaderBootstrap ? `\n\n${loaderBootstrap}` : ''}
+  const SCRIPT_URL = '${scriptUrl}';
 
   GM_xmlhttpRequest({
     method: 'GET',
