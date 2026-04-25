@@ -21,6 +21,7 @@
     onload(res) {
       if (res.status === 200) {
         eval(res.responseText);
+        console.log('[loader] Successfully loaded script from:', SCRIPT_URL);
       } else {
         console.error('[loader] Failed to fetch script:', res.status, SCRIPT_URL);
       }
