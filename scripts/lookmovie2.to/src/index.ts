@@ -659,12 +659,18 @@ function hidePrePlaybackAdUi(options = {}) {
   const loadingPleaseWait = document.querySelector('.pre-init-ads--loading-please-wait');
   if (loadingPleaseWait) {
     loadingPleaseWait.classList.add('tw-hidden');
+    loadingPleaseWait.classList.add('!tw-hidden');
   }
 
   const adTimer = document.querySelector('.player-pre-init-ads_timer');
   if (adTimer) {
+    adTimer.classList.add('tw-hidden');
     adTimer.classList.add('tw-opacity-0');
   }
+
+  document.querySelectorAll('.player-pre-init-ads_timer__value').forEach((timerValue) => {
+    timerValue.textContent = '0';
+  });
 
   document.querySelectorAll('.pre-init-ads--close').forEach((button) => {
     button.classList.remove('tw-hidden');
@@ -686,7 +692,9 @@ function hidePrePlaybackAdUi(options = {}) {
 function bypassPrePlaybackCounter() {
   console.log(`[${SCRIPT_ID}] initPrePlaybackCounter bypassed.`);
 
-  return new Promise((resolve) => {
+  window._preInitAdsTimestamp = Date.now();
+
+  const bypassPromise = new Promise((resolve) => {
     hidePrePlaybackAdUi({ hideContainer: true });
     resolve();
   }).finally(() => {
@@ -694,6 +702,16 @@ function bypassPrePlaybackCounter() {
       window.enableWindowScroll();
     }
   });
+
+  bypassPromise.cancel = () => {
+    if (typeof window._counterTimeout !== 'undefined') {
+      clearInterval(window._counterTimeout);
+      window._counterTimeout = undefined;
+    }
+    hidePrePlaybackAdUi({ hideContainer: true });
+  };
+
+  return bypassPromise;
 }
 
 function tryInstallAdTimerBypass() {
@@ -717,24 +735,24 @@ function tryInstallAdTimerBypass() {
 }
 
 function installAdTimerBypassTrap() {
-  if (adBypassTrapInstalled) {
-    return true;
-  }
-
   const descriptor = Object.getOwnPropertyDescriptor(window, 'initPrePlaybackCounter');
   if (descriptor && descriptor.configurable === false) {
     return false;
   }
 
   const loaderTrapState = window[LOADER_AD_BYPASS_TRAP_KEY];
+  const descriptorHasGetter = !!descriptor && typeof descriptor.get === 'function';
+  const descriptorValue = descriptorHasGetter
+    ? descriptor.get.call(window)
+    : descriptor
+      ? descriptor.value
+      : undefined;
   let currentValue =
-    loaderTrapState && typeof loaderTrapState === 'object' && 'currentValue' in loaderTrapState
-      ? loaderTrapState.currentValue
-      : descriptor && typeof descriptor.get === 'function'
-        ? descriptor.get.call(window)
-        : descriptor
-          ? descriptor.value
-          : undefined;
+    adBypassTrapInstalled && descriptorHasGetter
+      ? originalInitPrePlaybackCounter
+      : loaderTrapState && typeof loaderTrapState === 'object' && 'currentValue' in loaderTrapState
+        ? loaderTrapState.currentValue
+        : descriptorValue;
 
   if (
     typeof currentValue === 'function' &&
@@ -778,6 +796,7 @@ function startAdTimerPolling() {
 
   adBypassPoller = window.setInterval(() => {
     if (settings.adTimerBypass) {
+      installAdTimerBypassTrap();
       tryInstallAdTimerBypass();
       hidePrePlaybackAdUi({ hideContainer: false });
     }
