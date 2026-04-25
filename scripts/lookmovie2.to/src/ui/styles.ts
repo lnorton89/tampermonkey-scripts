@@ -16,7 +16,8 @@ export function getUiStyleText() {
         #${UI_ROOT_ID}-launcher-host {
             display: inline-flex;
             align-items: center;
-            margin: 0 10px;
+            flex: 0 0 auto;
+            margin: 0 8px;
             position: relative;
             z-index: 20;
         }
@@ -45,11 +46,12 @@ export function getUiStyleText() {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 0;
             min-height: 31px;
+            min-width: 94px;
             border: 2px solid transparent;
             border-radius: 999px;
-            padding: 6px 15px;
+            padding: 6px 16px;
             color: #ffffff;
             background:
                 linear-gradient(#13283c, #13283c) padding-box,
@@ -68,32 +70,26 @@ export function getUiStyleText() {
             font: 700 12px/1 Arial, sans-serif;
             letter-spacing: 0.02em;
             text-transform: uppercase;
+            white-space: nowrap;
             cursor: pointer;
             animation: ${SCRIPT_ID}-rainbow-border 2.6s linear infinite;
         }
 
-        #${UI_ROOT_ID}-button[data-has-new="true"] {
-            color: #fff7ed;
-        }
-
-        #${UI_ROOT_ID}-button-badge {
-            min-width: 20px;
-            padding: 3px 6px;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.16);
-            color: #ffffff;
-            font-size: 10px;
-            text-align: center;
+        #${UI_ROOT_ID}-button-label {
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
         }
 
         #${UI_ROOT_ID}-quick-settings {
             position: absolute;
-            top: calc(100% + 8px);
+            top: 100%;
             right: 0;
             z-index: 2147483647;
             display: inline-flex;
             align-items: center;
             gap: 6px;
+            margin-top: 8px;
             padding: 6px;
             border: 1px solid rgba(148, 163, 184, 0.28);
             border-radius: 999px;
@@ -103,6 +99,15 @@ export function getUiStyleText() {
             transform: translateY(-4px);
             pointer-events: none;
             transition: opacity 0.14s ease, transform 0.14s ease;
+        }
+
+        #${UI_ROOT_ID}-quick-settings::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: -10px;
+            height: 10px;
         }
 
         #${UI_ROOT_ID}-launcher:hover #${UI_ROOT_ID}-quick-settings,

@@ -5,8 +5,7 @@ import { createPortal } from 'react-dom';
 import { appState } from '../core/state';
 import { saveSettings } from '../core/settings';
 import { SCRIPT_ID, UI_ROOT_ID } from '../config/constants';
-import { countUnwatchedMovies } from '../features/movies';
-import { countUnwatchedLatestEpisodes, refreshWatchlistEntries } from '../features/watchlist';
+import { refreshWatchlistEntries } from '../features/watchlist';
 import { SettingToggle } from './components/SettingToggle';
 import { WatchlistPanel } from './components/WatchlistPanel';
 import { subscribeUi } from './events';
@@ -22,17 +21,56 @@ function getControlText(element) {
   }`.trim();
 }
 
-function findTopBarHostTarget() {
-  const controls = Array.from(document.querySelectorAll('a, button'));
-  const signupControl = controls.find((control) => {
+function findVisibleControl(pattern) {
+  return Array.from(document.querySelectorAll('a, button')).find((control) => {
     if (!isVisible(control)) {
       return false;
     }
 
-    return /\bsign\s*up\b|\bsignup\b|\bregister\b/i.test(getControlText(control));
+    return pattern.test(getControlText(control));
   });
+}
+
+function getCommonAncestor(leftElement, rightElement) {
+  const leftAncestors = new Set();
+  let current = leftElement;
+
+  while (current) {
+    leftAncestors.add(current);
+    current = current.parentElement;
+  }
+
+  current = rightElement;
+  while (current) {
+    if (leftAncestors.has(current)) {
+      return current;
+    }
+
+    current = current.parentElement;
+  }
+
+  return null;
+}
+
+function findTopBarHostTarget() {
+  const signupControl = findVisibleControl(/\bsign\s*up\b|\bsignup\b|\bregister\b/i);
+  const loginControl = findVisibleControl(/\blog\s*in\b|\blogin\b|\bsign\s*in\b/i);
 
   if (signupControl) {
+    const authGroup = loginControl ? getCommonAncestor(loginControl, signupControl) : null;
+
+    if (
+      authGroup &&
+      authGroup.parentElement &&
+      authGroup !== document.body &&
+      authGroup.getBoundingClientRect().width <= 360
+    ) {
+      return {
+        parent: authGroup.parentElement,
+        before: authGroup,
+      };
+    }
+
     return {
       parent: signupControl.parentElement,
       before: signupControl,
@@ -84,7 +122,6 @@ export function LookMovieToolsApp() {
   const [isOpen, setIsOpen] = useState(false);
   const [launcherHost, setLauncherHost] = useState(null);
   const [, setRevision] = useState(0);
-  const newCount = countUnwatchedLatestEpisodes() + countUnwatchedMovies();
 
   useEffect(() => subscribeUi(() => setRevision((revision) => revision + 1)), []);
 
@@ -131,13 +168,9 @@ export function LookMovieToolsApp() {
         type="button"
         aria-haspopup="dialog"
         aria-expanded={isOpen ? 'true' : 'false'}
-        data-has-new={newCount > 0 ? 'true' : 'false'}
         onClick={() => (isOpen ? setIsOpen(false) : openModal())}
       >
         <span id={`${UI_ROOT_ID}-button-label`}>LM Tools</span>
-        <span id={`${UI_ROOT_ID}-button-badge`} hidden={newCount <= 0}>
-          {newCount}
-        </span>
       </button>
       <div id={`${UI_ROOT_ID}-quick-settings`} role="toolbar" aria-label="Quick playback settings">
         <button
