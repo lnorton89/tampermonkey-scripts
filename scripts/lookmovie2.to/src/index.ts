@@ -11,7 +11,6 @@ const UI_ROOT_ID = `${SCRIPT_ID}-root`;
 const WATCHLIST_REFRESH_MS = 30 * 60 * 1000;
 const ROUTE_POLL_MS = 1000;
 const DEFAULT_SETTINGS = Object.freeze({
-  adTimerBypass: true,
   autoPlay: true,
   autoFullscreen: true,
 });
@@ -32,10 +31,6 @@ function loadSettings() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     return {
-      adTimerBypass:
-        typeof parsed.adTimerBypass === 'boolean'
-          ? parsed.adTimerBypass
-          : DEFAULT_SETTINGS.adTimerBypass,
       autoPlay: typeof parsed.autoPlay === 'boolean' ? parsed.autoPlay : DEFAULT_SETTINGS.autoPlay,
       autoFullscreen:
         typeof parsed.autoFullscreen === 'boolean'
@@ -50,7 +45,6 @@ function loadSettings() {
 
 function saveSettings(nextSettings) {
   settings = {
-    adTimerBypass: !!nextSettings.adTimerBypass,
     autoPlay: !!nextSettings.autoPlay,
     autoFullscreen: !!nextSettings.autoFullscreen,
   };
@@ -62,10 +56,6 @@ function saveSettings(nextSettings) {
   }
 
   syncModalState();
-
-  if (settings.adTimerBypass) {
-    tryInstallAdTimerBypass();
-  }
 
   if (!settings.autoFullscreen) {
     removeWindowedFullscreenFallback();
@@ -637,63 +627,6 @@ function maybeTrackWatchedEpisodeFromPlayer() {
     `${entry.title} updated to watched through ${formatEpisodeLabel(entry.lastWatched)}.`,
     'success'
   );
-}
-
-function tryInstallAdTimerBypass() {
-  if (!settings.adTimerBypass) {
-    return false;
-  }
-
-  if (typeof window.initPrePlaybackCounter !== 'undefined') {
-    window.initPrePlaybackCounter = function () {
-      console.log('initPrePlaybackCounter function bypassed!');
-
-      return new Promise((resolve) => {
-        const playerPreInitAds = document.querySelector('.player-pre-init-ads');
-        if (playerPreInitAds) {
-          playerPreInitAds.classList.add('tw-hidden');
-          playerPreInitAds.classList.add('finished');
-        }
-
-        const loadingPleaseWait = document.querySelector('.pre-init-ads--loading-please-wait');
-        if (loadingPleaseWait) {
-          loadingPleaseWait.classList.add('tw-hidden');
-        }
-
-        const adTimer = document.querySelector('.player-pre-init-ads_timer');
-        if (adTimer) {
-          adTimer.classList.add('tw-opacity-0');
-        }
-
-        document.querySelectorAll('.pre-init-ads--close').forEach((button) => {
-          button.classList.remove('tw-hidden');
-        });
-        document.querySelectorAll('.pre-init-ads--back-button').forEach((button) => {
-          button.classList.remove('tw-hidden');
-        });
-
-        if (typeof window._counterTimeout !== 'undefined') {
-          clearInterval(window._counterTimeout);
-          window._counterTimeout = undefined;
-        }
-
-        if (typeof window.enableWindowScroll === 'function') {
-          window.enableWindowScroll();
-        }
-
-        resolve();
-      }).finally(() => {
-        if (typeof window.enableWindowScroll === 'function') {
-          window.enableWindowScroll();
-        }
-      });
-    };
-
-    return true;
-  }
-
-  console.warn('initPrePlaybackCounter function not found. The script might not be effective.');
-  return false;
 }
 
 function dismissResumeModalIfPresent() {
@@ -1454,7 +1387,6 @@ function ensureUi() {
                     <section id="${UI_ROOT_ID}-settings-panel">
                         <h3 id="${UI_ROOT_ID}-settings-title">Playback Tools</h3>
                         <div id="${UI_ROOT_ID}-settings">
-                            ${settingMarkup('adTimerBypass', 'Ad timer bypass', 'Skips the pre-playback counter and hides the ad overlay.')}
                             ${settingMarkup('autoPlay', 'Auto play', 'Clicks the resume or start button when the playback modal appears.')}
                             ${settingMarkup('autoFullscreen', 'Auto fullscreen', 'Clicks fullscreen and applies the fullscreen fallback after playback starts.')}
                         </div>
@@ -1939,8 +1871,6 @@ function bootstrapDomFeatures() {
   syncShowViewWatchButton();
   refreshWatchlistEntries();
 }
-
-tryInstallAdTimerBypass();
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', bootstrapDomFeatures, { once: true });
