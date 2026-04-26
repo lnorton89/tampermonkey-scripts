@@ -14,10 +14,11 @@ export function getUiStyleText() {
         }
 
         #${UI_ROOT_ID}-launcher-host {
-            display: inline-flex;
+            display: flex;
             align-items: center;
             flex: 0 0 auto;
-            margin-left: 12px;
+            margin: 0;
+            padding: 0;
             position: relative;
             z-index: 20;
         }
@@ -47,12 +48,13 @@ export function getUiStyleText() {
             align-items: center;
             justify-content: center;
             gap: 0;
-            min-height: 31px;
-            min-width: 96px;
+            min-height: 0;
+            min-width: 0;
             border: 2px solid transparent;
-            border-radius: 999px;
-            padding: 6px 15px;
-            color: #ffffff;
+            border-radius: 30px;
+            padding: 3px 15px;
+            margin: 0 15px;
+            color: #abb7c4;
             background:
                 linear-gradient(#13283c, #13283c) padding-box,
                 linear-gradient(
@@ -67,15 +69,19 @@ export function getUiStyleText() {
                 border-box;
             background-size: 100% 100%, 200% 100%;
             box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-            font-family: inherit;
-            font-size: 12px;
+            font-family: Dosis, sans-serif;
+            font-size: 14px;
             font-weight: 700;
-            line-height: 1;
+            line-height: 20px;
             letter-spacing: 0;
             text-transform: uppercase;
             white-space: nowrap;
             cursor: pointer;
             animation: ${SCRIPT_ID}-rainbow-border 2.6s linear infinite;
+        }
+
+        #${UI_ROOT_ID}-button:hover {
+            color: #ffffff;
         }
 
         #${UI_ROOT_ID}-button-label {

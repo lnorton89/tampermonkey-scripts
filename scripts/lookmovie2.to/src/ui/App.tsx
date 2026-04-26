@@ -35,6 +35,15 @@ function findTopBarHostTarget() {
   const signupControl = findVisibleControl(/\bsign\s*up\b|\bsignup\b|\bregister\b/i);
 
   if (signupControl) {
+    const signupItem = signupControl.closest('li');
+
+    if (signupItem && signupItem.parentElement) {
+      return {
+        parent: signupItem.parentElement,
+        before: signupItem.nextSibling,
+      };
+    }
+
     return {
       parent: signupControl.parentElement,
       before: signupControl.nextSibling,
@@ -54,8 +63,13 @@ function ensureLauncherHost() {
 
   let host = document.getElementById(`${UI_ROOT_ID}-launcher-host`);
 
+  if (host && host.tagName !== 'LI') {
+    host.remove();
+    host = null;
+  }
+
   if (!host) {
-    host = document.createElement('div');
+    host = document.createElement('li');
     host.id = `${UI_ROOT_ID}-launcher-host`;
   }
 
