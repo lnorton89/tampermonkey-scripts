@@ -116,15 +116,33 @@ export function isMovieViewPage() {
 }
 
 export function getCurrentShowViewData() {
-  if (!isShowViewPage() || !window.show_storage) {
+  if (!isShowViewPage()) {
     return null;
   }
 
-  const slug = typeof window.show_storage.slug === 'string' ? window.show_storage.slug : '';
+  const showStorage = window.show_storage || {};
+  const slug =
+    typeof showStorage.slug === 'string' && showStorage.slug
+      ? showStorage.slug
+      : extractShowSlugFromViewHref(location.href);
   if (!slug) {
     return null;
   }
 
+  const titleNode =
+    document.querySelector('.movie-single-ct h1') ||
+    document.querySelector('.movie-single-ct h2') ||
+    document.querySelector('.internal-page-container h1') ||
+    document.querySelector('.internal-page-container h2');
+  const posterNode =
+    document.querySelector('.movie__poster[style*="background-image"]') ||
+    document.querySelector('.movie-single-ct img[data-src], .movie-single-ct img[src]') ||
+    document.querySelector(
+      '.internal-page-container img[data-src], .internal-page-container img[src]'
+    );
+  const ogImageNode = document.querySelector('meta[property="og:image"]');
+  const posterStyle = posterNode ? posterNode.getAttribute('style') || '' : '';
+  const posterStyleMatch = posterStyle.match(/background-image:\s*url\((['"]?)(.*?)\1\)/i);
   const params = new URLSearchParams(location.search);
   const episode = normalizeEpisodeRecord({
     season: params.get('season'),
@@ -134,16 +152,25 @@ export function getCurrentShowViewData() {
 
   return {
     slug,
-    title: typeof window.show_storage.title === 'string' ? window.show_storage.title : slug,
+    title:
+      typeof showStorage.title === 'string' && showStorage.title.trim()
+        ? showStorage.title.trim()
+        : titleNode
+          ? titleNode.textContent.replace(/\s*\d{4}\s*$/, '').trim()
+          : slug,
     year:
-      typeof window.show_storage.year === 'string' || typeof window.show_storage.year === 'number'
-        ? String(window.show_storage.year)
-        : '',
+      typeof showStorage.year === 'string' || typeof showStorage.year === 'number'
+        ? String(showStorage.year)
+        : extractYearFromSlug(slug),
     poster:
-      typeof window.show_storage.poster_medium === 'string'
-        ? window.show_storage.poster_medium
-        : '',
-    idShow: toPositiveInteger(window.show_storage.id_show),
+      typeof showStorage.poster_medium === 'string' && showStorage.poster_medium
+        ? showStorage.poster_medium
+        : posterStyleMatch?.[2] ||
+          posterNode?.getAttribute('data-src') ||
+          posterNode?.getAttribute('src') ||
+          ogImageNode?.getAttribute('content') ||
+          '',
+    idShow: toPositiveInteger(showStorage.id_show),
     episode,
   };
 }

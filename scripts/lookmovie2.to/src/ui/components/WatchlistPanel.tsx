@@ -86,7 +86,7 @@ export function WatchlistPanel() {
         ) : (
           <div className={`${SCRIPT_ID}-watch-empty`}>
             {isShowsTab
-              ? 'On the /shows page, use the overlay button on any episode card to add that show to your personal watchlist.'
+              ? 'On the /shows page or an individual show page, use the watchlist button to add that show here.'
               : 'On the /movies page or an individual movie page, use the movie watchlist button to add a movie here.'}
           </div>
         )}
