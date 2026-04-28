@@ -56,6 +56,7 @@ export function getElementImageUrl(element) {
   const style = element.getAttribute('style') || '';
   const styleMatch = style.match(/background-image:\s*url\((['"]?)(.*?)\1\)/i);
   const candidates = [
+    element.getAttribute('data-lazy-background'),
     element.getAttribute('data-src-portrait'),
     element.getAttribute('data-background-image'),
     element.getAttribute('data-src'),

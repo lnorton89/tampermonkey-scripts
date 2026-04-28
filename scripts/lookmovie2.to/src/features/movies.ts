@@ -40,12 +40,16 @@ export function saveMovieWatchlist() {
 }
 
 export function hasUsableMoviePoster(entry) {
-  return !!(
-    entry &&
-    typeof entry.poster === 'string' &&
-    entry.poster.trim() &&
-    !entry.poster.trim().startsWith('data:image/')
-  );
+  if (!entry || typeof entry.poster !== 'string' || !entry.poster.trim()) {
+    return false;
+  }
+
+  const poster = entry.poster.trim();
+  if (poster.startsWith('data:image/')) {
+    return false;
+  }
+
+  return true;
 }
 
 export function decodeInlineJsonString(value) {
@@ -60,11 +64,32 @@ export async function resolveMovieRecordBySlug(slug, fallback) {
   const html = await fetchText(`/movies/view/${slug}`);
   const titleMatch = html.match(/"title"\s*:\s*"((?:\\"|[^"])*)"/);
   const yearMatch = html.match(/"year"\s*:\s*"?(\d{4})"?/);
-  const posterMatch = html.match(/"movie_poster"\s*:\s*"((?:\\"|[^"])*)"/);
-  const posterElementMatch = html.match(
-    /<p[^>]*class="[^"]*movie__poster[^"]*"[^>]*data-background-image="([^"]+)"/
-  );
-  const ogImageMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/);
+
+  const posterPatterns = [
+    /"movie_poster"\s*:\s*"((?:\\"|[^"])*)"/,
+    /"poster_medium"\s*:\s*"((?:\\"|[^"])*)"/,
+    /<p[^>]*class="[^"]*movie__poster[^"]*"[^>]*data-background-image="([^"]+)"/,
+    /<img[^>]*class="[^"]*movie__poster[^"]*"[^>]*data-src="([^"]+)"/,
+    /<meta[^>]*property="og:image"[^>]*content="([^"]+)"/,
+    /data-lazy-background="([^"]+)"/,
+    /data-src-portrait="([^"]+)"/,
+    /"image"\s*:\s*"((?:\\"|[^"])*)"/,
+  ];
+
+  let poster = '';
+  for (const pattern of posterPatterns) {
+    const match = html.match(pattern);
+    if (match && match[1]) {
+      poster = decodeInlineJsonString(match[1]).trim() || decodeInlineJsString(match[1]).trim();
+      if (
+        poster &&
+        !poster.startsWith('data:image/') &&
+        (poster.startsWith('http') || poster.startsWith('//') || poster.startsWith('/'))
+      ) {
+        break;
+      }
+    }
+  }
 
   return {
     slug,
@@ -74,15 +99,7 @@ export async function resolveMovieRecordBySlug(slug, fallback) {
         ? fallback.title
         : slug,
     year: yearMatch ? yearMatch[1] : fallback && fallback.year ? fallback.year : '',
-    poster: posterMatch
-      ? decodeInlineJsonString(posterMatch[1]).trim()
-      : posterElementMatch
-        ? decodeInlineJsString(posterElementMatch[1]).trim()
-        : ogImageMatch
-          ? decodeInlineJsString(ogImageMatch[1]).trim()
-          : fallback && fallback.poster
-            ? fallback.poster
-            : '',
+    poster: poster || (fallback && fallback.poster) || '',
   };
 }
 
