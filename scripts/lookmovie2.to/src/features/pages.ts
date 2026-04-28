@@ -48,6 +48,31 @@ export function extractMovieSlugFromViewHref(href) {
   }
 }
 
+export function getElementImageUrl(element) {
+  if (!element) {
+    return '';
+  }
+
+  const style = element.getAttribute('style') || '';
+  const styleMatch = style.match(/background-image:\s*url\((['"]?)(.*?)\1\)/i);
+  const candidates = [
+    element.getAttribute('data-src-portrait'),
+    element.getAttribute('data-background-image'),
+    element.getAttribute('data-src'),
+    styleMatch?.[2],
+    element.getAttribute('src'),
+  ];
+
+  return (
+    candidates.find(
+      (candidate) =>
+        typeof candidate === 'string' &&
+        candidate.trim() &&
+        !candidate.trim().startsWith('data:image/')
+    ) || ''
+  );
+}
+
 export function parseEpisodeCard(cardElement) {
   if (!cardElement) {
     return null;
@@ -71,9 +96,7 @@ export function parseEpisodeCard(cardElement) {
     slug,
     title: titleNode ? titleNode.textContent.trim() : slug,
     year: extractYearFromSlug(slug),
-    poster: imageNode
-      ? imageNode.getAttribute('data-src') || imageNode.getAttribute('src') || ''
-      : '',
+    poster: getElementImageUrl(imageNode),
     href: new URL(link.getAttribute('href'), location.origin).href,
     episode: episodeContext,
   };
@@ -136,13 +159,12 @@ export function getCurrentShowViewData() {
     document.querySelector('.internal-page-container h2');
   const posterNode =
     document.querySelector('.movie__poster[style*="background-image"]') ||
+    document.querySelector('.movie__poster[data-background-image]') ||
     document.querySelector('.movie-single-ct img[data-src], .movie-single-ct img[src]') ||
     document.querySelector(
       '.internal-page-container img[data-src], .internal-page-container img[src]'
     );
   const ogImageNode = document.querySelector('meta[property="og:image"]');
-  const posterStyle = posterNode ? posterNode.getAttribute('style') || '' : '';
-  const posterStyleMatch = posterStyle.match(/background-image:\s*url\((['"]?)(.*?)\1\)/i);
   const params = new URLSearchParams(location.search);
   const episode = normalizeEpisodeRecord({
     season: params.get('season'),
@@ -165,11 +187,7 @@ export function getCurrentShowViewData() {
     poster:
       typeof showStorage.poster_medium === 'string' && showStorage.poster_medium
         ? showStorage.poster_medium
-        : posterStyleMatch?.[2] ||
-          posterNode?.getAttribute('data-src') ||
-          posterNode?.getAttribute('src') ||
-          ogImageNode?.getAttribute('content') ||
-          '',
+        : getElementImageUrl(posterNode) || ogImageNode?.getAttribute('content') || '',
     idShow: toPositiveInteger(showStorage.id_show),
     episode,
   };
@@ -195,19 +213,12 @@ export function parseMovieCard(cardElement) {
   );
   const imageNode = cardElement.querySelector('img[data-src-portrait], img[data-src], img[src]');
   const backgroundNode = cardElement.querySelector(
-    '[data-background-image], [data-src-portrait], [data-src]'
+    '[data-background-image], [style*="background-image"], [data-src-portrait], [data-src]'
   );
   const yearNode = cardElement.querySelector('.year');
   const titleText = titleNode ? titleNode.textContent.trim() : '';
   const yearFromTitle = titleText.match(/\((\d{4})\)/);
-  const poster =
-    imageNode?.getAttribute('data-src-portrait') ||
-    imageNode?.getAttribute('data-src') ||
-    imageNode?.getAttribute('src') ||
-    backgroundNode?.getAttribute('data-background-image') ||
-    backgroundNode?.getAttribute('data-src-portrait') ||
-    backgroundNode?.getAttribute('data-src') ||
-    '';
+  const poster = getElementImageUrl(imageNode) || getElementImageUrl(backgroundNode);
 
   return {
     slug,
@@ -235,8 +246,9 @@ export function getCurrentMovieViewData() {
     document.querySelector('.internal-page-container h1') ||
     document.querySelector('.internal-page-container h2');
   const imageNode = document.querySelector(
-    '.movie-single-ct img[data-src], .movie-single-ct img[src], .internal-page-container img[data-src], .internal-page-container img[src]'
+    '.movie__poster[data-background-image], .movie__poster[style*="background-image"], .movie-single-ct img[data-src], .movie-single-ct img[src], .internal-page-container img[data-src], .internal-page-container img[src]'
   );
+  const ogImageNode = document.querySelector('meta[property="og:image"]');
 
   return {
     slug,
@@ -255,9 +267,7 @@ export function getCurrentMovieViewData() {
         ? movieStorage.movie_poster
         : typeof movieStorage.poster_medium === 'string' && movieStorage.poster_medium
           ? movieStorage.poster_medium
-          : imageNode
-            ? imageNode.getAttribute('data-src') || imageNode.getAttribute('src') || ''
-            : '',
+          : getElementImageUrl(imageNode) || ogImageNode?.getAttribute('content') || '',
     href: location.href,
   };
 }

@@ -17,6 +17,7 @@ import {
   syncMovieViewWatchButton,
   syncShowViewWatchButton,
 } from '../features/pages';
+import { refreshMovieWatchlistMetadata } from '../features/movies';
 import { refreshWatchlistEntries } from '../features/watchlist';
 import { ensureUi, renderWatchlist, syncLauncherState } from '../ui';
 
@@ -41,6 +42,7 @@ export function watchNavigation() {
     ensureMovieCardButtons();
     syncMovieViewWatchButton();
     ensureMovieViewWatchButton();
+    refreshMovieWatchlistMetadata();
     refreshWatchlistEntries();
   }, ROUTE_POLL_MS);
 }
@@ -73,5 +75,6 @@ export function bootstrapDomFeatures() {
   syncShowViewWatchButton();
   syncMovieCardButtons();
   syncMovieViewWatchButton();
+  refreshMovieWatchlistMetadata();
   refreshWatchlistEntries();
 }
