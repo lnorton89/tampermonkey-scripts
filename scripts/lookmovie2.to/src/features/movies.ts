@@ -62,43 +62,30 @@ export function decodeInlineJsonString(value) {
 
 export async function resolveMovieRecordBySlug(slug, fallback) {
   const html = await fetchText(`/movies/view/${slug}`);
-  const titleMatch = html.match(/"title"\s*:\s*"((?:\\"|[^"])*)"/);
-  const yearMatch = html.match(/"year"\s*:\s*"?(\d{4})"?/);
 
-  const posterPatterns = [
-    /"movie_poster"\s*:\s*"((?:\\"|[^"])*)"/,
-    /"poster_medium"\s*:\s*"((?:\\"|[^"])*)"/,
-    /<p[^>]*class="[^"]*movie__poster[^"]*"[^>]*data-background-image="([^"]+)"/,
-    /<img[^>]*class="[^"]*movie__poster[^"]*"[^>]*data-src="([^"]+)"/,
-    /<meta[^>]*property="og:image"[^>]*content="([^"]+)"/,
-    /data-lazy-background="([^"]+)"/,
-    /data-src-portrait="([^"]+)"/,
-    /"image"\s*:\s*"((?:\\"|[^"])*)"/,
-  ];
+  const titleMatch =
+    html.match(/title:\s*'((?:\\'|[^'])*)'/) || html.match(/"title"\s*:\s*"((?:\\"|[^"])*)"/);
+  const yearMatch =
+    html.match(/year:\s*'((?:\\'|[^'])*)'/) || html.match(/"year"\s*:\s*"?(\d{4})"?/);
+  const posterMatch =
+    html.match(/poster_medium:\s*'((?:\\'|[^'])*)'/) ||
+    html.match(/"movie_poster"\s*:\s*"((?:\\"|[^"])*)"/) ||
+    html.match(/"poster_medium"\s*:\s*"((?:\\"|[^"])*)"/);
 
-  let poster = '';
-  for (const pattern of posterPatterns) {
-    const match = html.match(pattern);
-    if (match && match[1]) {
-      poster = decodeInlineJsonString(match[1]).trim() || decodeInlineJsString(match[1]).trim();
-      if (
-        poster &&
-        !poster.startsWith('data:image/') &&
-        (poster.startsWith('http') || poster.startsWith('//') || poster.startsWith('/'))
-      ) {
-        break;
-      }
-    }
-  }
+  const poster = posterMatch ? decodeInlineJsString(posterMatch[1]).trim() : '';
 
   return {
     slug,
     title: titleMatch
-      ? decodeInlineJsonString(titleMatch[1]).trim()
+      ? decodeInlineJsString(titleMatch[1]).trim()
       : fallback && fallback.title
         ? fallback.title
         : slug,
-    year: yearMatch ? yearMatch[1] : fallback && fallback.year ? fallback.year : '',
+    year: yearMatch
+      ? decodeInlineJsString(yearMatch[1]).trim()
+      : fallback && fallback.year
+        ? fallback.year
+        : '',
     poster: poster || (fallback && fallback.poster) || '',
   };
 }
@@ -151,24 +138,34 @@ export function addMovieToWatchlist(movieDetails) {
     return;
   }
 
-  appState.movieWatchlistStore.movies[movieDetails.slug] = normalizeMovieWatchlistEntry(
-    movieDetails.slug,
-    {
-      slug: movieDetails.slug,
-      title: movieDetails.title || movieDetails.slug,
-      year: movieDetails.year || '',
-      poster: movieDetails.poster || '',
-      href: movieDetails.href || `/movies/view/${movieDetails.slug}`,
-      addedAt: Date.now(),
-      watched: false,
-    }
-  );
+  let resolved = {
+    slug: movieDetails.slug,
+    title: movieDetails.title || movieDetails.slug,
+    year: movieDetails.year || '',
+    poster: movieDetails.poster || '',
+  };
 
-  saveMovieWatchlist();
+  resolveMovieRecordBySlug(movieDetails.slug, movieDetails).then((result) => {
+    if (result.title) resolved.title = result.title;
+    if (result.year) resolved.year = result.year;
+    if (result.poster) resolved.poster = result.poster;
 
-  if (!hasUsableMoviePoster(appState.movieWatchlistStore.movies[movieDetails.slug])) {
-    refreshMovieWatchlistMetadata();
-  }
+    appState.movieWatchlistStore.movies[movieDetails.slug] = normalizeMovieWatchlistEntry(
+      movieDetails.slug,
+      {
+        slug: movieDetails.slug,
+        title: resolved.title,
+        year: resolved.year,
+        poster: resolved.poster,
+        href: movieDetails.href || `/movies/view/${movieDetails.slug}`,
+        addedAt: Date.now(),
+        watched: false,
+      }
+    );
+
+    saveMovieWatchlist();
+    renderWatchlist();
+  });
 }
 
 export function removeMovieFromWatchlist(slug) {
