@@ -3,7 +3,7 @@
 import { SCRIPT_ID } from '../config/constants';
 import { appState } from '../core/state';
 import { normalizeMovieWatchlistEntry, persistMovieWatchlist } from '../core/storage';
-import { decodeInlineJsString, fetchText, normalizeImageUrl } from '../core/utils';
+import { decodeInlineJsString, fetchText } from '../core/utils';
 import { renderWatchlist, syncLauncherState } from '../ui';
 import { syncMovieCardButtons, syncMovieViewWatchButton } from './pages';
 
@@ -62,21 +62,14 @@ export function decodeInlineJsonString(value) {
 
 export async function resolveMovieRecordBySlug(slug, fallback) {
   const html = await fetchText(`/movies/view/${slug}`);
-
-  const titleMatch =
-    html.match(/title:\s*'((?:\\'|[^'])*)'/) || html.match(/"title"\s*:\s*"((?:\\"|[^"])*)"/);
-  const yearMatch =
-    html.match(/year:\s*'((?:\\'|[^'])*)'/) || html.match(/"year"\s*:\s*"?(\d{4})"?/);
-  const posterMatch =
-    html.match(/poster_medium:\s*'((?:\\'|[^'])*)'/) ||
-    html.match(/"movie_poster"\s*:\s*"((?:\\"|[^"])*)"/) ||
-    html.match(/"poster_medium"\s*:\s*"((?:\\"|[^"])*)"/);
-
-  const poster = posterMatch ? decodeInlineJsString(posterMatch[1]).trim() : '';
-  const normalizedPoster = normalizeImageUrl(poster) || normalizeImageUrl(fallback?.poster) || '';
+  const idMatch = html.match(/id_movie:\s*(\d+)/);
+  const titleMatch = html.match(/title:\s*'((?:\\'|[^'])*)'/);
+  const yearMatch = html.match(/year:\s*'((?:\\'|[^'])*)'/);
+  const posterMatch = html.match(/poster_medium:\s*'((?:\\'|[^'])*)'/);
 
   return {
     slug,
+    idMovie: idMatch ? parseInt(idMatch[1], 10) : 0,
     title: titleMatch
       ? decodeInlineJsString(titleMatch[1]).trim()
       : fallback && fallback.title
@@ -87,7 +80,11 @@ export async function resolveMovieRecordBySlug(slug, fallback) {
       : fallback && fallback.year
         ? fallback.year
         : '',
-    poster: normalizedPoster,
+    poster: posterMatch
+      ? decodeInlineJsString(posterMatch[1]).trim()
+      : fallback && fallback.poster
+        ? fallback.poster
+        : '',
   };
 }
 
