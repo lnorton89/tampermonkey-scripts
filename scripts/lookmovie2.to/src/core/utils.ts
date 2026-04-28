@@ -35,5 +35,14 @@ export async function fetchJson(url) {
 }
 
 export function decodeInlineJsString(value) {
+  if (!value) return '';
   return value.replaceAll("\\'", "'").replaceAll('\\\\', '\\');
+}
+
+export function normalizeImageUrl(url) {
+  if (!url) return '';
+  if (url.startsWith('//')) {
+    return window.location.protocol + url;
+  }
+  return url;
 }

@@ -3,7 +3,7 @@
 import { SCRIPT_ID } from '../config/constants';
 import { appState } from '../core/state';
 import { normalizeMovieWatchlistEntry, persistMovieWatchlist } from '../core/storage';
-import { decodeInlineJsString, fetchText } from '../core/utils';
+import { decodeInlineJsString, fetchText, normalizeImageUrl } from '../core/utils';
 import { renderWatchlist, syncLauncherState } from '../ui';
 import { syncMovieCardButtons, syncMovieViewWatchButton } from './pages';
 
@@ -73,6 +73,7 @@ export async function resolveMovieRecordBySlug(slug, fallback) {
     html.match(/"poster_medium"\s*:\s*"((?:\\"|[^"])*)"/);
 
   const poster = posterMatch ? decodeInlineJsString(posterMatch[1]).trim() : '';
+  const normalizedPoster = normalizeImageUrl(poster) || normalizeImageUrl(fallback?.poster) || '';
 
   return {
     slug,
@@ -86,7 +87,7 @@ export async function resolveMovieRecordBySlug(slug, fallback) {
       : fallback && fallback.year
         ? fallback.year
         : '',
-    poster: poster || (fallback && fallback.poster) || '',
+    poster: normalizedPoster,
   };
 }
 
