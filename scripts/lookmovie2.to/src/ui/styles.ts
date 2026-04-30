@@ -30,6 +30,12 @@ export function getUiStyleText() {
             z-index: 2147483647;
         }
 
+        #${UI_ROOT_ID} > #${UI_ROOT_ID}-launcher[data-scrolled="true"] {
+            position: fixed;
+            top: 18px;
+            right: 18px;
+        }
+
         #${UI_ROOT_ID}-launcher-host #${UI_ROOT_ID}-launcher {
             position: relative;
             right: auto;
@@ -177,11 +183,10 @@ export function getUiStyleText() {
             background: rgba(30, 41, 59, 0.78);
             color: #64748b;
             cursor: pointer;
-            transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease, color 0.14s ease;
+            transition: border-color 0.14s ease, background 0.14s ease, color 0.14s ease;
         }
 
         .${SCRIPT_ID}-quick-setting:hover {
-            transform: translateY(-1px);
             border-color: rgba(226, 232, 240, 0.45);
         }
 

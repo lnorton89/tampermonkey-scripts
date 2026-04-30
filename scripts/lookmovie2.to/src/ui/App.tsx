@@ -128,6 +128,7 @@ function EnhancerIcon() {
 export function LookMovieToolsApp() {
   const [isOpen, setIsOpen] = useState(false);
   const [launcherHost, setLauncherHost] = useState(null);
+  const [isPageScrolled, setIsPageScrolled] = useState(() => window.scrollY > 120);
   const [isQuickSettingsOpen, setIsQuickSettingsOpen] = useState(false);
   const closeQuickSettingsTimer = useRef(0);
   const [, setRevision] = useState(0);
@@ -154,6 +155,16 @@ export function LookMovieToolsApp() {
     syncHost();
     const intervalId = window.setInterval(syncHost, 500);
     return () => window.clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    function syncScrollState() {
+      setIsPageScrolled(window.scrollY > 120);
+    }
+
+    syncScrollState();
+    window.addEventListener('scroll', syncScrollState, { passive: true });
+    return () => window.removeEventListener('scroll', syncScrollState);
   }, []);
 
   useEffect(
@@ -187,10 +198,12 @@ export function LookMovieToolsApp() {
     });
   }
 
+  const activeLauncherHost = isPageScrolled ? null : launcherHost;
   const launcher = (
     <div
       id={`${UI_ROOT_ID}-launcher`}
-      data-hosted={launcherHost ? 'true' : 'false'}
+      data-hosted={activeLauncherHost ? 'true' : 'false'}
+      data-scrolled={isPageScrolled ? 'true' : 'false'}
       data-quick-open={isQuickSettingsOpen ? 'true' : 'false'}
       onMouseEnter={openQuickSettings}
       onMouseLeave={closeQuickSettingsSoon}
@@ -248,7 +261,7 @@ export function LookMovieToolsApp() {
 
   return (
     <>
-      {launcherHost ? createPortal(launcher, launcherHost) : launcher}
+      {activeLauncherHost ? createPortal(launcher, activeLauncherHost) : launcher}
       <div
         id={`${UI_ROOT_ID}-overlay`}
         aria-hidden={isOpen ? 'false' : 'true'}
