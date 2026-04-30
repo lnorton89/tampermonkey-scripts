@@ -5,12 +5,15 @@ import { SCRIPT_ID, UI_ROOT_ID } from '../config/constants';
 export function getUiStyleText() {
   return `
         @keyframes ${SCRIPT_ID}-rainbow-border {
-            0% {
-                transform: rotate(0turn);
+            to {
+                --${SCRIPT_ID}-rainbow-angle: 360deg;
             }
-            100% {
-                transform: rotate(1turn);
-            }
+        }
+
+        @property --${SCRIPT_ID}-rainbow-angle {
+            syntax: '<angle>';
+            initial-value: 0deg;
+            inherits: false;
         }
 
         #${UI_ROOT_ID}-launcher-host {
@@ -81,21 +84,22 @@ export function getUiStyleText() {
         }
 
         #${UI_ROOT_ID}-button::before {
+            --${SCRIPT_ID}-rainbow-angle: 0deg;
             content: '';
             position: absolute;
             inset: -70%;
             z-index: -2;
             background: conic-gradient(
-                from 0turn,
-                #ff2d95 0turn,
-                #ff7a18 0.14turn,
-                #ffd60a 0.28turn,
-                #24f2a6 0.42turn,
-                #00c2ff 0.58turn,
-                #7c3cff 0.74turn,
-                #ff2d95 1turn
+                from var(--${SCRIPT_ID}-rainbow-angle),
+                #ff2d95,
+                #ff7a18,
+                #ffd60a,
+                #24f2a6,
+                #00c2ff,
+                #7c3cff,
+                #ff2d95
             );
-            animation: ${SCRIPT_ID}-rainbow-border 8s linear infinite;
+            animation: ${SCRIPT_ID}-rainbow-border 10s linear infinite;
         }
 
         #${UI_ROOT_ID}-button::after {
