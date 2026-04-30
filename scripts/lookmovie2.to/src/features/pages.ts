@@ -444,19 +444,26 @@ export function applyShowsListProgressMarker() {
     cardElement.dataset.lookmovieListMarker = 'true';
     appState.showsListProgressOrder = getEpisodeCardOrder(cardElement);
   });
-
-  syncShowsListMarkerButtons();
 }
 
 export function updateShowsListMarkerButton(button) {
   const card = parseEpisodeCard(button.closest('.episode-item'));
   const isCurrent = isShowsListProgressMatch(card, appState.showsListProgress);
-
-  button.dataset.state = isCurrent ? 'current' : 'set';
-  button.textContent = isCurrent ? 'Bookmarked' : 'Set bookmark';
-  button.title = isCurrent
+  const state = isCurrent ? 'current' : 'set';
+  const text = isCurrent ? 'Bookmarked' : 'Set bookmark';
+  const title = isCurrent
     ? 'This is the current shows-page bookmark.'
     : 'Set the yellow shows-page bookmark here.';
+
+  if (button.dataset.state !== state) {
+    button.dataset.state = state;
+  }
+  if (button.textContent !== text) {
+    button.textContent = text;
+  }
+  if (button.title !== title) {
+    button.title = title;
+  }
 }
 
 export function syncShowsListMarkerButtons() {
@@ -478,6 +485,7 @@ export function setShowsListProgressMarker(cardElement) {
   appState.showsListManualMarkerSet = true;
   persistShowsListProgress(progress);
   applyShowsListProgressMarker();
+  syncShowsListMarkerButtons();
 }
 
 export function persistShowsListSeenCandidate() {
