@@ -1,6 +1,6 @@
 /* eslint-disable */
 // @ts-nocheck
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { appState } from '../core/state';
 import { saveSettings } from '../core/settings';
@@ -56,10 +56,25 @@ function findTopBarHostTarget() {
   return header ? { parent: header, before: null, sourceItem: null } : null;
 }
 
+function usesPinnedPosition(element) {
+  for (let node = element; node && node !== document.body; node = node.parentElement) {
+    const position = getComputedStyle(node).position;
+    if (position === 'fixed' || position === 'sticky') {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function ensureLauncherHost() {
   const target = findTopBarHostTarget();
 
   if (!target || !target.parent) {
+    return null;
+  }
+
+  if (usesPinnedPosition(target.parent)) {
     return null;
   }
 
@@ -113,6 +128,8 @@ function EnhancerIcon() {
 export function LookMovieToolsApp() {
   const [isOpen, setIsOpen] = useState(false);
   const [launcherHost, setLauncherHost] = useState(null);
+  const [isQuickSettingsOpen, setIsQuickSettingsOpen] = useState(false);
+  const closeQuickSettingsTimer = useRef(0);
   const [, setRevision] = useState(0);
 
   useEffect(() => subscribeUi(() => setRevision((revision) => revision + 1)), []);
@@ -131,9 +148,7 @@ export function LookMovieToolsApp() {
   useEffect(() => {
     function syncHost() {
       const nextHost = ensureLauncherHost();
-      if (nextHost) {
-        setLauncherHost((currentHost) => (currentHost === nextHost ? currentHost : nextHost));
-      }
+      setLauncherHost((currentHost) => (currentHost === nextHost ? currentHost : nextHost));
     }
 
     syncHost();
@@ -141,9 +156,28 @@ export function LookMovieToolsApp() {
     return () => window.clearInterval(intervalId);
   }, []);
 
+  useEffect(
+    () => () => {
+      window.clearTimeout(closeQuickSettingsTimer.current);
+    },
+    []
+  );
+
   function openModal() {
     setIsOpen(true);
     refreshWatchlistEntries();
+  }
+
+  function openQuickSettings() {
+    window.clearTimeout(closeQuickSettingsTimer.current);
+    setIsQuickSettingsOpen(true);
+  }
+
+  function closeQuickSettingsSoon() {
+    window.clearTimeout(closeQuickSettingsTimer.current);
+    closeQuickSettingsTimer.current = window.setTimeout(() => {
+      setIsQuickSettingsOpen(false);
+    }, 240);
   }
 
   function toggleSetting(settingKey) {
@@ -154,7 +188,19 @@ export function LookMovieToolsApp() {
   }
 
   const launcher = (
-    <div id={`${UI_ROOT_ID}-launcher`} data-hosted={launcherHost ? 'true' : 'false'}>
+    <div
+      id={`${UI_ROOT_ID}-launcher`}
+      data-hosted={launcherHost ? 'true' : 'false'}
+      data-quick-open={isQuickSettingsOpen ? 'true' : 'false'}
+      onMouseEnter={openQuickSettings}
+      onMouseLeave={closeQuickSettingsSoon}
+      onFocus={openQuickSettings}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          closeQuickSettingsSoon();
+        }
+      }}
+    >
       <button
         id={`${UI_ROOT_ID}-button`}
         type="button"

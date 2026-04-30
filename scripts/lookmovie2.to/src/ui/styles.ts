@@ -41,6 +41,8 @@ export function getUiStyleText() {
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            padding-bottom: 14px;
+            margin-bottom: -14px;
         }
 
         #${UI_ROOT_ID}-button {
@@ -128,22 +130,22 @@ export function getUiStyleText() {
 
         #${UI_ROOT_ID}-quick-settings {
             position: absolute;
-            top: 100%;
+            top: calc(100% - 6px);
             right: 0;
             z-index: 2147483647;
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            margin-top: 8px;
+            margin-top: 0;
             padding: 6px;
             border: 1px solid rgba(148, 163, 184, 0.28);
             border-radius: 999px;
             background: rgba(15, 23, 42, 0.96);
             box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36);
             opacity: 0;
-            transform: translateY(-4px);
+            transform: translateY(-6px);
             pointer-events: none;
-            transition: opacity 0.14s ease, transform 0.14s ease;
+            transition: opacity 0.18s ease, transform 0.18s ease;
         }
 
         #${UI_ROOT_ID}-quick-settings::before {
@@ -156,7 +158,8 @@ export function getUiStyleText() {
         }
 
         #${UI_ROOT_ID}-launcher:hover #${UI_ROOT_ID}-quick-settings,
-        #${UI_ROOT_ID}-launcher:focus-within #${UI_ROOT_ID}-quick-settings {
+        #${UI_ROOT_ID}-launcher:focus-within #${UI_ROOT_ID}-quick-settings,
+        #${UI_ROOT_ID}-launcher[data-quick-open="true"] #${UI_ROOT_ID}-quick-settings {
             opacity: 1;
             transform: translateY(0);
             pointer-events: auto;
