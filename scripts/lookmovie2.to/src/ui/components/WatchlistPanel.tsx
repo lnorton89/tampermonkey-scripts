@@ -15,6 +15,7 @@ import { WatchlistItem } from './WatchlistItem';
 
 export function WatchlistPanel() {
   const [activeTab, setActiveTab] = useState('shows');
+  const [viewMode, setViewMode] = useState('poster');
   const entries = sortWatchlistEntries(getWatchlistEntries());
   const movieEntries = sortMovieWatchlistEntries(getMovieWatchlistEntries());
   const newCount = entries.filter((entry) => entry.latestEpisode && !isLatestWatched(entry)).length;
@@ -27,6 +28,7 @@ export function WatchlistPanel() {
     : movieEntries.length
       ? `${movieEntries.length} tracked ${movieEntries.length === 1 ? 'movie' : 'movies'}${unwatchedMovieCount ? ` | ${unwatchedMovieCount} not watched yet` : ''}`
       : 'Add movies from the movies page or an individual movie page to start tracking them.';
+  const isListView = viewMode === 'list';
 
   return (
     <section id={`${UI_ROOT_ID}-watchlist-panel`}>
@@ -59,17 +61,28 @@ export function WatchlistPanel() {
           </div>
           <div id={`${UI_ROOT_ID}-watchlist-summary`}>{summary}</div>
         </div>
-        {isShowsTab ? (
+        <div className={`${SCRIPT_ID}-watchlist-toolbar-actions`}>
           <button
-            id={`${UI_ROOT_ID}-watchlist-refresh`}
-            className={`${SCRIPT_ID}-button`}
+            className={`${SCRIPT_ID}-button ${SCRIPT_ID}-view-toggle`}
             type="button"
-            disabled={appState.watchlistBusy}
-            onClick={() => refreshWatchlistEntries({ force: true })}
+            aria-pressed={isListView ? 'true' : 'false'}
+            title={isListView ? 'Switch to poster view' : 'Switch to list view'}
+            onClick={() => setViewMode(isListView ? 'poster' : 'list')}
           >
-            Refresh
+            {isListView ? 'Poster View' : 'List View'}
           </button>
-        ) : null}
+          {isShowsTab ? (
+            <button
+              id={`${UI_ROOT_ID}-watchlist-refresh`}
+              className={`${SCRIPT_ID}-button`}
+              type="button"
+              disabled={appState.watchlistBusy}
+              onClick={() => refreshWatchlistEntries({ force: true })}
+            >
+              Refresh
+            </button>
+          ) : null}
+        </div>
       </div>
       {isShowsTab ? (
         <div id={`${UI_ROOT_ID}-watchlist-status`} data-tone={appState.watchlistMessageTone}>
@@ -78,11 +91,15 @@ export function WatchlistPanel() {
             : appState.watchlistMessage || ''}
         </div>
       ) : null}
-      <div id={`${UI_ROOT_ID}-watchlist-list`}>
+      <div id={`${UI_ROOT_ID}-watchlist-list`} data-view={viewMode}>
         {isShowsTab && entries.length ? (
-          entries.map((entry) => <WatchlistItem key={entry.slug} entry={entry} />)
+          entries.map((entry) => (
+            <WatchlistItem key={entry.slug} entry={entry} viewMode={viewMode} />
+          ))
         ) : !isShowsTab && movieEntries.length ? (
-          movieEntries.map((entry) => <MovieWatchlistItem key={entry.slug} entry={entry} />)
+          movieEntries.map((entry) => (
+            <MovieWatchlistItem key={entry.slug} entry={entry} viewMode={viewMode} />
+          ))
         ) : (
           <div className={`${SCRIPT_ID}-watch-empty`}>
             {isShowsTab

@@ -4,7 +4,7 @@ import { SCRIPT_ID } from '../../config/constants';
 import { removeMovieFromWatchlist, toggleMovieWatched } from '../../features/movies';
 import { buildMovieViewUrl } from '../../features/pages';
 
-export function MovieWatchlistItem({ entry }) {
+export function MovieWatchlistItem({ entry, viewMode }) {
   const state = entry.watched ? 'watched' : 'new';
   const openHref = entry.href || buildMovieViewUrl(entry.slug);
   const watchedCopy = entry.watched ? 'Watched' : 'Not watched yet';
@@ -16,7 +16,7 @@ export function MovieWatchlistItem({ entry }) {
   }
 
   return (
-    <article className={`${SCRIPT_ID}-watch-item`} data-state={state}>
+    <article className={`${SCRIPT_ID}-watch-item`} data-state={state} data-view={viewMode}>
       <div className={`${SCRIPT_ID}-watch-item-poster`}>
         {entry.poster ? (
           <img src={entry.poster} alt={entry.title} loading="lazy" />
@@ -41,6 +41,9 @@ export function MovieWatchlistItem({ entry }) {
           <p className={`${SCRIPT_ID}-watch-item-copy`}>{summaryPieces.join(' | ')}</p>
         </div>
         <div className={`${SCRIPT_ID}-watch-actions`}>
+          <a className={`${SCRIPT_ID}-link-button ${SCRIPT_ID}-watch-action-open`} href={openHref}>
+            Open
+          </a>
           <button
             className={`${SCRIPT_ID}-button`}
             type="button"

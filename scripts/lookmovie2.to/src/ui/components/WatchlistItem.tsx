@@ -9,7 +9,7 @@ import {
   toggleLatestEpisodeWatched,
 } from '../../features/watchlist';
 
-export function WatchlistItem({ entry }) {
+export function WatchlistItem({ entry, viewMode }) {
   const state = entry.latestEpisode ? (isLatestWatched(entry) ? 'watched' : 'new') : 'pending';
   const latestCopy = entry.latestEpisode
     ? `Latest ${formatEpisodeLabel(entry.latestEpisode)}`
@@ -29,7 +29,7 @@ export function WatchlistItem({ entry }) {
   }
 
   return (
-    <article className={`${SCRIPT_ID}-watch-item`} data-state={state}>
+    <article className={`${SCRIPT_ID}-watch-item`} data-state={state} data-view={viewMode}>
       <div className={`${SCRIPT_ID}-watch-item-poster`}>
         {entry.poster ? (
           <img src={entry.poster} alt={entry.title} loading="lazy" />
@@ -54,6 +54,9 @@ export function WatchlistItem({ entry }) {
           <p className={`${SCRIPT_ID}-watch-item-copy`}>{summaryPieces.join(' | ')}</p>
         </div>
         <div className={`${SCRIPT_ID}-watch-actions`}>
+          <a className={`${SCRIPT_ID}-link-button ${SCRIPT_ID}-watch-action-open`} href={openHref}>
+            Open
+          </a>
           <button
             className={`${SCRIPT_ID}-button`}
             type="button"

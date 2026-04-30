@@ -383,6 +383,18 @@ export function getUiStyleText() {
             flex: 0 0 auto;
         }
 
+        .${SCRIPT_ID}-watchlist-toolbar-actions {
+            display: inline-flex;
+            align-items: center;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .${SCRIPT_ID}-view-toggle {
+            min-width: 82px;
+        }
+
         #${UI_ROOT_ID}-watchlist-summary {
             color: #94a3b8;
             font-size: 13px;
@@ -461,6 +473,12 @@ export function getUiStyleText() {
             padding-right: 8px;
         }
 
+        #${UI_ROOT_ID}-watchlist-list[data-view="list"] {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
         .${SCRIPT_ID}-watch-empty {
             grid-column: 1 / -1;
             padding: 32px 24px;
@@ -486,6 +504,14 @@ export function getUiStyleText() {
             transition: transform 0.15s ease, box-shadow 0.15s ease;
         }
 
+        .${SCRIPT_ID}-watch-item[data-view="list"] {
+            display: grid;
+            grid-template-columns: 74px minmax(0, 1fr);
+            gap: 0;
+            min-height: 112px;
+            border-radius: 10px;
+        }
+
         .${SCRIPT_ID}-watch-item:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
@@ -506,6 +532,13 @@ export function getUiStyleText() {
             aspect-ratio: 2 / 3;
             overflow: hidden;
             background: linear-gradient(135deg, rgba(30, 41, 59, 0.5), rgba(15, 23, 42, 0.8));
+        }
+
+        .${SCRIPT_ID}-watch-item[data-view="list"] .${SCRIPT_ID}-watch-item-poster {
+            width: 74px;
+            height: 112px;
+            aspect-ratio: auto;
+            flex: 0 0 auto;
         }
 
         .${SCRIPT_ID}-watch-item-poster img {
@@ -538,6 +571,10 @@ export function getUiStyleText() {
             align-items: flex-end;
         }
 
+        .${SCRIPT_ID}-watch-item[data-view="list"] .${SCRIPT_ID}-watch-item-poster-overlay {
+            display: none;
+        }
+
         .${SCRIPT_ID}-watch-item-body {
             padding: 11px 10px 10px;
             display: flex;
@@ -545,6 +582,11 @@ export function getUiStyleText() {
             gap: 8px;
             flex: 1;
             min-height: 112px;
+        }
+
+        .${SCRIPT_ID}-watch-item[data-view="list"] .${SCRIPT_ID}-watch-item-body {
+            min-height: 0;
+            padding: 10px 12px;
         }
 
         .${SCRIPT_ID}-watch-item-title {
@@ -602,6 +644,14 @@ export function getUiStyleText() {
             flex-wrap: wrap;
             gap: 6px;
             margin-top: auto;
+        }
+
+        .${SCRIPT_ID}-watch-action-open {
+            display: none;
+        }
+
+        .${SCRIPT_ID}-watch-item[data-view="list"] .${SCRIPT_ID}-watch-action-open {
+            display: inline-flex;
         }
 
         .${SCRIPT_ID}-button,
