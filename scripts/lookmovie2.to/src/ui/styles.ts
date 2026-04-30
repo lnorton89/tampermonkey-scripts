@@ -675,6 +675,17 @@ export function getUiStyleText() {
             opacity: 0.8;
         }
 
+        .episode-item.${SCRIPT_ID}-shows-list-marker img {
+            outline: 4px solid #facc15 !important;
+            outline-offset: -4px;
+            border-radius: 6px;
+            box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.5), 0 0 22px rgba(250, 204, 21, 0.7);
+        }
+
+        .episode-item.${SCRIPT_ID}-shows-list-marker {
+            filter: drop-shadow(0 0 16px rgba(250, 204, 21, 0.45));
+        }
+
         .${SCRIPT_ID}-show-view-watch-wrap {
             margin-top: 14px;
         }

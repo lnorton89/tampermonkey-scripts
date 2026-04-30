@@ -1,11 +1,19 @@
 /* eslint-disable */
 // @ts-nocheck
-import { loadMovieWatchlist, loadSettings, loadWatchlist } from './storage';
+import { loadMovieWatchlist, loadSettings, loadShowsListProgress, loadWatchlist } from './storage';
 
 export const appState = {
   settings: loadSettings(),
   watchlistStore: loadWatchlist(),
   movieWatchlistStore: loadMovieWatchlist(),
+  showsListProgress: loadShowsListProgress(),
+  showsListProgressOrder: -1,
+  showsListSeenCandidate: null,
+  showsListSeenCandidateOrder: -1,
+  showsListSessionTouched: false,
+  showsListObserver: null,
+  showsListMutationObserver: null,
+  showsListObservedCards: new WeakSet(),
   domBootstrapped: false,
   uiBootAttempts: 0,
   fullscreenTriggered: false,

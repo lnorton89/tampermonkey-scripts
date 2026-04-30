@@ -4,6 +4,7 @@ import {
   DEFAULT_SETTINGS,
   MOVIE_WATCHLIST_KEY,
   SCRIPT_ID,
+  SHOWS_LIST_PROGRESS_KEY,
   STORAGE_KEY,
   WATCHLIST_KEY,
 } from '../config/constants';
@@ -126,6 +127,38 @@ export function loadMovieWatchlist() {
   }
 }
 
+export function normalizeShowsListProgress(progress) {
+  if (!progress || typeof progress !== 'object') {
+    return null;
+  }
+
+  const slug =
+    typeof progress.slug === 'string' && progress.slug.trim() ? progress.slug.trim() : '';
+  const episode = normalizeEpisodeRecord(progress.episode);
+  if (!slug || !episode) {
+    return null;
+  }
+
+  return {
+    slug,
+    title: typeof progress.title === 'string' ? progress.title : slug,
+    href: typeof progress.href === 'string' ? progress.href : '',
+    episode,
+    seenAt: typeof progress.seenAt === 'number' ? progress.seenAt : Date.now(),
+  };
+}
+
+export function loadShowsListProgress() {
+  try {
+    return normalizeShowsListProgress(
+      JSON.parse(localStorage.getItem(SHOWS_LIST_PROGRESS_KEY) || 'null')
+    );
+  } catch (error) {
+    console.warn(`[${SCRIPT_ID}] Failed to load shows list progress.`, error);
+    return null;
+  }
+}
+
 export function persistSettings(settings) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
@@ -147,5 +180,19 @@ export function persistMovieWatchlist(movieWatchlistStore) {
     localStorage.setItem(MOVIE_WATCHLIST_KEY, JSON.stringify(movieWatchlistStore));
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to save movie watchlist.`, error);
+  }
+}
+
+export function persistShowsListProgress(progress) {
+  try {
+    const normalized = normalizeShowsListProgress(progress);
+    if (!normalized) {
+      localStorage.removeItem(SHOWS_LIST_PROGRESS_KEY);
+      return;
+    }
+
+    localStorage.setItem(SHOWS_LIST_PROGRESS_KEY, JSON.stringify(normalized));
+  } catch (error) {
+    console.warn(`[${SCRIPT_ID}] Failed to save shows list progress.`, error);
   }
 }

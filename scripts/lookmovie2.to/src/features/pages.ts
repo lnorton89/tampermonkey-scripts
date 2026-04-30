@@ -1,7 +1,9 @@
 /* eslint-disable */
 // @ts-nocheck
 import { SCRIPT_ID } from '../config/constants';
-import { normalizeEpisodeRecord, compareEpisodes } from '../domain/episodes';
+import { normalizeEpisodeRecord, compareEpisodes, sameEpisode } from '../domain/episodes';
+import { appState } from '../core/state';
+import { normalizeShowsListProgress, persistShowsListProgress } from '../core/storage';
 import { escapeHtml, toPositiveInteger } from '../core/utils';
 import { addShowToWatchlist, getWatchlistEntry, removeShowFromWatchlist } from './watchlist';
 import { addMovieToWatchlist, getMovieWatchlistEntry, removeMovieFromWatchlist } from './movies';
@@ -385,6 +387,161 @@ export function syncMovieViewWatchButton() {
   document
     .querySelectorAll(`.${SCRIPT_ID}-movie-view-watch-button`)
     .forEach(updateMovieViewWatchButton);
+}
+
+export function buildShowsListProgress(card) {
+  if (!card || !card.slug || !card.episode) {
+    return null;
+  }
+
+  return {
+    slug: card.slug,
+    title: card.title || card.slug,
+    href: card.href || '',
+    episode: card.episode,
+    seenAt: Date.now(),
+  };
+}
+
+export function isShowsListProgressMatch(card, progress) {
+  return (
+    !!card &&
+    !!progress &&
+    card.slug === progress.slug &&
+    sameEpisode(card.episode, progress.episode)
+  );
+}
+
+export function getEpisodeCardOrder(cardElement) {
+  return Array.from(document.querySelectorAll('.episode-item')).indexOf(cardElement);
+}
+
+export function applyShowsListProgressMarker() {
+  if (!document.body || !isLatestShowsPage()) {
+    return;
+  }
+
+  document
+    .querySelectorAll(`.episode-item.${SCRIPT_ID}-shows-list-marker`)
+    .forEach((cardElement) => {
+      cardElement.classList.remove(`${SCRIPT_ID}-shows-list-marker`);
+      cardElement.removeAttribute('data-lookmovie-list-marker');
+    });
+  appState.showsListProgressOrder = -1;
+
+  const progress = appState.showsListProgress;
+  if (!progress) {
+    return;
+  }
+
+  document.querySelectorAll('.episode-item').forEach((cardElement) => {
+    const card = parseEpisodeCard(cardElement);
+    if (!isShowsListProgressMatch(card, progress)) {
+      return;
+    }
+
+    cardElement.classList.add(`${SCRIPT_ID}-shows-list-marker`);
+    cardElement.dataset.lookmovieListMarker = 'true';
+    appState.showsListProgressOrder = getEpisodeCardOrder(cardElement);
+  });
+}
+
+export function persistShowsListSeenCandidate() {
+  const progress = normalizeShowsListProgress(appState.showsListSeenCandidate);
+  if (!progress) {
+    return;
+  }
+
+  if (
+    appState.showsListProgress &&
+    !appState.showsListSessionTouched &&
+    (appState.showsListProgressOrder < 0 ||
+      appState.showsListSeenCandidateOrder < appState.showsListProgressOrder)
+  ) {
+    return;
+  }
+
+  appState.showsListProgress = progress;
+  persistShowsListProgress(progress);
+  applyShowsListProgressMarker();
+}
+
+export function stopShowsListProgressTracking(options) {
+  if (options && options.persist) {
+    persistShowsListSeenCandidate();
+  }
+
+  if (appState.showsListObserver) {
+    appState.showsListObserver.disconnect();
+  }
+
+  if (appState.showsListMutationObserver) {
+    appState.showsListMutationObserver.disconnect();
+  }
+
+  appState.showsListObserver = null;
+  appState.showsListMutationObserver = null;
+  appState.showsListObservedCards = new WeakSet();
+  appState.showsListSeenCandidate = null;
+  appState.showsListSeenCandidateOrder = -1;
+  appState.showsListSessionTouched = false;
+}
+
+export function updateShowsListSeenCandidate(cardElement) {
+  const card = parseEpisodeCard(cardElement);
+  const progress = buildShowsListProgress(card);
+  if (!progress) {
+    return;
+  }
+
+  const order = getEpisodeCardOrder(cardElement);
+  if (order < appState.showsListSeenCandidateOrder) {
+    return;
+  }
+
+  appState.showsListSeenCandidate = progress;
+  appState.showsListSeenCandidateOrder = order;
+}
+
+export function ensureShowsListProgressTracking() {
+  if (!document.body || !isLatestShowsPage() || typeof IntersectionObserver !== 'function') {
+    return;
+  }
+
+  applyShowsListProgressMarker();
+
+  if (!appState.showsListObserver) {
+    appState.showsListObserver = new IntersectionObserver(
+      (entries) => {
+        entries
+          .filter((entry) => entry.isIntersecting)
+          .forEach((entry) => updateShowsListSeenCandidate(entry.target));
+      },
+      { threshold: 0.55 }
+    );
+  }
+
+  if (!appState.showsListMutationObserver) {
+    appState.showsListMutationObserver = new MutationObserver(() => {
+      ensureShowsListProgressTracking();
+    });
+    appState.showsListMutationObserver.observe(document.body, { childList: true, subtree: true });
+  }
+
+  document.querySelectorAll('.episode-item').forEach((cardElement) => {
+    if (appState.showsListObservedCards.has(cardElement)) {
+      return;
+    }
+
+    appState.showsListObservedCards.add(cardElement);
+    appState.showsListObserver.observe(cardElement);
+  });
+}
+
+export function markShowsListSessionTouched() {
+  if (isLatestShowsPage()) {
+    appState.showsListSessionTouched = true;
+  }
 }
 
 export function ensureEpisodeCardButtons() {

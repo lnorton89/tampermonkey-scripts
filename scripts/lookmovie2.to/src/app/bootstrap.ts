@@ -11,11 +11,14 @@ import {
   ensureEpisodeCardButtons,
   ensureMovieCardButtons,
   ensureMovieViewWatchButton,
+  ensureShowsListProgressTracking,
   ensureShowViewWatchButton,
+  markShowsListSessionTouched,
   syncEpisodeCardButtons,
   syncMovieCardButtons,
   syncMovieViewWatchButton,
   syncShowViewWatchButton,
+  stopShowsListProgressTracking,
 } from '../features/pages';
 import { refreshMovieWatchlistMetadata } from '../features/movies';
 import { refreshWatchlistEntries } from '../features/watchlist';
@@ -27,6 +30,13 @@ export function watchNavigation() {
       return;
     }
 
+    const previousUrl = new URL(appState.lastKnownUrl, location.origin);
+    if (previousUrl.pathname === '/shows') {
+      stopShowsListProgressTracking({ persist: true });
+    } else {
+      stopShowsListProgressTracking();
+    }
+
     appState.lastKnownUrl = location.href;
     appState.fullscreenTriggered = false;
     appState.lastTrackedEpisodeSignature = '';
@@ -36,6 +46,7 @@ export function watchNavigation() {
     renderWatchlist();
     syncEpisodeCardButtons();
     ensureEpisodeCardButtons();
+    ensureShowsListProgressTracking();
     syncShowViewWatchButton();
     ensureShowViewWatchButton();
     syncMovieCardButtons();
@@ -55,11 +66,14 @@ export function bootstrapDomFeatures() {
   appState.domBootstrapped = true;
   watchVideos();
   watchNavigation();
+  window.addEventListener('scroll', markShowsListSessionTouched, { passive: true });
+  window.addEventListener('pagehide', () => stopShowsListProgressTracking({ persist: true }));
 
   const uiBootstrapper = window.setInterval(() => {
     appState.uiBootAttempts += 1;
     ensureUi();
     ensureEpisodeCardButtons();
+    ensureShowsListProgressTracking();
     ensureShowViewWatchButton();
     ensureMovieCardButtons();
     ensureMovieViewWatchButton();
@@ -72,6 +86,7 @@ export function bootstrapDomFeatures() {
   renderWatchlist();
   syncLauncherState();
   syncEpisodeCardButtons();
+  ensureShowsListProgressTracking();
   syncShowViewWatchButton();
   syncMovieCardButtons();
   syncMovieViewWatchButton();
