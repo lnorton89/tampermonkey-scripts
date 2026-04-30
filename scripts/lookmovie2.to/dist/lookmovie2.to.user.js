@@ -139,7 +139,15 @@ Error generating stack: `+a.message+`
         }
 
         #${E}-button:hover {
-            color: #ffffff;
+            color: #abb7c4;
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.18),
+                0 0 18px rgba(255, 255, 255, 0.12);
+        }
+
+        #${E}-button:hover::before {
+            background: #ffffff;
+            animation-play-state: paused;
         }
 
         #${E}-button-icon {
