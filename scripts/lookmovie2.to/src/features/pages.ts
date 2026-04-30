@@ -283,23 +283,32 @@ export function updateEpisodeCardButton(button) {
     episode: button.dataset.episode,
     idEpisode: button.dataset.idEpisode,
   });
+  let state = 'add';
+  let text = '+ Watch';
+  let title = 'Add this show to your watchlist';
 
-  if (!entry) {
-    button.dataset.state = 'add';
-    button.textContent = '+ Watch';
-    button.title = 'Add this show to your watchlist';
-    button.disabled = false;
-    return;
+  if (entry) {
+    const hasNewEpisode =
+      cardEpisode && (!entry.lastWatched || compareEpisodes(cardEpisode, entry.lastWatched) > 0);
+    state = hasNewEpisode ? 'watching-new' : 'watching';
+    text = 'Watching';
+    title = hasNewEpisode
+      ? 'This show is on your watchlist and this episode is newer than your watched progress. Click to remove from watchlist.'
+      : 'This show is already in your watchlist. Click to remove it.';
   }
 
-  const hasNewEpisode =
-    cardEpisode && (!entry.lastWatched || compareEpisodes(cardEpisode, entry.lastWatched) > 0);
-  button.dataset.state = hasNewEpisode ? 'watching-new' : 'watching';
-  button.textContent = 'Watching';
-  button.title = hasNewEpisode
-    ? 'This show is on your watchlist and this episode is newer than your watched progress. Click to remove from watchlist.'
-    : 'This show is already in your watchlist. Click to remove it.';
-  button.disabled = false;
+  if (button.dataset.state !== state) {
+    button.dataset.state = state;
+  }
+  if (button.textContent !== text) {
+    button.textContent = text;
+  }
+  if (button.title !== title) {
+    button.title = title;
+  }
+  if (button.disabled) {
+    button.disabled = false;
+  }
 }
 
 export function syncEpisodeCardButtons() {
@@ -527,6 +536,7 @@ export function stopShowsListProgressTracking(options) {
 
   appState.showsListObserver = null;
   appState.showsListMutationObserver = null;
+  appState.showsListRefreshScheduled = false;
   appState.showsListObservedCards = new WeakSet();
   appState.showsListSeenCandidate = null;
   appState.showsListSeenCandidateOrder = -1;
@@ -550,12 +560,39 @@ export function updateShowsListSeenCandidate(cardElement) {
   appState.showsListSeenCandidateOrder = order;
 }
 
-export function ensureShowsListProgressTracking() {
-  if (!document.body || !isLatestShowsPage() || typeof IntersectionObserver !== 'function') {
+export function refreshShowsListProgressTracking() {
+  if (!document.body || !isLatestShowsPage() || !appState.showsListObserver) {
     return;
   }
 
   applyShowsListProgressMarker();
+
+  document.querySelectorAll('.episode-item').forEach((cardElement) => {
+    if (appState.showsListObservedCards.has(cardElement)) {
+      return;
+    }
+
+    appState.showsListObservedCards.add(cardElement);
+    appState.showsListObserver.observe(cardElement);
+  });
+}
+
+export function scheduleShowsListProgressRefresh() {
+  if (appState.showsListRefreshScheduled) {
+    return;
+  }
+
+  appState.showsListRefreshScheduled = true;
+  window.setTimeout(() => {
+    appState.showsListRefreshScheduled = false;
+    refreshShowsListProgressTracking();
+  }, 150);
+}
+
+export function ensureShowsListProgressTracking() {
+  if (!document.body || !isLatestShowsPage() || typeof IntersectionObserver !== 'function') {
+    return;
+  }
 
   if (!appState.showsListObserver) {
     appState.showsListObserver = new IntersectionObserver(
@@ -570,19 +607,12 @@ export function ensureShowsListProgressTracking() {
 
   if (!appState.showsListMutationObserver) {
     appState.showsListMutationObserver = new MutationObserver(() => {
-      ensureShowsListProgressTracking();
+      scheduleShowsListProgressRefresh();
     });
     appState.showsListMutationObserver.observe(document.body, { childList: true, subtree: true });
   }
 
-  document.querySelectorAll('.episode-item').forEach((cardElement) => {
-    if (appState.showsListObservedCards.has(cardElement)) {
-      return;
-    }
-
-    appState.showsListObservedCards.add(cardElement);
-    appState.showsListObserver.observe(cardElement);
-  });
+  refreshShowsListProgressTracking();
 }
 
 export function markShowsListSessionTouched() {

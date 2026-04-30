@@ -14,6 +14,7 @@ export const appState = {
   showsListManualMarkerSet: false,
   showsListObserver: null,
   showsListMutationObserver: null,
+  showsListRefreshScheduled: false,
   showsListObservedCards: new WeakSet(),
   domBootstrapped: false,
   uiBootAttempts: 0,
