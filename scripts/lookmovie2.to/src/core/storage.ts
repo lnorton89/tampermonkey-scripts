@@ -145,6 +145,7 @@ export function normalizeShowsListProgress(progress) {
     href: typeof progress.href === 'string' ? progress.href : '',
     episode,
     seenAt: typeof progress.seenAt === 'number' ? progress.seenAt : Date.now(),
+    source: progress.source === 'manual' ? 'manual' : 'auto',
   };
 }
 

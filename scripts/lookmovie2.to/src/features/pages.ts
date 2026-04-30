@@ -398,7 +398,7 @@ export function syncMovieViewWatchButton() {
     .forEach(updateMovieViewWatchButton);
 }
 
-export function buildShowsListProgress(card) {
+export function buildShowsListProgress(card, source = 'auto') {
   if (!card || !card.slug || !card.episode) {
     return null;
   }
@@ -409,6 +409,7 @@ export function buildShowsListProgress(card) {
     href: card.href || '',
     episode: card.episode,
     seenAt: Date.now(),
+    source,
   };
 }
 
@@ -482,7 +483,7 @@ export function syncShowsListMarkerButtons() {
 }
 
 export function setShowsListProgressMarker(cardElement) {
-  const progress = buildShowsListProgress(parseEpisodeCard(cardElement));
+  const progress = buildShowsListProgress(parseEpisodeCard(cardElement), 'manual');
   if (!progress) {
     return;
   }
@@ -498,7 +499,7 @@ export function setShowsListProgressMarker(cardElement) {
 }
 
 export function persistShowsListSeenCandidate() {
-  if (appState.showsListManualMarkerSet) {
+  if (appState.showsListManualMarkerSet || appState.showsListProgress?.source === 'manual') {
     return;
   }
 
