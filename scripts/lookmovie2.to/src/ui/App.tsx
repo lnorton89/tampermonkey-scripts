@@ -94,7 +94,10 @@ function ensureLauncherHost() {
     host.className = target.sourceItem.className;
   }
 
-  if (host.parentElement !== target.parent || host.nextSibling !== target.before) {
+  if (
+    target.before !== host &&
+    (host.parentElement !== target.parent || host.nextSibling !== target.before)
+  ) {
     target.parent.insertBefore(host, target.before);
   }
 
@@ -147,13 +150,19 @@ export function LookMovieToolsApp() {
   }, []);
 
   useEffect(() => {
+    let attempts = 0;
     function syncHost() {
       const nextHost = ensureLauncherHost();
       setLauncherHost((currentHost) => (currentHost === nextHost ? currentHost : nextHost));
+
+      attempts += 1;
+      if (nextHost || attempts > 40) {
+        window.clearInterval(intervalId);
+      }
     }
 
-    syncHost();
     const intervalId = window.setInterval(syncHost, 500);
+    syncHost();
     return () => window.clearInterval(intervalId);
   }, []);
 
