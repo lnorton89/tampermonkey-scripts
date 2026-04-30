@@ -392,7 +392,22 @@ export function getUiStyleText() {
         }
 
         .${SCRIPT_ID}-view-toggle {
-            min-width: 82px;
+            min-width: 0;
+        }
+
+        .${SCRIPT_ID}-toolbar-icon-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            padding: 0;
+        }
+
+        .${SCRIPT_ID}-toolbar-icon-button svg {
+            width: 17px;
+            height: 17px;
+            fill: currentColor;
         }
 
         #${UI_ROOT_ID}-watchlist-summary {
@@ -461,7 +476,7 @@ export function getUiStyleText() {
 
         #${UI_ROOT_ID}-watchlist-list {
             display: grid;
-            grid-template-columns: repeat(8, 1fr);
+            grid-template-columns: repeat(6, 1fr);
             grid-auto-rows: max-content;
             align-items: start;
             align-content: start;
@@ -548,6 +563,14 @@ export function getUiStyleText() {
             display: block;
         }
 
+        .${SCRIPT_ID}-watch-poster-link {
+            display: block;
+            width: 100%;
+            height: 100%;
+            color: inherit;
+            text-decoration: none;
+        }
+
         .${SCRIPT_ID}-watch-item-poster-placeholder {
             width: 100%;
             height: 100%;
@@ -567,8 +590,9 @@ export function getUiStyleText() {
             padding: 8px 10px;
             background: linear-gradient(to top, rgba(0, 0, 0, 0.85), transparent);
             display: flex;
-            justify-content: space-between;
+            justify-content: flex-end;
             align-items: flex-end;
+            pointer-events: none;
         }
 
         .${SCRIPT_ID}-watch-item[data-view="list"] .${SCRIPT_ID}-watch-item-poster-overlay {
@@ -581,7 +605,7 @@ export function getUiStyleText() {
             flex-direction: column;
             gap: 8px;
             flex: 1;
-            min-height: 112px;
+            min-height: 82px;
         }
 
         .${SCRIPT_ID}-watch-item[data-view="list"] .${SCRIPT_ID}-watch-item-body {
@@ -646,12 +670,57 @@ export function getUiStyleText() {
             margin-top: auto;
         }
 
-        .${SCRIPT_ID}-watch-action-open {
-            display: none;
+        .${SCRIPT_ID}-poster-icon-button {
+            position: absolute;
+            top: 8px;
+            z-index: 3;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            border: 1px solid rgba(226, 232, 240, 0.28);
+            border-radius: 50%;
+            padding: 0;
+            background: rgba(15, 23, 42, 0.88);
+            color: #f8fafc;
+            font: 800 18px/1 Arial, sans-serif;
+            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.32);
+            cursor: pointer;
+            opacity: 0;
+            transform: translateY(-3px);
+            transition: opacity 0.14s ease, transform 0.14s ease, border-color 0.14s ease, background 0.14s ease;
         }
 
-        .${SCRIPT_ID}-watch-item[data-view="list"] .${SCRIPT_ID}-watch-action-open {
-            display: inline-flex;
+        .${SCRIPT_ID}-poster-check-button {
+            left: 8px;
+            color: #bbf7d0;
+        }
+
+        .${SCRIPT_ID}-poster-remove-button {
+            right: 8px;
+            color: #fecdd3;
+        }
+
+        .${SCRIPT_ID}-watch-item:hover .${SCRIPT_ID}-poster-icon-button,
+        .${SCRIPT_ID}-watch-item:focus-within .${SCRIPT_ID}-poster-icon-button {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .${SCRIPT_ID}-poster-check-button:hover {
+            border-color: rgba(134, 239, 172, 0.72);
+            background: rgba(22, 101, 52, 0.92);
+        }
+
+        .${SCRIPT_ID}-poster-remove-button:hover {
+            border-color: rgba(251, 113, 133, 0.72);
+            background: rgba(127, 29, 29, 0.92);
+        }
+
+        .${SCRIPT_ID}-poster-icon-button[disabled] {
+            cursor: not-allowed;
+            opacity: 0;
         }
 
         .${SCRIPT_ID}-button,
@@ -778,7 +847,7 @@ export function getUiStyleText() {
 
         @media (max-width: 1400px) {
             #${UI_ROOT_ID}-watchlist-list {
-                grid-template-columns: repeat(6, 1fr);
+                grid-template-columns: repeat(5, 1fr);
             }
         }
 

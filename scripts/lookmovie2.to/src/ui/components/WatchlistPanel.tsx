@@ -13,6 +13,30 @@ import {
 import { MovieWatchlistItem } from './MovieWatchlistItem';
 import { WatchlistItem } from './WatchlistItem';
 
+function GridIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z" />
+    </svg>
+  );
+}
+
+function ListIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4 6h3v3H4V6zm5 .5h11v2H9v-2zM4 11h3v3H4v-3zm5 .5h11v2H9v-2zM4 16h3v3H4v-3zm5 .5h11v2H9v-2z" />
+    </svg>
+  );
+}
+
+function RefreshIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M17.7 6.3A7.9 7.9 0 0 0 12 4a8 8 0 1 0 7.5 10.7l-1.9-.7A6 6 0 1 1 16.3 7.7L13 11h8V3l-3.3 3.3z" />
+    </svg>
+  );
+}
+
 export function WatchlistPanel() {
   const [activeTab, setActiveTab] = useState('shows');
   const [viewMode, setViewMode] = useState('poster');
@@ -26,7 +50,7 @@ export function WatchlistPanel() {
       ? `${entries.length} tracked ${entries.length === 1 ? 'show' : 'shows'}${newCount ? ` | ${newCount} with a newer latest episode` : ''}`
       : 'Add shows from the latest episodes page to start tracking them.'
     : movieEntries.length
-      ? `${movieEntries.length} tracked ${movieEntries.length === 1 ? 'movie' : 'movies'}${unwatchedMovieCount ? ` | ${unwatchedMovieCount} not watched yet` : ''}`
+      ? `${movieEntries.length} tracked ${movieEntries.length === 1 ? 'movie' : 'movies'}${unwatchedMovieCount ? ` | ${unwatchedMovieCount} unwatched` : ''}`
       : 'Add movies from the movies page or an individual movie page to start tracking them.';
   const isListView = viewMode === 'list';
 
@@ -63,23 +87,26 @@ export function WatchlistPanel() {
         </div>
         <div className={`${SCRIPT_ID}-watchlist-toolbar-actions`}>
           <button
-            className={`${SCRIPT_ID}-button ${SCRIPT_ID}-view-toggle`}
+            className={`${SCRIPT_ID}-button ${SCRIPT_ID}-toolbar-icon-button ${SCRIPT_ID}-view-toggle`}
             type="button"
             aria-pressed={isListView ? 'true' : 'false'}
+            aria-label={isListView ? 'Switch to poster view' : 'Switch to list view'}
             title={isListView ? 'Switch to poster view' : 'Switch to list view'}
             onClick={() => setViewMode(isListView ? 'poster' : 'list')}
           >
-            {isListView ? 'Poster View' : 'List View'}
+            {isListView ? <GridIcon /> : <ListIcon />}
           </button>
           {isShowsTab ? (
             <button
               id={`${UI_ROOT_ID}-watchlist-refresh`}
-              className={`${SCRIPT_ID}-button`}
+              className={`${SCRIPT_ID}-button ${SCRIPT_ID}-toolbar-icon-button`}
               type="button"
               disabled={appState.watchlistBusy}
+              aria-label="Refresh watchlist"
+              title="Refresh watchlist"
               onClick={() => refreshWatchlistEntries({ force: true })}
             >
-              Refresh
+              <RefreshIcon />
             </button>
           ) : null}
         </div>

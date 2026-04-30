@@ -7,9 +7,8 @@ import { buildMovieViewUrl } from '../../features/pages';
 export function MovieWatchlistItem({ entry, viewMode }) {
   const state = entry.watched ? 'watched' : 'new';
   const openHref = entry.href || buildMovieViewUrl(entry.slug);
-  const watchedCopy = entry.watched ? 'Watched' : 'Not watched yet';
   const addedCopy = entry.addedAt ? `Added ${new Date(entry.addedAt).toLocaleDateString()}` : '';
-  const summaryPieces = [watchedCopy];
+  const summaryPieces = [];
 
   if (addedCopy) {
     summaryPieces.push(addedCopy);
@@ -18,15 +17,38 @@ export function MovieWatchlistItem({ entry, viewMode }) {
   return (
     <article className={`${SCRIPT_ID}-watch-item`} data-state={state} data-view={viewMode}>
       <div className={`${SCRIPT_ID}-watch-item-poster`}>
-        {entry.poster ? (
-          <img src={entry.poster} alt={entry.title} loading="lazy" />
-        ) : (
-          <div className={`${SCRIPT_ID}-watch-item-poster-placeholder`}>MOVIE</div>
-        )}
+        <a
+          className={`${SCRIPT_ID}-watch-poster-link`}
+          href={openHref}
+          aria-label={`Open ${entry.title}`}
+        >
+          {entry.poster ? (
+            <img src={entry.poster} alt={entry.title} loading="lazy" />
+          ) : (
+            <div className={`${SCRIPT_ID}-watch-item-poster-placeholder`}>MOVIE</div>
+          )}
+        </a>
+        <button
+          className={`${SCRIPT_ID}-poster-icon-button ${SCRIPT_ID}-poster-check-button`}
+          type="button"
+          aria-label={
+            entry.watched ? `Mark ${entry.title} unwatched` : `Mark ${entry.title} watched`
+          }
+          title={entry.watched ? 'Mark unwatched' : 'Mark watched'}
+          onClick={() => toggleMovieWatched(entry.slug)}
+        >
+          ✓
+        </button>
+        <button
+          className={`${SCRIPT_ID}-poster-icon-button ${SCRIPT_ID}-poster-remove-button`}
+          type="button"
+          aria-label={`Remove ${entry.title}`}
+          title="Remove"
+          onClick={() => removeMovieFromWatchlist(entry.slug)}
+        >
+          ×
+        </button>
         <div className={`${SCRIPT_ID}-watch-item-poster-overlay`}>
-          <a className={`${SCRIPT_ID}-link-button ${SCRIPT_ID}-open-link`} href={openHref}>
-            Open
-          </a>
           <span className={`${SCRIPT_ID}-watch-badge`} data-state={state}>
             {entry.watched ? 'Watched' : 'To watch'}
           </span>
@@ -38,26 +60,9 @@ export function MovieWatchlistItem({ entry, viewMode }) {
             {entry.title}
             {entry.year ? ` (${entry.year})` : ''}
           </a>
-          <p className={`${SCRIPT_ID}-watch-item-copy`}>{summaryPieces.join(' | ')}</p>
-        </div>
-        <div className={`${SCRIPT_ID}-watch-actions`}>
-          <a className={`${SCRIPT_ID}-link-button ${SCRIPT_ID}-watch-action-open`} href={openHref}>
-            Open
-          </a>
-          <button
-            className={`${SCRIPT_ID}-button`}
-            type="button"
-            onClick={() => toggleMovieWatched(entry.slug)}
-          >
-            {entry.watched ? 'Mark unwatched' : 'Mark watched'}
-          </button>
-          <button
-            className={`${SCRIPT_ID}-button ${SCRIPT_ID}-danger-button`}
-            type="button"
-            onClick={() => removeMovieFromWatchlist(entry.slug)}
-          >
-            Remove
-          </button>
+          {summaryPieces.length ? (
+            <p className={`${SCRIPT_ID}-watch-item-copy`}>{summaryPieces.join(' | ')}</p>
+          ) : null}
         </div>
       </div>
     </article>
