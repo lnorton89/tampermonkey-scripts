@@ -830,6 +830,38 @@ export function getUiStyleText() {
             opacity: 0.8;
         }
 
+        .${SCRIPT_ID}-shows-list-marker-button {
+            position: absolute;
+            left: 12px;
+            bottom: 12px;
+            z-index: 6;
+            border: 0;
+            border-radius: 999px;
+            padding: 8px 10px;
+            background: rgba(15, 23, 42, 0.92);
+            color: #f8fafc;
+            font: 700 12px/1 Arial, sans-serif;
+            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+            cursor: pointer;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(4px);
+            transition: opacity 0.14s ease, transform 0.14s ease, background 0.14s ease;
+        }
+
+        .episode-item:hover .${SCRIPT_ID}-shows-list-marker-button,
+        .episode-item:focus-within .${SCRIPT_ID}-shows-list-marker-button {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+
+        .${SCRIPT_ID}-shows-list-marker-button:hover,
+        .${SCRIPT_ID}-shows-list-marker-button[data-state="current"] {
+            background: rgba(202, 138, 4, 0.96);
+            color: #fef9c3;
+        }
+
         .episode-item.${SCRIPT_ID}-shows-list-marker img {
             outline: 4px solid #facc15 !important;
             outline-offset: -4px;

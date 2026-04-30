@@ -11,6 +11,7 @@ export const appState = {
   showsListSeenCandidate: null,
   showsListSeenCandidateOrder: -1,
   showsListSessionTouched: false,
+  showsListManualMarkerSet: false,
   showsListObserver: null,
   showsListMutationObserver: null,
   showsListObservedCards: new WeakSet(),

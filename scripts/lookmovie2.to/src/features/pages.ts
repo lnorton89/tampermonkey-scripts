@@ -444,9 +444,47 @@ export function applyShowsListProgressMarker() {
     cardElement.dataset.lookmovieListMarker = 'true';
     appState.showsListProgressOrder = getEpisodeCardOrder(cardElement);
   });
+
+  syncShowsListMarkerButtons();
+}
+
+export function updateShowsListMarkerButton(button) {
+  const card = parseEpisodeCard(button.closest('.episode-item'));
+  const isCurrent = isShowsListProgressMatch(card, appState.showsListProgress);
+
+  button.dataset.state = isCurrent ? 'current' : 'set';
+  button.textContent = isCurrent ? 'Bookmarked' : 'Set bookmark';
+  button.title = isCurrent
+    ? 'This is the current shows-page bookmark.'
+    : 'Set the yellow shows-page bookmark here.';
+}
+
+export function syncShowsListMarkerButtons() {
+  document
+    .querySelectorAll(`.${SCRIPT_ID}-shows-list-marker-button`)
+    .forEach(updateShowsListMarkerButton);
+}
+
+export function setShowsListProgressMarker(cardElement) {
+  const progress = buildShowsListProgress(parseEpisodeCard(cardElement));
+  if (!progress) {
+    return;
+  }
+
+  appState.showsListProgress = progress;
+  appState.showsListProgressOrder = getEpisodeCardOrder(cardElement);
+  appState.showsListSeenCandidate = null;
+  appState.showsListSeenCandidateOrder = -1;
+  appState.showsListManualMarkerSet = true;
+  persistShowsListProgress(progress);
+  applyShowsListProgressMarker();
 }
 
 export function persistShowsListSeenCandidate() {
+  if (appState.showsListManualMarkerSet) {
+    return;
+  }
+
   const progress = normalizeShowsListProgress(appState.showsListSeenCandidate);
   if (!progress) {
     return;
@@ -485,6 +523,7 @@ export function stopShowsListProgressTracking(options) {
   appState.showsListSeenCandidate = null;
   appState.showsListSeenCandidateOrder = -1;
   appState.showsListSessionTouched = false;
+  appState.showsListManualMarkerSet = false;
 }
 
 export function updateShowsListSeenCandidate(cardElement) {
@@ -607,6 +646,22 @@ export function ensureEpisodeCardButtons() {
     }
 
     updateEpisodeCardButton(button);
+
+    let markerButton = cardElement.querySelector(`.${SCRIPT_ID}-shows-list-marker-button`);
+    if (!markerButton) {
+      markerButton = document.createElement('button');
+      markerButton.type = 'button';
+      markerButton.className = `${SCRIPT_ID}-shows-list-marker-button`;
+      cardElement.appendChild(markerButton);
+
+      markerButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setShowsListProgressMarker(cardElement);
+      });
+    }
+
+    updateShowsListMarkerButton(markerButton);
   });
 }
 
