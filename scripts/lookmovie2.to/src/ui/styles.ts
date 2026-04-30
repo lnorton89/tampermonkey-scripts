@@ -24,9 +24,9 @@ export function getUiStyleText() {
         }
 
         #${UI_ROOT_ID} > #${UI_ROOT_ID}-launcher {
-            position: fixed;
-            right: 20px;
-            bottom: 20px;
+            position: absolute;
+            top: 14px;
+            right: 14px;
             z-index: 2147483647;
         }
 
@@ -53,7 +53,7 @@ export function getUiStyleText() {
             border: 2px solid transparent;
             border-radius: 30px;
             padding: 3px 15px;
-            margin: 0 15px;
+            margin: 0;
             color: #abb7c4;
             background:
                 linear-gradient(#13283c, #13283c) padding-box,
@@ -80,13 +80,49 @@ export function getUiStyleText() {
             animation: ${SCRIPT_ID}-rainbow-border 2.6s linear infinite;
         }
 
+        #${UI_ROOT_ID}-launcher[data-hosted="false"] #${UI_ROOT_ID}-button {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            padding: 0;
+            background:
+                linear-gradient(rgba(19, 40, 60, 0.94), rgba(19, 40, 60, 0.94)) padding-box,
+                linear-gradient(135deg, #ffe7a6, #bde7ff, #d9c7ff, #ffe7a6) border-box;
+            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.26);
+        }
+
         #${UI_ROOT_ID}-button:hover {
             color: #ffffff;
+        }
+
+        #${UI_ROOT_ID}-button-icon {
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #${UI_ROOT_ID}-button-icon svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+        #${UI_ROOT_ID}-launcher[data-hosted="false"] #${UI_ROOT_ID}-button-icon {
+            display: inline-flex;
         }
 
         #${UI_ROOT_ID}-button-label {
             display: inline-flex;
             align-items: center;
+            white-space: nowrap;
+        }
+
+        #${UI_ROOT_ID}-launcher[data-hosted="false"] #${UI_ROOT_ID}-button-label {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0 0 0 0);
             white-space: nowrap;
         }
 

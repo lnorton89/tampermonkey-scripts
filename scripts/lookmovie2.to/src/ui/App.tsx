@@ -41,17 +41,19 @@ function findTopBarHostTarget() {
       return {
         parent: signupItem.parentElement,
         before: signupItem.nextSibling,
+        sourceItem: signupItem,
       };
     }
 
     return {
       parent: signupControl.parentElement,
       before: signupControl.nextSibling,
+      sourceItem: null,
     };
   }
 
   const header = document.querySelector('header, nav, .navbar, .main-header, .header');
-  return header ? { parent: header, before: null } : null;
+  return header ? { parent: header, before: null, sourceItem: null } : null;
 }
 
 function ensureLauncherHost() {
@@ -73,6 +75,10 @@ function ensureLauncherHost() {
     host.id = `${UI_ROOT_ID}-launcher-host`;
   }
 
+  if (target.sourceItem && host.className !== target.sourceItem.className) {
+    host.className = target.sourceItem.className;
+  }
+
   if (host.parentElement !== target.parent || host.nextSibling !== target.before) {
     target.parent.insertBefore(host, target.before);
   }
@@ -92,6 +98,14 @@ function FullscreenIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M5 10V5h5v2H7v3H5zm9-5h5v5h-2V7h-3V5zM7 14v3h3v2H5v-5h2zm10 0h2v5h-5v-2h3v-3z" />
+    </svg>
+  );
+}
+
+function EnhancerIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 2.8 14.3 8l5.7.6-4.3 3.8 1.2 5.6-4.9-2.9L7.1 18l1.2-5.6L4 8.6 9.7 8 12 2.8z" />
     </svg>
   );
 }
@@ -140,15 +154,20 @@ export function LookMovieToolsApp() {
   }
 
   const launcher = (
-    <div id={`${UI_ROOT_ID}-launcher`}>
+    <div id={`${UI_ROOT_ID}-launcher`} data-hosted={launcherHost ? 'true' : 'false'}>
       <button
         id={`${UI_ROOT_ID}-button`}
         type="button"
+        aria-label="Open LookMovie2 Enhancer"
         aria-haspopup="dialog"
         aria-expanded={isOpen ? 'true' : 'false'}
+        title="Open enhancer"
         onClick={() => (isOpen ? setIsOpen(false) : openModal())}
       >
-        <span id={`${UI_ROOT_ID}-button-label`}>LM Tools</span>
+        <span id={`${UI_ROOT_ID}-button-icon`}>
+          <EnhancerIcon />
+        </span>
+        <span id={`${UI_ROOT_ID}-button-label`}>Enhancer</span>
       </button>
       <div id={`${UI_ROOT_ID}-quick-settings`} role="toolbar" aria-label="Quick playback settings">
         <button
