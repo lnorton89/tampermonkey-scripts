@@ -8,6 +8,9 @@ export function getUiStyleText() {
             0% {
                 background-position: 0% 50%;
             }
+            50% {
+                background-position: 100% 50%;
+            }
             100% {
                 background-position: 200% 50%;
             }
@@ -67,16 +70,21 @@ export function getUiStyleText() {
                 linear-gradient(#13283c, #13283c) padding-box,
                 linear-gradient(
                     90deg,
-                    #ffd1dc,
-                    #ffe7a6,
-                    #c6f6d5,
-                    #bde7ff,
-                    #d9c7ff,
-                    #ffd1dc
+                    #ff2d95,
+                    #ff7a18,
+                    #ffd60a,
+                    #24f2a6,
+                    #00c2ff,
+                    #7c3cff,
+                    #ff2d95,
+                    #ff7a18,
+                    #ffd60a
                 )
                 border-box;
-            background-size: 100% 100%, 200% 100%;
-            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+            background-size: 100% 100%, 300% 100%;
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+                0 0 18px rgba(0, 194, 255, 0.16);
             font-family: Dosis, sans-serif;
             font-size: 14px;
             font-weight: 700;
@@ -85,7 +93,7 @@ export function getUiStyleText() {
             text-transform: uppercase;
             white-space: nowrap;
             cursor: pointer;
-            animation: ${SCRIPT_ID}-rainbow-border 2.6s linear infinite;
+            animation: ${SCRIPT_ID}-rainbow-border 1.65s linear infinite;
         }
 
         #${UI_ROOT_ID}-launcher[data-hosted="false"] #${UI_ROOT_ID}-button {
@@ -95,8 +103,23 @@ export function getUiStyleText() {
             padding: 0;
             background:
                 linear-gradient(rgba(19, 40, 60, 0.94), rgba(19, 40, 60, 0.94)) padding-box,
-                linear-gradient(135deg, #ffe7a6, #bde7ff, #d9c7ff, #ffe7a6) border-box;
-            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.26);
+                linear-gradient(
+                    90deg,
+                    #ff2d95,
+                    #ff7a18,
+                    #ffd60a,
+                    #24f2a6,
+                    #00c2ff,
+                    #7c3cff,
+                    #ff2d95,
+                    #ff7a18,
+                    #ffd60a
+                )
+                border-box;
+            box-shadow:
+                0 10px 26px rgba(0, 0, 0, 0.26),
+                0 0 20px rgba(255, 45, 149, 0.26),
+                0 0 26px rgba(0, 194, 255, 0.18);
         }
 
         #${UI_ROOT_ID}-button:hover {
