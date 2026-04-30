@@ -6,10 +6,10 @@ export function getUiStyleText() {
   return `
         @keyframes ${SCRIPT_ID}-rainbow-border {
             0% {
-                background-position: 0% 50%;
+                transform: rotate(0turn);
             }
             100% {
-                background-position: 100% 50%;
+                transform: rotate(1turn);
             }
         }
 
@@ -58,33 +58,17 @@ export function getUiStyleText() {
             gap: 0;
             min-height: 0;
             min-width: 0;
-            border: 2px solid transparent;
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
+            border: 0;
             border-radius: 30px;
-            padding: 3px 15px;
+            padding: 5px 17px;
             margin: 0;
             color: #abb7c4;
-            background:
-                linear-gradient(#13283c, #13283c) padding-box,
-                linear-gradient(
-                    90deg,
-                    #ff2d95 0%,
-                    #ff7a18 8.333%,
-                    #ffd60a 16.666%,
-                    #24f2a6 25%,
-                    #00c2ff 33.333%,
-                    #7c3cff 41.666%,
-                    #ff2d95 50%,
-                    #ff7a18 58.333%,
-                    #ffd60a 66.666%,
-                    #24f2a6 75%,
-                    #00c2ff 83.333%,
-                    #7c3cff 91.666%,
-                    #ff2d95 100%
-                )
-                border-box;
-            background-size: 100% 100%, 200% 100%;
+            background: transparent;
             box-shadow:
-                inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+                0 0 0 1px rgba(255, 255, 255, 0.08),
                 0 0 18px rgba(0, 194, 255, 0.16);
             font-family: Dosis, sans-serif;
             font-size: 14px;
@@ -94,7 +78,34 @@ export function getUiStyleText() {
             text-transform: uppercase;
             white-space: nowrap;
             cursor: pointer;
-            animation: ${SCRIPT_ID}-rainbow-border 1.65s linear infinite;
+        }
+
+        #${UI_ROOT_ID}-button::before {
+            content: '';
+            position: absolute;
+            inset: -70%;
+            z-index: -2;
+            background: conic-gradient(
+                from 0turn,
+                #ff2d95 0turn,
+                #ff7a18 0.14turn,
+                #ffd60a 0.28turn,
+                #24f2a6 0.42turn,
+                #00c2ff 0.58turn,
+                #7c3cff 0.74turn,
+                #ff2d95 1turn
+            );
+            animation: ${SCRIPT_ID}-rainbow-border 8s linear infinite;
+        }
+
+        #${UI_ROOT_ID}-button::after {
+            content: '';
+            position: absolute;
+            inset: 2px;
+            z-index: -1;
+            border-radius: inherit;
+            background: #13283c;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
         }
 
         #${UI_ROOT_ID}-launcher[data-hosted="false"] #${UI_ROOT_ID}-button {
@@ -102,25 +113,6 @@ export function getUiStyleText() {
             height: 38px;
             border-radius: 50%;
             padding: 0;
-            background:
-                linear-gradient(rgba(19, 40, 60, 0.94), rgba(19, 40, 60, 0.94)) padding-box,
-                linear-gradient(
-                    90deg,
-                    #ff2d95 0%,
-                    #ff7a18 8.333%,
-                    #ffd60a 16.666%,
-                    #24f2a6 25%,
-                    #00c2ff 33.333%,
-                    #7c3cff 41.666%,
-                    #ff2d95 50%,
-                    #ff7a18 58.333%,
-                    #ffd60a 66.666%,
-                    #24f2a6 75%,
-                    #00c2ff 83.333%,
-                    #7c3cff 91.666%,
-                    #ff2d95 100%
-                )
-                border-box;
             box-shadow:
                 0 10px 26px rgba(0, 0, 0, 0.26),
                 0 0 20px rgba(255, 45, 149, 0.26),
@@ -135,6 +127,8 @@ export function getUiStyleText() {
             display: none;
             align-items: center;
             justify-content: center;
+            position: relative;
+            z-index: 1;
         }
 
         #${UI_ROOT_ID}-button-icon svg {
@@ -150,6 +144,8 @@ export function getUiStyleText() {
         #${UI_ROOT_ID}-button-label {
             display: inline-flex;
             align-items: center;
+            position: relative;
+            z-index: 1;
             white-space: nowrap;
         }
 
