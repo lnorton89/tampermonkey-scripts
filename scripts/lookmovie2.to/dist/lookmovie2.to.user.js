@@ -23,11 +23,8 @@ Error generating stack: `+a.message+`
             0% {
                 background-position: 0% 50%;
             }
-            50% {
-                background-position: 100% 50%;
-            }
             100% {
-                background-position: 200% 50%;
+                background-position: 100% 50%;
             }
         }
 
@@ -85,18 +82,22 @@ Error generating stack: `+a.message+`
                 linear-gradient(#13283c, #13283c) padding-box,
                 linear-gradient(
                     90deg,
-                    #ff2d95,
-                    #ff7a18,
-                    #ffd60a,
-                    #24f2a6,
-                    #00c2ff,
-                    #7c3cff,
-                    #ff2d95,
-                    #ff7a18,
-                    #ffd60a
+                    #ff2d95 0%,
+                    #ff7a18 8.333%,
+                    #ffd60a 16.666%,
+                    #24f2a6 25%,
+                    #00c2ff 33.333%,
+                    #7c3cff 41.666%,
+                    #ff2d95 50%,
+                    #ff7a18 58.333%,
+                    #ffd60a 66.666%,
+                    #24f2a6 75%,
+                    #00c2ff 83.333%,
+                    #7c3cff 91.666%,
+                    #ff2d95 100%
                 )
                 border-box;
-            background-size: 100% 100%, 300% 100%;
+            background-size: 100% 100%, 200% 100%;
             box-shadow:
                 inset 0 0 0 1px rgba(255, 255, 255, 0.08),
                 0 0 18px rgba(0, 194, 255, 0.16);
@@ -120,15 +121,19 @@ Error generating stack: `+a.message+`
                 linear-gradient(rgba(19, 40, 60, 0.94), rgba(19, 40, 60, 0.94)) padding-box,
                 linear-gradient(
                     90deg,
-                    #ff2d95,
-                    #ff7a18,
-                    #ffd60a,
-                    #24f2a6,
-                    #00c2ff,
-                    #7c3cff,
-                    #ff2d95,
-                    #ff7a18,
-                    #ffd60a
+                    #ff2d95 0%,
+                    #ff7a18 8.333%,
+                    #ffd60a 16.666%,
+                    #24f2a6 25%,
+                    #00c2ff 33.333%,
+                    #7c3cff 41.666%,
+                    #ff2d95 50%,
+                    #ff7a18 58.333%,
+                    #ffd60a 66.666%,
+                    #24f2a6 75%,
+                    #00c2ff 83.333%,
+                    #7c3cff 91.666%,
+                    #ff2d95 100%
                 )
                 border-box;
             box-shadow:
