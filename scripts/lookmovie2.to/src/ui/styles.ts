@@ -461,7 +461,7 @@ export function getUiStyleText() {
 
         #${UI_ROOT_ID}-watchlist-list {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(8, 1fr);
             grid-auto-rows: max-content;
             align-items: start;
             align-content: start;
@@ -778,13 +778,13 @@ export function getUiStyleText() {
 
         @media (max-width: 1400px) {
             #${UI_ROOT_ID}-watchlist-list {
-                grid-template-columns: repeat(4, 1fr);
+                grid-template-columns: repeat(6, 1fr);
             }
         }
 
         @media (max-width: 1100px) {
             #${UI_ROOT_ID}-watchlist-list {
-                grid-template-columns: repeat(3, 1fr);
+                grid-template-columns: repeat(4, 1fr);
             }
         }
 

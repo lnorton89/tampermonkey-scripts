@@ -476,7 +476,7 @@ Error generating stack: `+a.message+`
 
         #${E}-watchlist-list {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(8, 1fr);
             grid-auto-rows: max-content;
             align-items: start;
             align-content: start;
@@ -793,13 +793,13 @@ Error generating stack: `+a.message+`
 
         @media (max-width: 1400px) {
             #${E}-watchlist-list {
-                grid-template-columns: repeat(4, 1fr);
+                grid-template-columns: repeat(6, 1fr);
             }
         }
 
         @media (max-width: 1100px) {
             #${E}-watchlist-list {
-                grid-template-columns: repeat(3, 1fr);
+                grid-template-columns: repeat(4, 1fr);
             }
         }
 
