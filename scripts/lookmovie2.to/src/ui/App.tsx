@@ -355,7 +355,7 @@ export function LookMovieToolsApp() {
                     <p className={`${SCRIPT_ID}-setting-title`}>ntfy topics</p>
                     <p className={`${SCRIPT_ID}-setting-copy`}>
                       The phone subscribes to the display topic; the browser listens on the control
-                      topic.
+                      topic. Use only letters, numbers, hyphens, and underscores.
                     </p>
                   </div>
                   <label className={`${SCRIPT_ID}-field`}>
@@ -372,6 +372,8 @@ export function LookMovieToolsApp() {
                     <input
                       type="text"
                       value={appState.settings.ntfyTopic}
+                      maxLength={64}
+                      pattern="[A-Za-z0-9_-]{1,64}"
                       placeholder="random-private-topic"
                       onChange={(event) => updateSetting('ntfyTopic', event.currentTarget.value)}
                     />
@@ -381,6 +383,8 @@ export function LookMovieToolsApp() {
                     <input
                       type="text"
                       value={appState.settings.ntfyControlTopic}
+                      maxLength={64}
+                      pattern="[A-Za-z0-9_-]{1,64}"
                       placeholder="display-topic-controls"
                       onChange={(event) =>
                         updateSetting('ntfyControlTopic', event.currentTarget.value)

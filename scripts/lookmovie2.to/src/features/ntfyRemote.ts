@@ -3,6 +3,7 @@
 import {
   NTFY_REMOTE_ACTIVE_TAB_KEY,
   NTFY_REMOTE_ACTIVE_TAB_TTL_MS,
+  NTFY_TOPIC_PATTERN,
   SCRIPT_ID,
 } from '../config/constants';
 import { appState } from '../core/state';
@@ -34,6 +35,23 @@ function normalizeTopic(topic) {
   return String(topic || '')
     .trim()
     .replace(/^\/+|\/+$/g, '');
+}
+
+function isValidTopic(topic) {
+  return NTFY_TOPIC_PATTERN.test(normalizeTopic(topic));
+}
+
+function getTopicValidationMessage(topic, label) {
+  const normalizedTopic = normalizeTopic(topic);
+  if (!normalizedTopic) {
+    return `${label} topic is required.`;
+  }
+
+  if (normalizedTopic.length > 64) {
+    return `${label} topic must be 64 characters or fewer.`;
+  }
+
+  return `${label} topic can only use letters, numbers, hyphens, and underscores.`;
 }
 
 function isVisibleDocument() {
@@ -122,10 +140,25 @@ function getControlTopic() {
   return displayTopic ? `${displayTopic}-controls` : '';
 }
 
+function getTopicConfigurationError() {
+  const displayTopic = getDisplayTopic();
+  const controlTopic = getControlTopic();
+
+  if (!isValidTopic(displayTopic)) {
+    return getTopicValidationMessage(displayTopic, 'Display');
+  }
+
+  if (!isValidTopic(controlTopic)) {
+    return getTopicValidationMessage(controlTopic, 'Control');
+  }
+
+  return '';
+}
+
 function buildSubscribeUrl() {
   const server = String(appState.settings.ntfyServer || 'https://ntfy.sh').replace(/\/+$/, '');
   const topic = getControlTopic();
-  if (!server || !topic) {
+  if (!server || !topic || !isValidTopic(topic)) {
     return '';
   }
 
@@ -188,29 +221,6 @@ function sendJsonRequest(url, body, method = 'POST') {
   return new Promise((resolve, reject) => {
     const payload = JSON.stringify(body);
 
-    if (typeof GM_xmlhttpRequest === 'function') {
-      GM_xmlhttpRequest({
-        method,
-        url,
-        data: payload,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        onload(response) {
-          if (response.status >= 200 && response.status < 300) {
-            resolve(response);
-            return;
-          }
-
-          reject(new Error(`ntfy request failed with HTTP ${response.status}`));
-        },
-        onerror(error) {
-          reject(error);
-        },
-      });
-      return;
-    }
-
     fetch(url, {
       method,
       body: payload,
@@ -225,7 +235,32 @@ function sendJsonRequest(url, body, method = 'POST') {
 
         resolve(response);
       })
-      .catch(reject);
+      .catch((fetchError) => {
+        if (typeof GM_xmlhttpRequest !== 'function') {
+          reject(fetchError);
+          return;
+        }
+
+        GM_xmlhttpRequest({
+          method,
+          url,
+          data: payload,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          onload(response) {
+            if (response.status >= 200 && response.status < 300) {
+              resolve(response);
+              return;
+            }
+
+            reject(new Error(`ntfy request failed with HTTP ${response.status}`));
+          },
+          onerror(error) {
+            reject(error);
+          },
+        });
+      });
   });
 }
 
@@ -240,7 +275,7 @@ export function publishPlayerNotification(reason = 'update') {
 
   const displayTopic = getDisplayTopic();
   const controlTopic = getControlTopic();
-  if (!displayTopic || !controlTopic) {
+  if (!displayTopic || !controlTopic || getTopicConfigurationError()) {
     return false;
   }
 
@@ -452,7 +487,10 @@ export function startNtfyRemote() {
   const subscribeUrl = buildSubscribeUrl();
   if (!subscribeUrl) {
     stopNtfyRemote();
-    setStatus('disabled', 'Add an ntfy topic to enable remote control.');
+    setStatus(
+      'disabled',
+      getTopicConfigurationError() || 'Add an ntfy topic to enable remote control.'
+    );
     return false;
   }
 

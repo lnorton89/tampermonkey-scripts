@@ -5,6 +5,14 @@ import { persistSettings } from './storage';
 import { syncModalState } from '../ui';
 import { removeWindowedFullscreenFallback } from '../features/player';
 import { restartNtfyRemote } from '../features/ntfyRemote';
+import { NTFY_REMOTE_RESTART_DEBOUNCE_MS } from '../config/constants';
+
+let ntfyRestartTimer = 0;
+
+function scheduleNtfyRemoteRestart() {
+  window.clearTimeout(ntfyRestartTimer);
+  ntfyRestartTimer = window.setTimeout(restartNtfyRemote, NTFY_REMOTE_RESTART_DEBOUNCE_MS);
+}
 
 export function saveSettings(nextSettings) {
   const previousNtfySettings = {
@@ -52,6 +60,6 @@ export function saveSettings(nextSettings) {
     previousNtfySettings.ntfyControlTopic !== appState.settings.ntfyControlTopic ||
     previousNtfySettings.ntfyCommandSecret !== appState.settings.ntfyCommandSecret
   ) {
-    restartNtfyRemote();
+    scheduleNtfyRemoteRestart();
   }
 }
