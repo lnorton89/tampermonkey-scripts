@@ -11,16 +11,59 @@ import {
 import { normalizeEpisodeRecord } from '../domain/episodes';
 import { toPositiveInteger } from './utils';
 
+function readSettingsSource() {
+  if (typeof GM_getValue === 'function') {
+    return GM_getValue(STORAGE_KEY, null);
+  }
+
+  return localStorage.getItem(STORAGE_KEY);
+}
+
+function writeSettingsSource(settings) {
+  if (typeof GM_setValue === 'function') {
+    GM_setValue(STORAGE_KEY, JSON.stringify(settings));
+    return;
+  }
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+}
+
+function normalizeSettings(settings) {
+  return {
+    autoPlay:
+      typeof settings.autoPlay === 'boolean' ? settings.autoPlay : DEFAULT_SETTINGS.autoPlay,
+    autoFullscreen:
+      typeof settings.autoFullscreen === 'boolean'
+        ? settings.autoFullscreen
+        : DEFAULT_SETTINGS.autoFullscreen,
+    ntfyRemoteEnabled:
+      typeof settings.ntfyRemoteEnabled === 'boolean'
+        ? settings.ntfyRemoteEnabled
+        : DEFAULT_SETTINGS.ntfyRemoteEnabled,
+    ntfyServer:
+      typeof settings.ntfyServer === 'string' && settings.ntfyServer.trim()
+        ? settings.ntfyServer.trim().replace(/\/+$/, '')
+        : DEFAULT_SETTINGS.ntfyServer,
+    ntfyTopic:
+      typeof settings.ntfyTopic === 'string' && settings.ntfyTopic.trim()
+        ? settings.ntfyTopic.trim()
+        : DEFAULT_SETTINGS.ntfyTopic,
+    ntfyControlTopic:
+      typeof settings.ntfyControlTopic === 'string' && settings.ntfyControlTopic.trim()
+        ? settings.ntfyControlTopic.trim()
+        : DEFAULT_SETTINGS.ntfyControlTopic,
+    ntfyCommandSecret:
+      typeof settings.ntfyCommandSecret === 'string' && settings.ntfyCommandSecret.trim()
+        ? settings.ntfyCommandSecret.trim()
+        : DEFAULT_SETTINGS.ntfyCommandSecret,
+  };
+}
+
 export function loadSettings() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    return {
-      autoPlay: typeof parsed.autoPlay === 'boolean' ? parsed.autoPlay : DEFAULT_SETTINGS.autoPlay,
-      autoFullscreen:
-        typeof parsed.autoFullscreen === 'boolean'
-          ? parsed.autoFullscreen
-          : DEFAULT_SETTINGS.autoFullscreen,
-    };
+    const saved = readSettingsSource();
+    const parsed = JSON.parse(saved || '{}');
+    return normalizeSettings(parsed);
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to load saved settings.`, error);
     return { ...DEFAULT_SETTINGS };
@@ -162,7 +205,7 @@ export function loadShowsListProgress() {
 
 export function persistSettings(settings) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    writeSettingsSource(settings);
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to save settings.`, error);
   }

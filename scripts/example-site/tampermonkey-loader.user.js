@@ -7,6 +7,7 @@
 // @match        https://www.example.com/*
 // @run-at       document-idle
 // @grant        GM_xmlhttpRequest
+// @grant        GM_addStyle
 // @connect      github.com
 // @connect      raw.githubusercontent.com
 // ==/UserScript==

@@ -7,6 +7,7 @@ import {
   removeWindowedFullscreenFallback,
   watchVideos,
 } from '../features/player';
+import { startNtfyRemote } from '../features/ntfyRemote';
 import {
   ensureEpisodeCardButtons,
   ensureMovieCardButtons,
@@ -65,6 +66,7 @@ export function bootstrapDomFeatures() {
 
   appState.domBootstrapped = true;
   watchVideos();
+  startNtfyRemote();
   watchNavigation();
   window.addEventListener('scroll', markShowsListSessionTouched, { passive: true });
   window.addEventListener('pagehide', () => stopShowsListProgressTracking({ persist: true }));

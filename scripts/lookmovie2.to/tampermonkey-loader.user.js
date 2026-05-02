@@ -6,8 +6,12 @@
 // @match        *://*.lookmovie2.to/*
 // @run-at       document-start
 // @grant        GM_xmlhttpRequest
+// @grant        GM_getValue
+// @grant        GM_setValue
 // @connect      github.com
 // @connect      raw.githubusercontent.com
+// @connect      ntfy.sh
+// @connect      *
 // ==/UserScript==
 
 (function () {

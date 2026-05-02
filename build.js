@@ -89,6 +89,16 @@ function readMetaRunAt(scriptDir) {
   return match ? match[1].trim() : 'document-start';
 }
 
+function readMetaValues(scriptDir, key) {
+  const metaPath = path.join(scriptDir, 'src', 'meta.ts');
+  if (!fs.existsSync(metaPath)) return [];
+
+  const content = fs.readFileSync(metaPath, 'utf8');
+  return [...content.matchAll(new RegExp(`@${key}\\s+(.+)`, 'g'))]
+    .map((match) => match[1].trim())
+    .filter((value) => value && value !== 'none');
+}
+
 function generateLoader(scriptDir, scriptName) {
   const loaderPath = path.join(scriptDir, 'tampermonkey-loader.user.js');
   const scriptUrl = `${rawUrl}/${branch}/scripts/${scriptName}/dist/${scriptName}.user.js`;
@@ -96,6 +106,16 @@ function generateLoader(scriptDir, scriptName) {
     .map((match) => `// @match        ${match}`)
     .join('\n');
   const runAt = readMetaRunAt(scriptDir);
+  const grantLines = [
+    ...new Set(['GM_xmlhttpRequest', ...readMetaValues(scriptDir, 'grant')]),
+  ]
+    .map((grant) => `// @grant        ${grant}`)
+    .join('\n');
+  const connectLines = [
+    ...new Set(['github.com', 'raw.githubusercontent.com', ...readMetaValues(scriptDir, 'connect')]),
+  ]
+    .map((connect) => `// @connect      ${connect}`)
+    .join('\n');
 
   const template = `// ==UserScript==
 // @name         ${scriptName} (loader)
@@ -104,9 +124,8 @@ function generateLoader(scriptDir, scriptName) {
 // @description  Loader — fetches the latest build from GitHub
 ${matchLines}
 // @run-at       ${runAt}
-// @grant        GM_xmlhttpRequest
-// @connect      github.com
-// @connect      raw.githubusercontent.com
+${grantLines}
+${connectLines}
 // ==/UserScript==
 
 (function () {

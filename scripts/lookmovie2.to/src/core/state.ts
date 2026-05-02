@@ -25,4 +25,9 @@ export const appState = {
   watchlistMessage: '',
   watchlistMessageTone: 'muted',
   lastTrackedEpisodeSignature: '',
+  ntfyRemoteStatus: 'disabled',
+  ntfyRemoteMessage: '',
+  ntfyLastNotificationAt: 0,
+  ntfyRemoteTabId: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
+  ntfyRemoteClaimTimer: 0,
 };

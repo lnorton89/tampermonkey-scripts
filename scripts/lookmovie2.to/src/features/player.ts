@@ -2,7 +2,105 @@
 // @ts-nocheck
 import { FULLSCREEN_STYLE_ID, SCRIPT_ID } from '../config/constants';
 import { appState } from '../core/state';
+import { publishPlayerNotification } from './ntfyRemote';
 import { maybeTrackWatchedEpisodeFromPlayer } from './watchlist';
+
+export function getActiveVideo() {
+  const playerContainer = document.getElementById('video_player');
+  const playerVideos = playerContainer ? Array.from(playerContainer.querySelectorAll('video')) : [];
+  const videos = [
+    ...new Set([...playerVideos, ...Array.from(document.querySelectorAll('video'))]),
+  ].filter((video) => {
+    const rect = video.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  });
+
+  return (
+    videos.find((video) => !video.paused && !video.ended) ||
+    videos.find((video) => video.readyState > 0) ||
+    videos[0] ||
+    null
+  );
+}
+
+export function playActiveVideo() {
+  const video = getActiveVideo();
+  if (!video) {
+    return false;
+  }
+
+  video.play();
+  return true;
+}
+
+export function pauseActiveVideo() {
+  const video = getActiveVideo();
+  if (!video) {
+    return false;
+  }
+
+  video.pause();
+  return true;
+}
+
+export function toggleActiveVideoPlayback() {
+  const video = getActiveVideo();
+  if (!video) {
+    return false;
+  }
+
+  if (video.paused) {
+    video.play();
+  } else {
+    video.pause();
+  }
+
+  return true;
+}
+
+export function seekActiveVideoBy(seconds) {
+  const video = getActiveVideo();
+  if (!video || !Number.isFinite(seconds)) {
+    return false;
+  }
+
+  const duration = Number.isFinite(video.duration) ? video.duration : Number.MAX_SAFE_INTEGER;
+  video.currentTime = Math.max(0, Math.min(duration, video.currentTime + seconds));
+  return true;
+}
+
+export function setActiveVideoVolume(percent) {
+  const video = getActiveVideo();
+  if (!video || !Number.isFinite(percent)) {
+    return false;
+  }
+
+  video.volume = Math.max(0, Math.min(1, percent / 100));
+  video.muted = false;
+  return true;
+}
+
+export function setActiveVideoMuted(muted) {
+  const video = getActiveVideo();
+  if (!video) {
+    return false;
+  }
+
+  video.muted = !!muted;
+  return true;
+}
+
+export function toggleActiveVideoFullscreen() {
+  const playerContainer = document.getElementById('video_player');
+  const fullscreenButton = playerContainer?.querySelector('.vjs-fullscreen-control');
+
+  if (fullscreenButton) {
+    fullscreenButton.click();
+    return true;
+  }
+
+  return applyWindowedFullscreenFallback();
+}
 
 export function dismissResumeModalIfPresent() {
   if (!appState.settings.autoPlay) {
@@ -86,6 +184,7 @@ export function triggerVideoJsFullscreen() {
 
 export function handleVideoPlay() {
   maybeTrackWatchedEpisodeFromPlayer();
+  publishPlayerNotification('play');
 
   if (!appState.settings.autoPlay && !appState.settings.autoFullscreen) {
     return;
@@ -103,6 +202,14 @@ export function handleVideoPlay() {
   }, 300);
 }
 
+export function handleVideoPause() {
+  publishPlayerNotification('pause');
+}
+
+export function handleVideoEnded() {
+  publishPlayerNotification('ended');
+}
+
 export function attachAutoplayLogic(videoElement) {
   if (!videoElement || videoElement._lookmovieEnhancerAttached) {
     return;
@@ -110,6 +217,8 @@ export function attachAutoplayLogic(videoElement) {
 
   videoElement._lookmovieEnhancerAttached = true;
   videoElement.addEventListener('play', handleVideoPlay);
+  videoElement.addEventListener('pause', handleVideoPause);
+  videoElement.addEventListener('ended', handleVideoEnded);
 }
 
 export function findAndAttachToVideos() {

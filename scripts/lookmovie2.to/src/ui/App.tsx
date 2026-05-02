@@ -120,6 +120,14 @@ function FullscreenIcon() {
   );
 }
 
+function RemoteIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M7.1 14.9a7 7 0 0 1 9.8 0l-1.4 1.4a5 5 0 0 0-7 0l-1.4-1.4zm-3.5-3.5a12 12 0 0 1 16.8 0L19 12.8a10 10 0 0 0-14 0l-1.4-1.4zm7 7a2 2 0 0 1 2.8 0L12 19.8l-1.4-1.4zM8 4h8v2H8V4z" />
+    </svg>
+  );
+}
+
 function EnhancerIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -207,6 +215,13 @@ export function LookMovieToolsApp() {
     });
   }
 
+  function updateSetting(settingKey, value) {
+    saveSettings({
+      ...appState.settings,
+      [settingKey]: value,
+    });
+  }
+
   const activeLauncherHost = isPageScrolled ? null : launcherHost;
   const launcher = (
     <div
@@ -264,6 +279,19 @@ export function LookMovieToolsApp() {
         >
           <FullscreenIcon />
         </button>
+        <button
+          className={`${SCRIPT_ID}-quick-setting`}
+          type="button"
+          aria-label="Toggle ntfy remote"
+          title="Toggle ntfy remote"
+          data-enabled={appState.settings.ntfyRemoteEnabled ? 'true' : 'false'}
+          onClick={(event) => {
+            event.stopPropagation();
+            toggleSetting('ntfyRemoteEnabled');
+          }}
+        >
+          <RemoteIcon />
+        </button>
       </div>
     </div>
   );
@@ -317,6 +345,63 @@ export function LookMovieToolsApp() {
                   title="Auto fullscreen"
                   copy="Clicks fullscreen and applies the fullscreen fallback after playback starts."
                 />
+                <SettingToggle
+                  settingKey="ntfyRemoteEnabled"
+                  title="Android remote"
+                  copy="Publishes a player notification to ntfy with Android action buttons."
+                />
+                <div className={`${SCRIPT_ID}-setting ${SCRIPT_ID}-setting-stack`}>
+                  <div>
+                    <p className={`${SCRIPT_ID}-setting-title`}>ntfy topics</p>
+                    <p className={`${SCRIPT_ID}-setting-copy`}>
+                      The phone subscribes to the display topic; the browser listens on the control
+                      topic.
+                    </p>
+                  </div>
+                  <label className={`${SCRIPT_ID}-field`}>
+                    <span>Server</span>
+                    <input
+                      type="url"
+                      value={appState.settings.ntfyServer}
+                      placeholder="https://ntfy.sh"
+                      onChange={(event) => updateSetting('ntfyServer', event.currentTarget.value)}
+                    />
+                  </label>
+                  <label className={`${SCRIPT_ID}-field`}>
+                    <span>Display topic</span>
+                    <input
+                      type="text"
+                      value={appState.settings.ntfyTopic}
+                      placeholder="random-private-topic"
+                      onChange={(event) => updateSetting('ntfyTopic', event.currentTarget.value)}
+                    />
+                  </label>
+                  <label className={`${SCRIPT_ID}-field`}>
+                    <span>Control topic</span>
+                    <input
+                      type="text"
+                      value={appState.settings.ntfyControlTopic}
+                      placeholder="display-topic-controls"
+                      onChange={(event) =>
+                        updateSetting('ntfyControlTopic', event.currentTarget.value)
+                      }
+                    />
+                  </label>
+                  <label className={`${SCRIPT_ID}-field`}>
+                    <span>Command secret</span>
+                    <input
+                      type="password"
+                      value={appState.settings.ntfyCommandSecret}
+                      placeholder="optional shared command prefix"
+                      onChange={(event) =>
+                        updateSetting('ntfyCommandSecret', event.currentTarget.value)
+                      }
+                    />
+                  </label>
+                  <p className={`${SCRIPT_ID}-ntfy-status`} data-status={appState.ntfyRemoteStatus}>
+                    {appState.ntfyRemoteMessage || `Remote status: ${appState.ntfyRemoteStatus}`}
+                  </p>
+                </div>
               </div>
               <div id={`${UI_ROOT_ID}-footer`}>
                 Settings and watchlist data are saved locally in your browser.

@@ -396,6 +396,11 @@ export function getUiStyleText() {
             background: rgba(15, 23, 42, 0.7);
         }
 
+        .${SCRIPT_ID}-setting-stack {
+            grid-template-columns: 1fr;
+            align-items: stretch;
+        }
+
         .${SCRIPT_ID}-setting-title {
             margin: 0;
             color: #f8fafc;
@@ -450,6 +455,59 @@ export function getUiStyleText() {
 
         .${SCRIPT_ID}-switch input:checked + .${SCRIPT_ID}-slider::before {
             transform: translateX(22px);
+        }
+
+        .${SCRIPT_ID}-field {
+            display: grid;
+            gap: 5px;
+            min-width: 0;
+        }
+
+        .${SCRIPT_ID}-field span {
+            color: #cbd5e1;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .${SCRIPT_ID}-field input {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            border-radius: 8px;
+            padding: 8px 9px;
+            background: rgba(2, 6, 23, 0.58);
+            color: #f8fafc;
+            font: 12px/1.35 Arial, sans-serif;
+        }
+
+        .${SCRIPT_ID}-field input::placeholder {
+            color: #64748b;
+        }
+
+        .${SCRIPT_ID}-field input:focus {
+            outline: none;
+            border-color: rgba(125, 211, 252, 0.72);
+            box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.18);
+        }
+
+        .${SCRIPT_ID}-ntfy-status {
+            margin: 0;
+            color: #94a3b8;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .${SCRIPT_ID}-ntfy-status[data-status="connected"] {
+            color: #86efac;
+        }
+
+        .${SCRIPT_ID}-ntfy-status[data-status="connecting"] {
+            color: #fde68a;
+        }
+
+        .${SCRIPT_ID}-ntfy-status[data-status="error"] {
+            color: #fda4af;
         }
 
         #${UI_ROOT_ID}-watchlist-toolbar {

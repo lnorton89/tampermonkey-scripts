@@ -5,9 +5,13 @@
 // @description  Combines playback helpers with a persistent show watchlist for latest episode tracking.
 // @author       Lawrence
 // @match        *://*.lookmovie2.to/*
-// @grant        none
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_xmlhttpRequest
+// @connect      ntfy.sh
+// @connect      *
 // @run-at       document-start
-// ==UserScript== */
+// ==/UserScript== */
 
 // This file exists only to hold the @userscript meta banner.
 // The build script strips it out and prepends it to the compiled bundle.
