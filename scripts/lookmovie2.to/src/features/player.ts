@@ -1,6 +1,6 @@
 /* eslint-disable */
 // @ts-nocheck
-import { FULLSCREEN_STYLE_ID, SCRIPT_ID } from '../config/constants';
+import { FULLSCREEN_EXIT_BUTTON_ID, FULLSCREEN_STYLE_ID, SCRIPT_ID } from '../config/constants';
 import { appState } from '../core/state';
 import { publishPlayerNotification } from './ntfyRemote';
 import { maybeTrackWatchedEpisodeFromPlayer } from './watchlist';
@@ -117,6 +117,35 @@ export function dismissResumeModalIfPresent() {
   return false;
 }
 
+export function ensureWindowedFullscreenExitButton() {
+  const playerContainer = document.getElementById('video_player');
+  if (!playerContainer) {
+    return false;
+  }
+
+  let button = document.getElementById(FULLSCREEN_EXIT_BUTTON_ID);
+  if (!button) {
+    button = document.createElement('button');
+    button.id = FULLSCREEN_EXIT_BUTTON_ID;
+    button.type = 'button';
+    button.textContent = 'Exit';
+    button.setAttribute('aria-label', 'Exit windowed fullscreen');
+    button.title = 'Exit windowed fullscreen';
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      removeWindowedFullscreenFallback();
+      appState.fullscreenTriggered = false;
+    });
+  }
+
+  if (button.parentElement !== playerContainer) {
+    playerContainer.appendChild(button);
+  }
+
+  return true;
+}
+
 export function applyWindowedFullscreenFallback() {
   if (!document.head) {
     return false;
@@ -139,9 +168,44 @@ export function applyWindowedFullscreenFallback() {
             body.${SCRIPT_ID}-fullscreen {
                 overflow: hidden !important;
             }
+
+            #${FULLSCREEN_EXIT_BUTTON_ID} {
+                position: absolute !important;
+                top: 14px !important;
+                right: 14px !important;
+                z-index: 1000000 !important;
+                min-width: 0 !important;
+                border: 1px solid rgba(255, 255, 255, 0.34) !important;
+                border-radius: 999px !important;
+                padding: 8px 12px !important;
+                background: rgba(15, 23, 42, 0.86) !important;
+                color: #f8fafc !important;
+                font: 700 12px/1 Arial, sans-serif !important;
+                letter-spacing: 0 !important;
+                cursor: pointer !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
+                transform: translateY(-4px) !important;
+                transition: opacity 0.15s ease, transform 0.15s ease, border-color 0.15s ease !important;
+            }
+
+            #video_player:hover #${FULLSCREEN_EXIT_BUTTON_ID},
+            #video_player:focus-within #${FULLSCREEN_EXIT_BUTTON_ID},
+            #${FULLSCREEN_EXIT_BUTTON_ID}:focus {
+                opacity: 1 !important;
+                pointer-events: auto !important;
+                transform: translateY(0) !important;
+            }
+
+            #${FULLSCREEN_EXIT_BUTTON_ID}:hover,
+            #${FULLSCREEN_EXIT_BUTTON_ID}:focus {
+                border-color: rgba(125, 211, 252, 0.78) !important;
+            }
         `;
     document.head.appendChild(style);
   }
+
+  ensureWindowedFullscreenExitButton();
 
   if (document.body) {
     document.body.classList.add(`${SCRIPT_ID}-fullscreen`);
@@ -154,6 +218,11 @@ export function removeWindowedFullscreenFallback() {
   const style = document.getElementById(FULLSCREEN_STYLE_ID);
   if (style) {
     style.remove();
+  }
+
+  const exitButton = document.getElementById(FULLSCREEN_EXIT_BUTTON_ID);
+  if (exitButton) {
+    exitButton.remove();
   }
 
   if (document.body) {

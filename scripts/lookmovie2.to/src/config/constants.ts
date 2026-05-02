@@ -7,6 +7,7 @@ export const MOVIE_WATCHLIST_KEY = `${SCRIPT_ID}:movie-watchlist`;
 export const SHOWS_LIST_PROGRESS_KEY = `${SCRIPT_ID}:shows-list-progress`;
 export const UI_STYLE_ID = `${SCRIPT_ID}-style`;
 export const FULLSCREEN_STYLE_ID = `${SCRIPT_ID}-fullscreen-style`;
+export const FULLSCREEN_EXIT_BUTTON_ID = `${SCRIPT_ID}-fullscreen-exit`;
 export const UI_ROOT_ID = `${SCRIPT_ID}-root`;
 export const NTFY_REMOTE_ACTIVE_TAB_KEY = `${SCRIPT_ID}:ntfy-active-tab`;
 export const NTFY_REMOTE_ACTIVE_TAB_TTL_MS = 15000;

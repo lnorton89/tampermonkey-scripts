@@ -198,14 +198,54 @@ function buildAction(label, command) {
   };
 }
 
+function formatTitleWithYear(title, year) {
+  const normalizedTitle = String(title || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const normalizedYear =
+    typeof year === 'string' || typeof year === 'number' ? String(year).trim() : '';
+
+  if (!normalizedTitle) {
+    return '';
+  }
+
+  if (/ \(\d{4}\)$/.test(normalizedTitle)) {
+    return normalizedTitle;
+  }
+
+  const compactYearMatch = normalizedTitle.match(/^(.*?)(\d{4})$/);
+  if (compactYearMatch && compactYearMatch[1].trim()) {
+    return `${compactYearMatch[1].trim()} (${compactYearMatch[2]})`;
+  }
+
+  if (normalizedYear && !normalizedTitle.endsWith(`(${normalizedYear})`)) {
+    return `${normalizedTitle} (${normalizedYear})`;
+  }
+
+  return normalizedTitle;
+}
+
 function getPlayerTitle() {
+  const showStorage = window.show_storage || window.show || {};
+  const movieStorage = window.movie_storage || window.movie || {};
+  const structuredTitle =
+    typeof showStorage.title === 'string' && showStorage.title.trim()
+      ? formatTitleWithYear(showStorage.title, showStorage.year)
+      : typeof movieStorage.title === 'string' && movieStorage.title.trim()
+        ? formatTitleWithYear(movieStorage.title, movieStorage.year)
+        : '';
+
+  if (structuredTitle) {
+    return structuredTitle;
+  }
+
   const heading =
     document.querySelector('h1')?.textContent ||
     document.querySelector('.movie-title, .film-title, .show-title')?.textContent ||
     document.title ||
     'LookMovie2';
 
-  return String(heading).replace(/\s+/g, ' ').trim() || 'LookMovie2';
+  return formatTitleWithYear(heading) || 'LookMovie2';
 }
 
 function getRouteEpisodeLabel() {
@@ -215,6 +255,68 @@ function getRouteEpisodeLabel() {
   }
 
   return `S${String(match[1]).padStart(2, '0')}E${String(match[2]).padStart(2, '0')}`;
+}
+
+function normalizeImageUrl(url) {
+  const value = String(url || '').trim();
+  if (!value || value.startsWith('data:image/')) {
+    return '';
+  }
+
+  try {
+    return new URL(value, location.origin).href;
+  } catch (_error) {
+    return '';
+  }
+}
+
+function getElementImageUrl(element) {
+  if (!element) {
+    return '';
+  }
+
+  const style = element.getAttribute('style') || '';
+  const styleMatch = style.match(/background-image:\s*url\((['"]?)(.*?)\1\)/i);
+
+  return normalizeImageUrl(
+    element.getAttribute('content') ||
+      element.getAttribute('data-background-image') ||
+      element.getAttribute('data-lazy-background') ||
+      element.getAttribute('data-src-portrait') ||
+      element.getAttribute('data-src') ||
+      styleMatch?.[2] ||
+      element.getAttribute('src')
+  );
+}
+
+function getPlayerPosterUrl() {
+  const video = getActiveVideo();
+  const movieStorage = window.movie_storage || window.movie || {};
+  const showStorage = window.show_storage || window.show || {};
+  const posterNode = document.querySelector(
+    [
+      'meta[property="og:image"]',
+      '.movie__poster[data-background-image]',
+      '.movie__poster[style*="background-image"]',
+      '.movie-single-ct img[data-src]',
+      '.movie-single-ct img[src]',
+      '.internal-page-container img[data-src]',
+      '.internal-page-container img[src]',
+      '[data-background-image]',
+      '[style*="background-image"]',
+      'img[data-src-portrait]',
+      'img[data-src]',
+    ].join(', ')
+  );
+
+  return (
+    normalizeImageUrl(video?.getAttribute('poster')) ||
+    normalizeImageUrl(movieStorage.movie_poster) ||
+    normalizeImageUrl(movieStorage.poster_medium) ||
+    normalizeImageUrl(showStorage.poster_medium) ||
+    normalizeImageUrl(showStorage.poster) ||
+    getElementImageUrl(posterNode)
+  );
 }
 
 function sendJsonRequest(url, body, method = 'POST') {
@@ -287,12 +389,10 @@ export function publishPlayerNotification(reason = 'update') {
   const isPaused = video.paused;
   const title = getPlayerTitle();
   const episodeLabel = getRouteEpisodeLabel();
+  const posterUrl = getPlayerPosterUrl();
   const actionLabel = isPaused ? 'Play' : 'Pause';
   const actionCommand = isPaused ? 'play' : 'pause';
-
-  appState.ntfyLastNotificationAt = Date.now();
-
-  sendJsonRequest(getPublishRootUrl(), {
+  const payload = {
     topic: displayTopic,
     title: isPaused ? 'Paused on LookMovie2' : 'Playing on LookMovie2',
     message: episodeLabel ? `${title} - ${episodeLabel}` : title,
@@ -305,7 +405,16 @@ export function publishPlayerNotification(reason = 'update') {
       buildAction('-30s', 'seek -30'),
       buildAction('+30s', 'seek 30'),
     ],
-  })
+  };
+
+  if (posterUrl) {
+    payload.attach = posterUrl;
+    payload.filename = 'lookmovie-poster.jpg';
+  }
+
+  appState.ntfyLastNotificationAt = Date.now();
+
+  sendJsonRequest(getPublishRootUrl(), payload)
     .then(() => setStatus('connected', `Updated Android player notification (${reason}).`))
     .catch((error) => {
       console.warn(`[${SCRIPT_ID}] Failed to publish ntfy player notification.`, error);
