@@ -366,6 +366,91 @@ function sendJsonRequest(url, body, method = 'POST') {
   });
 }
 
+function sendBinaryRequest(url, body, headers, method = 'POST') {
+  return fetch(url, {
+    method,
+    body,
+    headers,
+  }).then((response) => {
+    if (!response.ok) {
+      throw new Error(`ntfy request failed with HTTP ${response.status}`);
+    }
+
+    return response;
+  });
+}
+
+function fetchPosterBlob(url) {
+  if (!url) {
+    return Promise.resolve(null);
+  }
+
+  return fetch(url, {
+    credentials: 'omit',
+    referrerPolicy: 'no-referrer',
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`Poster request failed with HTTP ${response.status}`);
+      }
+
+      return response.blob();
+    })
+    .then((blob) => {
+      if (!blob || !blob.size || blob.size > 15 * 1024 * 1024) {
+        return null;
+      }
+
+      return blob;
+    })
+    .catch((error) => {
+      console.warn(`[${SCRIPT_ID}] Could not fetch poster for ntfy attachment.`, error);
+      return null;
+    });
+}
+
+function buildNotificationHeaders(payload, filename, contentType) {
+  const headers = {
+    Title: payload.title,
+    Message: payload.message,
+    Priority: String(payload.priority),
+    Tags: Array.isArray(payload.tags) ? payload.tags.join(',') : '',
+    Click: payload.click,
+    Actions: JSON.stringify(payload.actions || []),
+    'X-Sequence-ID': payload.sequence_id,
+  };
+
+  if (filename) {
+    headers.Filename = filename;
+  }
+
+  if (contentType) {
+    headers['Content-Type'] = contentType;
+  }
+
+  Object.keys(headers).forEach((key) => {
+    if (!headers[key]) {
+      delete headers[key];
+    }
+  });
+
+  return headers;
+}
+
+function sendPlayerNotificationPayload(displayTopic, payload, posterUrl) {
+  return fetchPosterBlob(posterUrl).then((posterBlob) => {
+    if (posterBlob) {
+      return sendBinaryRequest(
+        getPublishUrl(displayTopic),
+        posterBlob,
+        buildNotificationHeaders(payload, 'lookmovie-poster.jpg', posterBlob.type || 'image/jpeg')
+      );
+    }
+
+    return sendJsonRequest(getPublishRootUrl(), payload);
+  });
+}
+
 export function publishPlayerNotification(reason = 'update') {
   if (!appState.settings.ntfyRemoteEnabled) {
     return false;
@@ -407,14 +492,9 @@ export function publishPlayerNotification(reason = 'update') {
     ],
   };
 
-  if (posterUrl) {
-    payload.attach = posterUrl;
-    payload.filename = 'lookmovie-poster.jpg';
-  }
-
   appState.ntfyLastNotificationAt = Date.now();
 
-  sendJsonRequest(getPublishRootUrl(), payload)
+  sendPlayerNotificationPayload(displayTopic, payload, posterUrl)
     .then(() => setStatus('connected', `Updated Android player notification (${reason}).`))
     .catch((error) => {
       console.warn(`[${SCRIPT_ID}] Failed to publish ntfy player notification.`, error);
