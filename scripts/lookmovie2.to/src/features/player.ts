@@ -93,13 +93,192 @@ export function setActiveVideoMuted(muted) {
 export function toggleActiveVideoFullscreen() {
   const playerContainer = document.getElementById('video_player');
   const fullscreenButton = playerContainer?.querySelector('.vjs-fullscreen-control');
+  const isWindowedFullscreen = !!document.getElementById(FULLSCREEN_STYLE_ID);
+  const isNativeFullscreen = !!document.fullscreenElement;
+  const isVideoJsFullscreen = !!playerContainer?.classList.contains('vjs-fullscreen');
 
-  if (fullscreenButton) {
-    fullscreenButton.click();
+  if (isWindowedFullscreen || isNativeFullscreen || isVideoJsFullscreen) {
+    if (isWindowedFullscreen) {
+      removeWindowedFullscreenFallback();
+    }
+
+    if (isNativeFullscreen && typeof document.exitFullscreen === 'function') {
+      document.exitFullscreen();
+    }
+
+    if (isVideoJsFullscreen && fullscreenButton) {
+      fullscreenButton.click();
+    }
+
+    appState.fullscreenTriggered = false;
     return true;
   }
 
-  return applyWindowedFullscreenFallback();
+  if (!playerContainer) {
+    return false;
+  }
+
+  if (fullscreenButton) {
+    fullscreenButton.click();
+  }
+
+  applyWindowedFullscreenFallback();
+  appState.fullscreenTriggered = true;
+  return true;
+}
+
+export function enterActiveVideoFullscreen() {
+  if (document.getElementById(FULLSCREEN_STYLE_ID)) {
+    return true;
+  }
+
+  const playerContainer = document.getElementById('video_player');
+  if (!playerContainer) {
+    return false;
+  }
+
+  const fullscreenButton = playerContainer.querySelector('.vjs-fullscreen-control');
+  if (fullscreenButton) {
+    fullscreenButton.click();
+  }
+
+  applyWindowedFullscreenFallback();
+  appState.fullscreenTriggered = true;
+  return true;
+}
+
+export function exitActiveVideoFullscreen() {
+  const playerContainer = document.getElementById('video_player');
+  const fullscreenButton = playerContainer?.querySelector('.vjs-fullscreen-control');
+  const isVideoJsFullscreen = !!playerContainer?.classList.contains('vjs-fullscreen');
+  let handled = false;
+
+  if (document.getElementById(FULLSCREEN_STYLE_ID)) {
+    removeWindowedFullscreenFallback();
+    handled = true;
+  }
+
+  if (document.fullscreenElement && typeof document.exitFullscreen === 'function') {
+    document.exitFullscreen();
+    handled = true;
+  }
+
+  if (isVideoJsFullscreen && fullscreenButton) {
+    fullscreenButton.click();
+    handled = true;
+  }
+
+  if (handled) {
+    appState.fullscreenTriggered = false;
+  }
+
+  return handled;
+}
+
+function isVisibleControl(element) {
+  if (!element || typeof element.getBoundingClientRect !== 'function') {
+    return false;
+  }
+
+  const rect = element.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+}
+
+function getControlText(element) {
+  return `${element.textContent || ''} ${element.getAttribute('aria-label') || ''} ${
+    element.getAttribute('title') || ''
+  }`.trim();
+}
+
+function parseShowPlayEpisodeFromUrl(url) {
+  try {
+    const parsed = new URL(url, location.origin);
+    if (!parsed.pathname.startsWith('/shows/play/')) {
+      return null;
+    }
+
+    const match = parsed.hash.match(/^#S(\d+)-E(\d+)-(\d+)$/i);
+    if (!match) {
+      return null;
+    }
+
+    return {
+      href: parsed.href,
+      season: Number(match[1]),
+      episode: Number(match[2]),
+      idEpisode: Number(match[3]),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+function clickVisibleNextEpisodeControl() {
+  const selectors = [
+    '.vjs-next-control',
+    '.vjs-next-button',
+    '.next-episode',
+    '.episode-next',
+    '[aria-label*="next" i]',
+    '[title*="next" i]',
+    'button',
+    'a',
+    '[role="button"]',
+  ];
+
+  const control = Array.from(document.querySelectorAll(selectors.join(', '))).find((element) => {
+    if (!isVisibleControl(element)) {
+      return false;
+    }
+
+    return (
+      /\bnext\b/i.test(getControlText(element)) && !/\bpreview\b/i.test(getControlText(element))
+    );
+  });
+
+  if (!control) {
+    return false;
+  }
+
+  control.click();
+  return true;
+}
+
+function navigateToNextEpisodeLink() {
+  const currentEpisode = parseShowPlayEpisodeFromUrl(location.href);
+  if (!currentEpisode) {
+    return false;
+  }
+
+  const nextEpisode = Array.from(document.querySelectorAll('a[href*="/shows/play/"]'))
+    .map((link) => parseShowPlayEpisodeFromUrl(link.getAttribute('href')))
+    .filter((episode) => {
+      if (!episode) {
+        return false;
+      }
+
+      if (episode.season > currentEpisode.season) {
+        return true;
+      }
+
+      return episode.season === currentEpisode.season && episode.episode > currentEpisode.episode;
+    })
+    .sort((left, right) => left.season - right.season || left.episode - right.episode)[0];
+
+  if (!nextEpisode) {
+    return false;
+  }
+
+  location.href = nextEpisode.href;
+  return true;
+}
+
+export function playNextShowEpisode() {
+  if (!location.pathname.startsWith('/shows/play/')) {
+    return false;
+  }
+
+  return clickVisibleNextEpisodeControl() || navigateToNextEpisodeLink();
 }
 
 export function dismissResumeModalIfPresent() {
@@ -235,20 +414,8 @@ export function triggerVideoJsFullscreen() {
     return false;
   }
 
-  const playerContainer = document.getElementById('video_player');
-  if (!playerContainer) {
-    return false;
-  }
-
-  const fullscreenButton = playerContainer.querySelector('.vjs-fullscreen-control');
-  if (fullscreenButton) {
-    fullscreenButton.click();
-  }
-
   console.log(`[${SCRIPT_ID}] Applying fullscreen behavior.`);
-  applyWindowedFullscreenFallback();
-  appState.fullscreenTriggered = true;
-  return true;
+  return enterActiveVideoFullscreen();
 }
 
 export function handleVideoPlay() {

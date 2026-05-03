@@ -11,6 +11,7 @@ import { notifyUiChanged } from '../ui/events';
 import {
   getActiveVideo,
   pauseActiveVideo,
+  playNextShowEpisode,
   playActiveVideo,
   seekActiveVideoBy,
   setActiveVideoMuted,
@@ -196,6 +197,33 @@ function buildAction(label, command) {
     body: buildCommandBody(command),
     clear: false,
   };
+}
+
+function isShowPlayPage() {
+  return location.pathname.startsWith('/shows/play/');
+}
+
+function isMoviePlayPage() {
+  return location.pathname.startsWith('/movies/play/');
+}
+
+function buildPlayerActions(isPaused) {
+  const playPauseLabel = isPaused ? 'Play' : 'Pause';
+  const playPauseCommand = isPaused ? 'play' : 'pause';
+  const actions = [
+    buildAction(playPauseLabel, playPauseCommand),
+    buildAction('Full', 'fullscreen'),
+  ];
+
+  if (isShowPlayPage()) {
+    actions.push(buildAction('Next', 'next'));
+  } else if (isMoviePlayPage()) {
+    actions.push(buildAction('-30s', 'seek -30'));
+  } else {
+    actions.push(buildAction('+30s', 'seek 30'));
+  }
+
+  return actions;
 }
 
 function formatTitleWithYear(title, year) {
@@ -475,8 +503,6 @@ export function publishPlayerNotification(reason = 'update') {
   const title = getPlayerTitle();
   const episodeLabel = getRouteEpisodeLabel();
   const posterUrl = getPlayerPosterUrl();
-  const actionLabel = isPaused ? 'Play' : 'Pause';
-  const actionCommand = isPaused ? 'play' : 'pause';
   const payload = {
     topic: displayTopic,
     title: isPaused ? 'Paused on LookMovie2' : 'Playing on LookMovie2',
@@ -485,11 +511,7 @@ export function publishPlayerNotification(reason = 'update') {
     priority: 3,
     sequence_id: `${SCRIPT_ID}-player`,
     click: location.href,
-    actions: [
-      buildAction(actionLabel, actionCommand),
-      buildAction('-30s', 'seek -30'),
-      buildAction('+30s', 'seek 30'),
-    ],
+    actions: buildPlayerActions(isPaused),
   };
 
   appState.ntfyLastNotificationAt = Date.now();
@@ -588,6 +610,8 @@ function runCommand(command) {
     case 'fullscreen':
     case 'fs':
       return toggleActiveVideoFullscreen();
+    case 'next':
+      return playNextShowEpisode();
     case 'mute':
       return setActiveVideoMuted(true);
     case 'unmute':
