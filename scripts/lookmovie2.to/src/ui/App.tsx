@@ -104,10 +104,12 @@ function ensureLauncherHost() {
   return host;
 }
 
-function PlayIcon() {
+function AutoplayIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M8 5.8v12.4L18.5 12 8 5.8z" />
+      <path d="M8 6.5v11l8.5-5.5L8 6.5z" />
+      <path d="M16.5 4.5a7.5 7.5 0 0 1 3.2 9.4l1.6.7A9.3 9.3 0 0 0 17.2 3l-.7 1.5zM7.5 19.5a7.5 7.5 0 0 1-3.2-9.4l-1.6-.7A9.3 9.3 0 0 0 6.8 21l.7-1.5z" />
+      <path d="M19.4 15.2 22 15l-1.5 2.2-1.1-2zM4.6 8.8 2 9l1.5-2.2 1.1 2z" />
     </svg>
   );
 }
@@ -264,7 +266,7 @@ export function LookMovieToolsApp() {
             toggleSetting('autoPlay');
           }}
         >
-          <PlayIcon />
+          <AutoplayIcon />
         </button>
         <button
           className={`${SCRIPT_ID}-quick-setting`}
@@ -339,16 +341,19 @@ export function LookMovieToolsApp() {
                   settingKey="autoPlay"
                   title="Auto play"
                   copy="Clicks the resume or start button when the playback modal appears."
+                  icon={<AutoplayIcon />}
                 />
                 <SettingToggle
                   settingKey="autoFullscreen"
                   title="Auto fullscreen"
                   copy="Clicks fullscreen and applies the fullscreen fallback after playback starts."
+                  icon={<FullscreenIcon />}
                 />
                 <SettingToggle
                   settingKey="ntfyRemoteEnabled"
                   title="Android remote"
                   copy="Publishes a player notification to ntfy with Android action buttons."
+                  icon={<RemoteIcon />}
                 />
                 <div className={`${SCRIPT_ID}-setting ${SCRIPT_ID}-setting-stack`}>
                   <div>

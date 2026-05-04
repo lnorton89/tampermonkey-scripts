@@ -4,14 +4,17 @@ import { SCRIPT_ID } from '../../config/constants';
 import { saveSettings } from '../../core/settings';
 import { appState } from '../../core/state';
 
-export function SettingToggle({ settingKey, title, copy }) {
+export function SettingToggle({ settingKey, title, copy, icon }) {
   const checked = !!appState.settings[settingKey];
 
   return (
     <label className={`${SCRIPT_ID}-setting`}>
-      <div>
-        <p className={`${SCRIPT_ID}-setting-title`}>{title}</p>
-        <p className={`${SCRIPT_ID}-setting-copy`}>{copy}</p>
+      <div className={`${SCRIPT_ID}-setting-main`}>
+        {icon ? <span className={`${SCRIPT_ID}-setting-icon`}>{icon}</span> : null}
+        <div>
+          <p className={`${SCRIPT_ID}-setting-title`}>{title}</p>
+          <p className={`${SCRIPT_ID}-setting-copy`}>{copy}</p>
+        </div>
       </div>
       <span className={`${SCRIPT_ID}-switch`}>
         <input

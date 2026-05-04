@@ -401,6 +401,32 @@ export function getUiStyleText() {
             align-items: stretch;
         }
 
+        .${SCRIPT_ID}-setting-main {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .${SCRIPT_ID}-setting-icon {
+            display: inline-flex;
+            width: 28px;
+            height: 28px;
+            flex: 0 0 28px;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(56, 189, 248, 0.28);
+            border-radius: 8px;
+            background: rgba(14, 165, 233, 0.1);
+            color: #7dd3fc;
+        }
+
+        .${SCRIPT_ID}-setting-icon svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
         .${SCRIPT_ID}-setting-title {
             margin: 0;
             color: #f8fafc;
