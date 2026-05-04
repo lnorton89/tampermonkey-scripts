@@ -322,6 +322,20 @@ export function ensureWindowedFullscreenExitButton() {
     playerContainer.appendChild(button);
   }
 
+  if (!playerContainer._lookmovieFullscreenExitActivityAttached) {
+    const revealExitButton = () => {
+      window.clearTimeout(playerContainer._lookmovieFullscreenExitActivityTimer);
+      playerContainer.classList.add(`${SCRIPT_ID}-fullscreen-exit-active`);
+      playerContainer._lookmovieFullscreenExitActivityTimer = window.setTimeout(() => {
+        playerContainer.classList.remove(`${SCRIPT_ID}-fullscreen-exit-active`);
+      }, 1800);
+    };
+
+    playerContainer._lookmovieFullscreenExitActivityAttached = true;
+    playerContainer.addEventListener('mouseenter', revealExitButton);
+    playerContainer.addEventListener('mousemove', revealExitButton);
+  }
+
   return true;
 }
 
@@ -368,8 +382,9 @@ export function applyWindowedFullscreenFallback() {
                 transition: opacity 0.15s ease, transform 0.15s ease, border-color 0.15s ease !important;
             }
 
-            #video_player:hover #${FULLSCREEN_EXIT_BUTTON_ID},
+            #video_player.${SCRIPT_ID}-fullscreen-exit-active #${FULLSCREEN_EXIT_BUTTON_ID},
             #video_player:focus-within #${FULLSCREEN_EXIT_BUTTON_ID},
+            #${FULLSCREEN_EXIT_BUTTON_ID}:hover,
             #${FULLSCREEN_EXIT_BUTTON_ID}:focus {
                 opacity: 1 !important;
                 pointer-events: auto !important;
@@ -397,6 +412,12 @@ export function removeWindowedFullscreenFallback() {
   const style = document.getElementById(FULLSCREEN_STYLE_ID);
   if (style) {
     style.remove();
+  }
+
+  const playerContainer = document.getElementById('video_player');
+  if (playerContainer) {
+    window.clearTimeout(playerContainer._lookmovieFullscreenExitActivityTimer);
+    playerContainer.classList.remove(`${SCRIPT_ID}-fullscreen-exit-active`);
   }
 
   const exitButton = document.getElementById(FULLSCREEN_EXIT_BUTTON_ID);

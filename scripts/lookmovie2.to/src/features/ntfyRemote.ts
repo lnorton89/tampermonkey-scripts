@@ -25,6 +25,7 @@ let lastMessageId = '';
 let reconnectTimer = 0;
 let lastIgnoredFocusMessageAt = 0;
 let claimListenersInstalled = false;
+const showPosterCache = new Map();
 
 function setStatus(status, message = '') {
   appState.ntfyRemoteStatus = status;
@@ -207,17 +208,21 @@ function isMoviePlayPage() {
   return location.pathname.startsWith('/movies/play/');
 }
 
-function buildPlayerActions(isPaused) {
-  const playPauseLabel = isPaused ? 'Play' : 'Pause';
-  const playPauseCommand = isPaused ? 'play' : 'pause';
-  const actions = [
-    buildAction(playPauseLabel, playPauseCommand),
-    buildAction('Full', 'fullscreen'),
-  ];
+function isMoviePlaybackContext() {
+  if (isMoviePlayPage()) {
+    return true;
+  }
+
+  const movieStorage = window.movie_storage || window.movie || {};
+  return !isShowPlayPage() && !!(movieStorage.id_movie || movieStorage.title || movieStorage.slug);
+}
+
+function buildPlayerActions() {
+  const actions = [buildAction('Play/Pause', 'toggle'), buildAction('Fullscreen', 'fullscreen')];
 
   if (isShowPlayPage()) {
     actions.push(buildAction('Next', 'next'));
-  } else if (isMoviePlayPage()) {
+  } else if (isMoviePlaybackContext()) {
     actions.push(buildAction('-30s', 'seek -30'));
   } else {
     actions.push(buildAction('+30s', 'seek 30'));
@@ -317,10 +322,79 @@ function getElementImageUrl(element) {
   );
 }
 
+function getCurrentShowWatchlistEntry() {
+  const showStorage = window.show_storage || window.show || {};
+  const idShow = Number(window.id_show || showStorage.id_show || showStorage.idShow || 0);
+  const entries = Object.values(appState.watchlistStore.shows || {});
+
+  if (idShow) {
+    const entry = entries.find((watchlistEntry) => watchlistEntry.idShow === idShow);
+    if (entry) {
+      return entry;
+    }
+  }
+
+  const slug = String(showStorage.slug || '').trim();
+  return slug ? appState.watchlistStore.shows[slug] || null : null;
+}
+
+function getCurrentShowSlug() {
+  const showStorage = window.show_storage || window.show || {};
+  const watchlistEntry = getCurrentShowWatchlistEntry();
+  const pathMatch = location.pathname.match(/\/shows\/view\/([^/?#]+)/i);
+  const showLink = document.querySelector('a[href*="/shows/view/"]');
+  const linkMatch = showLink?.getAttribute('href')?.match(/\/shows\/view\/([^/?#]+)/i);
+
+  return (
+    String(showStorage.slug || '').trim() ||
+    String(showStorage.seo_url || '').trim() ||
+    String(watchlistEntry?.slug || '').trim() ||
+    (pathMatch ? pathMatch[1] : '') ||
+    (linkMatch ? linkMatch[1] : '')
+  );
+}
+
+function decodeInlineJsString(value) {
+  return String(value || '')
+    .replaceAll("\\'", "'")
+    .replaceAll('\\\\', '\\');
+}
+
+function getShowPosterFromViewPage(slug) {
+  if (!slug) {
+    return Promise.resolve('');
+  }
+
+  if (showPosterCache.has(slug)) {
+    return Promise.resolve(showPosterCache.get(slug) || '');
+  }
+
+  return fetch(`/shows/view/${encodeURIComponent(slug)}`, { credentials: 'same-origin' })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`Show poster request failed with HTTP ${response.status}`);
+      }
+
+      return response.text();
+    })
+    .then((html) => {
+      const posterMatch = html.match(/poster_medium:\s*'((?:\\'|[^'])*)'/);
+      const posterUrl = normalizeImageUrl(posterMatch ? decodeInlineJsString(posterMatch[1]) : '');
+      showPosterCache.set(slug, posterUrl);
+      return posterUrl;
+    })
+    .catch((error) => {
+      console.warn(`[${SCRIPT_ID}] Could not resolve show poster for ntfy attachment.`, error);
+      showPosterCache.set(slug, '');
+      return '';
+    });
+}
+
 function getPlayerPosterUrl() {
   const video = getActiveVideo();
   const movieStorage = window.movie_storage || window.movie || {};
   const showStorage = window.show_storage || window.show || {};
+  const showWatchlistEntry = getCurrentShowWatchlistEntry();
   const posterNode = document.querySelector(
     [
       'meta[property="og:image"]',
@@ -342,9 +416,21 @@ function getPlayerPosterUrl() {
     normalizeImageUrl(movieStorage.movie_poster) ||
     normalizeImageUrl(movieStorage.poster_medium) ||
     normalizeImageUrl(showStorage.poster_medium) ||
+    normalizeImageUrl(showStorage.poster_large) ||
+    normalizeImageUrl(showStorage.poster_original) ||
     normalizeImageUrl(showStorage.poster) ||
+    normalizeImageUrl(showWatchlistEntry?.poster) ||
     getElementImageUrl(posterNode)
   );
+}
+
+function resolvePlayerPosterUrl() {
+  const posterUrl = getPlayerPosterUrl();
+  if (posterUrl || !isShowPlayPage()) {
+    return Promise.resolve(posterUrl);
+  }
+
+  return getShowPosterFromViewPage(getCurrentShowSlug());
 }
 
 function sendJsonRequest(url, body, method = 'POST') {
@@ -502,7 +588,6 @@ export function publishPlayerNotification(reason = 'update') {
   const isPaused = video.paused;
   const title = getPlayerTitle();
   const episodeLabel = getRouteEpisodeLabel();
-  const posterUrl = getPlayerPosterUrl();
   const payload = {
     topic: displayTopic,
     title: isPaused ? 'Paused on LookMovie2' : 'Playing on LookMovie2',
@@ -511,12 +596,13 @@ export function publishPlayerNotification(reason = 'update') {
     priority: 3,
     sequence_id: `${SCRIPT_ID}-player`,
     click: location.href,
-    actions: buildPlayerActions(isPaused),
+    actions: buildPlayerActions(),
   };
 
   appState.ntfyLastNotificationAt = Date.now();
 
-  sendPlayerNotificationPayload(displayTopic, payload, posterUrl)
+  resolvePlayerPosterUrl()
+    .then((posterUrl) => sendPlayerNotificationPayload(displayTopic, payload, posterUrl))
     .then(() => setStatus('connected', `Updated Android player notification (${reason}).`))
     .catch((error) => {
       console.warn(`[${SCRIPT_ID}] Failed to publish ntfy player notification.`, error);
