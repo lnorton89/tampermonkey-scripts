@@ -3,6 +3,7 @@
 import {
   DEFAULT_SETTINGS,
   MOVIE_WATCHLIST_KEY,
+  PLAYLIST_KEY,
   SCRIPT_ID,
   SHOWS_LIST_PROGRESS_KEY,
   STORAGE_KEY,
@@ -170,6 +171,63 @@ export function loadMovieWatchlist() {
   }
 }
 
+export function normalizePlaylistEntry(key, entry) {
+  if (!entry || typeof entry !== 'object') {
+    return null;
+  }
+
+  const slug =
+    typeof entry.slug === 'string' && entry.slug.trim()
+      ? entry.slug.trim()
+      : typeof key === 'string' && key.trim()
+        ? key.split(':')[0].trim()
+        : '';
+  const episode = normalizeEpisodeRecord(entry.episode || entry.latestEpisode);
+  if (!slug || !episode) {
+    return null;
+  }
+
+  return {
+    key:
+      typeof key === 'string' && key.trim()
+        ? key.trim()
+        : `${slug}:${episode.season}:${episode.episode}:${episode.idEpisode}`,
+    slug,
+    idShow: toPositiveInteger(entry.idShow || entry.id_show),
+    title: typeof entry.title === 'string' && entry.title.trim() ? entry.title.trim() : slug,
+    year:
+      typeof entry.year === 'string' || typeof entry.year === 'number'
+        ? String(entry.year).trim()
+        : '',
+    poster: typeof entry.poster === 'string' ? entry.poster : '',
+    episode,
+    addedAt: typeof entry.addedAt === 'number' ? entry.addedAt : Date.now(),
+  };
+}
+
+export function loadPlaylist() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PLAYLIST_KEY) || '{}');
+    const sourceEntries =
+      parsed && typeof parsed === 'object' && parsed.entries && typeof parsed.entries === 'object'
+        ? parsed.entries
+        : {};
+    const entries = {};
+
+    Object.entries(sourceEntries).forEach(([key, entry]) => {
+      const normalized = normalizePlaylistEntry(key, entry);
+      if (normalized) {
+        entries[normalized.key] = normalized;
+      }
+    });
+
+    return { entries };
+  } catch (error) {
+    console.warn(`[${SCRIPT_ID}] Failed to load playlist.`, error);
+    return { entries: {} };
+  }
+}
+
 export function normalizeShowsListProgress(progress) {
   if (!progress || typeof progress !== 'object') {
     return null;
@@ -224,6 +282,14 @@ export function persistMovieWatchlist(movieWatchlistStore) {
     localStorage.setItem(MOVIE_WATCHLIST_KEY, JSON.stringify(movieWatchlistStore));
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to save movie watchlist.`, error);
+  }
+}
+
+export function persistPlaylist(playlistStore) {
+  try {
+    localStorage.setItem(PLAYLIST_KEY, JSON.stringify(playlistStore));
+  } catch (error) {
+    console.warn(`[${SCRIPT_ID}] Failed to save playlist.`, error);
   }
 }
 

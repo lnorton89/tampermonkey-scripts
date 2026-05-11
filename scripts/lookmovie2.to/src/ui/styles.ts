@@ -373,7 +373,8 @@ export function getUiStyleText() {
         }
 
         #${UI_ROOT_ID}-settings-title,
-        #${UI_ROOT_ID}-watchlist-title {
+        #${UI_ROOT_ID}-watchlist-title,
+        #${UI_ROOT_ID}-playlist-title {
             margin: 0 0 12px;
             color: #f8fafc;
             font-size: 15px;
@@ -536,7 +537,72 @@ export function getUiStyleText() {
             color: #fda4af;
         }
 
-        #${UI_ROOT_ID}-watchlist-toolbar {
+        .${SCRIPT_ID}-accordion {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-height: 0;
+            flex: 1;
+        }
+
+        .${SCRIPT_ID}-accordion-trigger {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            border-radius: 10px;
+            padding: 10px 12px;
+            background: rgba(15, 23, 42, 0.78);
+            color: #f8fafc;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .${SCRIPT_ID}-accordion-trigger[data-open="true"] {
+            border-color: rgba(96, 165, 250, 0.42);
+            background: rgba(30, 41, 59, 0.92);
+        }
+
+        .${SCRIPT_ID}-accordion-trigger span {
+            display: grid;
+            gap: 3px;
+            min-width: 0;
+        }
+
+        .${SCRIPT_ID}-accordion-trigger strong {
+            font: 800 13px/1.2 Arial, sans-serif;
+        }
+
+        .${SCRIPT_ID}-accordion-trigger small {
+            color: #94a3b8;
+            font: 12px/1.35 Arial, sans-serif;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .${SCRIPT_ID}-accordion-trigger em {
+            min-width: 24px;
+            border-radius: 999px;
+            padding: 4px 7px;
+            background: rgba(37, 99, 235, 0.72);
+            color: #eff6ff;
+            font: 800 11px/1 Arial, sans-serif;
+            text-align: center;
+            font-style: normal;
+        }
+
+        .${SCRIPT_ID}-accordion-panel {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            flex: 1;
+        }
+
+        #${UI_ROOT_ID}-watchlist-toolbar,
+        #${UI_ROOT_ID}-playlist-toolbar {
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -572,12 +638,6 @@ export function getUiStyleText() {
             width: 17px;
             height: 17px;
             fill: currentColor;
-        }
-
-        #${UI_ROOT_ID}-watchlist-summary {
-            color: #94a3b8;
-            font-size: 13px;
-            line-height: 1.45;
         }
 
         .${SCRIPT_ID}-tabs {
@@ -638,7 +698,8 @@ export function getUiStyleText() {
             color: #94a3b8;
         }
 
-        #${UI_ROOT_ID}-watchlist-list {
+        #${UI_ROOT_ID}-watchlist-list,
+        #${UI_ROOT_ID}-playlist-list {
             display: grid;
             grid-template-columns: repeat(6, 1fr);
             grid-auto-rows: max-content;
@@ -652,7 +713,8 @@ export function getUiStyleText() {
             padding-right: 8px;
         }
 
-        #${UI_ROOT_ID}-watchlist-list[data-view="list"] {
+        #${UI_ROOT_ID}-watchlist-list[data-view="list"],
+        #${UI_ROOT_ID}-playlist-list[data-view="list"] {
             display: flex;
             flex-direction: column;
             gap: 10px;
@@ -861,6 +923,12 @@ export function getUiStyleText() {
             color: #bbf7d0;
         }
 
+        .${SCRIPT_ID}-poster-playlist-button {
+            left: 50%;
+            transform: translate(-50%, -3px);
+            color: #bfdbfe;
+        }
+
         .${SCRIPT_ID}-poster-remove-button {
             right: 8px;
             color: #fecdd3;
@@ -870,6 +938,11 @@ export function getUiStyleText() {
         .${SCRIPT_ID}-watch-item:focus-within .${SCRIPT_ID}-poster-icon-button {
             opacity: 1;
             transform: translateY(0);
+        }
+
+        .${SCRIPT_ID}-watch-item:hover .${SCRIPT_ID}-poster-playlist-button,
+        .${SCRIPT_ID}-watch-item:focus-within .${SCRIPT_ID}-poster-playlist-button {
+            transform: translate(-50%, 0);
         }
 
         .${SCRIPT_ID}-poster-check-button:hover {
@@ -882,9 +955,29 @@ export function getUiStyleText() {
             background: rgba(127, 29, 29, 0.92);
         }
 
+        .${SCRIPT_ID}-poster-playlist-button:hover {
+            border-color: rgba(147, 197, 253, 0.72);
+            background: rgba(30, 64, 175, 0.92);
+        }
+
         .${SCRIPT_ID}-poster-icon-button[disabled] {
             cursor: not-allowed;
             opacity: 0;
+        }
+
+        .${SCRIPT_ID}-watch-item[data-view="list"] .${SCRIPT_ID}-poster-icon-button {
+            top: 6px;
+            width: 20px;
+            height: 20px;
+            font-size: 13px;
+        }
+
+        .${SCRIPT_ID}-watch-item[data-view="list"] .${SCRIPT_ID}-poster-check-button {
+            left: 5px;
+        }
+
+        .${SCRIPT_ID}-watch-item[data-view="list"] .${SCRIPT_ID}-poster-remove-button {
+            right: 5px;
         }
 
         .${SCRIPT_ID}-button,
@@ -1042,13 +1135,15 @@ export function getUiStyleText() {
         }
 
         @media (max-width: 1400px) {
-            #${UI_ROOT_ID}-watchlist-list {
+            #${UI_ROOT_ID}-watchlist-list,
+            #${UI_ROOT_ID}-playlist-list {
                 grid-template-columns: repeat(5, 1fr);
             }
         }
 
         @media (max-width: 1100px) {
-            #${UI_ROOT_ID}-watchlist-list {
+            #${UI_ROOT_ID}-watchlist-list,
+            #${UI_ROOT_ID}-playlist-list {
                 grid-template-columns: repeat(4, 1fr);
             }
         }
@@ -1066,13 +1161,15 @@ export function getUiStyleText() {
                 padding-right: 0;
             }
 
-            #${UI_ROOT_ID}-watchlist-list {
+            #${UI_ROOT_ID}-watchlist-list,
+            #${UI_ROOT_ID}-playlist-list {
                 grid-template-columns: repeat(3, 1fr);
             }
         }
 
         @media (max-width: 640px) {
-            #${UI_ROOT_ID}-watchlist-list {
+            #${UI_ROOT_ID}-watchlist-list,
+            #${UI_ROOT_ID}-playlist-list {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 10px;
             }

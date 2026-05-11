@@ -1,11 +1,18 @@
 /* eslint-disable */
 // @ts-nocheck
-import { loadMovieWatchlist, loadSettings, loadShowsListProgress, loadWatchlist } from './storage';
+import {
+  loadMovieWatchlist,
+  loadPlaylist,
+  loadSettings,
+  loadShowsListProgress,
+  loadWatchlist,
+} from './storage';
 
 export const appState = {
   settings: loadSettings(),
   watchlistStore: loadWatchlist(),
   movieWatchlistStore: loadMovieWatchlist(),
+  playlistStore: loadPlaylist(),
   showsListProgress: loadShowsListProgress(),
   showsListProgressOrder: -1,
   showsListSeenCandidate: null,

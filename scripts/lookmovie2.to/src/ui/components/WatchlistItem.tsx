@@ -3,6 +3,7 @@
 import { SCRIPT_ID } from '../../config/constants';
 import { formatEpisodeLabel } from '../../domain/episodes';
 import { buildShowViewUrl } from '../../features/pages';
+import { addLatestEpisodeToPlaylist, isEpisodeInPlaylist } from '../../features/playlist';
 import {
   isLatestWatched,
   removeShowFromWatchlist,
@@ -22,6 +23,10 @@ export function WatchlistItem({ entry, viewMode }) {
     state === 'new' ? 'New episode' : state === 'watched' ? 'Up to date' : 'Pending sync';
   const openHref = buildShowViewUrl(entry.slug, entry.latestEpisode);
   const toggleLabel = isLatestWatched(entry) ? 'Mark latest unwatched' : 'Mark latest watched';
+  const inPlaylist = isEpisodeInPlaylist(entry.slug, entry.latestEpisode);
+  const playlistLabel = inPlaylist
+    ? `${entry.title} latest episode is already in your playlist`
+    : `Add ${entry.title} latest episode to playlist`;
   const summaryPieces = entry.lastWatched ? [latestCopy, watchedCopy] : [latestCopy];
 
   if (errorCopy) {
@@ -51,6 +56,16 @@ export function WatchlistItem({ entry, viewMode }) {
           onClick={() => toggleLatestEpisodeWatched(entry.slug)}
         >
           ✓
+        </button>
+        <button
+          className={`${SCRIPT_ID}-poster-icon-button ${SCRIPT_ID}-poster-playlist-button`}
+          type="button"
+          disabled={!entry.latestEpisode || inPlaylist}
+          aria-label={playlistLabel}
+          title={playlistLabel}
+          onClick={() => addLatestEpisodeToPlaylist(entry)}
+        >
+          +
         </button>
         <button
           className={`${SCRIPT_ID}-poster-icon-button ${SCRIPT_ID}-poster-remove-button`}
