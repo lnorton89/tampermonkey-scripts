@@ -7,6 +7,8 @@ import { getMovieWatchlistEntries, sortMovieWatchlistEntries } from '../../featu
 import {
   getPlaylistEntries,
   getPlaylistSummary,
+  startPlaylistPlayback,
+  stopPlaylistPlayback,
   sortPlaylistEntries,
 } from '../../features/playlist';
 import {
@@ -39,6 +41,22 @@ function RefreshIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M17.7 6.3A7.9 7.9 0 0 0 12 4a8 8 0 1 0 7.5 10.7l-1.9-.7A6 6 0 1 1 16.3 7.7L13 11h8V3l-3.3 3.3z" />
+    </svg>
+  );
+}
+
+function PlayIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M8 5v14l11-7L8 5z" />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M6 6h12v12H6V6z" />
     </svg>
   );
 }
@@ -84,6 +102,7 @@ export function WatchlistPanel() {
       : 'Add movies from the movies page or an individual movie page to start tracking them.';
   const playlistSummary = getPlaylistSummary(playlistEntries);
   const isListView = viewMode === 'list';
+  const isPlaylistActive = appState.playlistSession.active;
 
   return (
     <section id={`${UI_ROOT_ID}-watchlist-panel`}>
@@ -201,21 +220,45 @@ export function WatchlistPanel() {
           >
             <div id={`${UI_ROOT_ID}-playlist-toolbar`}>
               <h3 id={`${UI_ROOT_ID}-playlist-title`}>Playlist</h3>
-              <button
-                className={`${SCRIPT_ID}-button ${SCRIPT_ID}-toolbar-icon-button ${SCRIPT_ID}-view-toggle`}
-                type="button"
-                aria-pressed={isListView ? 'true' : 'false'}
-                aria-label={isListView ? 'Switch to poster view' : 'Switch to list view'}
-                title={isListView ? 'Switch to poster view' : 'Switch to list view'}
-                onClick={() => setViewMode(isListView ? 'poster' : 'list')}
-              >
-                {isListView ? <GridIcon /> : <ListIcon />}
-              </button>
+              <div className={`${SCRIPT_ID}-watchlist-toolbar-actions`}>
+                <button
+                  className={`${SCRIPT_ID}-button ${SCRIPT_ID}-toolbar-icon-button ${SCRIPT_ID}-playlist-play-button`}
+                  type="button"
+                  disabled={!playlistEntries.length}
+                  aria-label={isPlaylistActive ? 'Stop playlist playback' : 'Play playlist'}
+                  title={isPlaylistActive ? 'Stop playlist playback' : 'Play playlist'}
+                  data-active={isPlaylistActive ? 'true' : 'false'}
+                  onClick={() => {
+                    if (isPlaylistActive) {
+                      stopPlaylistPlayback();
+                    } else {
+                      startPlaylistPlayback();
+                    }
+                  }}
+                >
+                  {isPlaylistActive ? <StopIcon /> : <PlayIcon />}
+                </button>
+                <button
+                  className={`${SCRIPT_ID}-button ${SCRIPT_ID}-toolbar-icon-button ${SCRIPT_ID}-view-toggle`}
+                  type="button"
+                  aria-pressed={isListView ? 'true' : 'false'}
+                  aria-label={isListView ? 'Switch to poster view' : 'Switch to list view'}
+                  title={isListView ? 'Switch to poster view' : 'Switch to list view'}
+                  onClick={() => setViewMode(isListView ? 'poster' : 'list')}
+                >
+                  {isListView ? <GridIcon /> : <ListIcon />}
+                </button>
+              </div>
             </div>
             <div id={`${UI_ROOT_ID}-playlist-list`} data-view={viewMode}>
               {playlistEntries.length ? (
                 playlistEntries.map((entry) => (
-                  <PlaylistItem key={entry.key} entry={entry} viewMode={viewMode} />
+                  <PlaylistItem
+                    key={entry.key}
+                    entry={entry}
+                    viewMode={viewMode}
+                    isActive={appState.playlistSession.currentKey === entry.key}
+                  />
                 ))
               ) : (
                 <div className={`${SCRIPT_ID}-watch-empty`}>

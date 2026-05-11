@@ -5,6 +5,7 @@ export const STORAGE_KEY = `${SCRIPT_ID}:settings`;
 export const WATCHLIST_KEY = `${SCRIPT_ID}:watchlist`;
 export const MOVIE_WATCHLIST_KEY = `${SCRIPT_ID}:movie-watchlist`;
 export const PLAYLIST_KEY = `${SCRIPT_ID}:playlist`;
+export const PLAYLIST_SESSION_KEY = `${SCRIPT_ID}:playlist-session`;
 export const SHOWS_LIST_PROGRESS_KEY = `${SCRIPT_ID}:shows-list-progress`;
 export const UI_STYLE_ID = `${SCRIPT_ID}-style`;
 export const FULLSCREEN_STYLE_ID = `${SCRIPT_ID}-fullscreen-style`;

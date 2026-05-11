@@ -4,6 +4,7 @@ import {
   DEFAULT_SETTINGS,
   MOVIE_WATCHLIST_KEY,
   PLAYLIST_KEY,
+  PLAYLIST_SESSION_KEY,
   SCRIPT_ID,
   SHOWS_LIST_PROGRESS_KEY,
   STORAGE_KEY,
@@ -228,6 +229,27 @@ export function loadPlaylist() {
   }
 }
 
+export function normalizePlaylistSession(session) {
+  if (!session || typeof session !== 'object') {
+    return { active: false, currentKey: '', startedAt: 0 };
+  }
+
+  return {
+    active: !!session.active,
+    currentKey: typeof session.currentKey === 'string' ? session.currentKey : '',
+    startedAt: typeof session.startedAt === 'number' ? session.startedAt : 0,
+  };
+}
+
+export function loadPlaylistSession() {
+  try {
+    return normalizePlaylistSession(JSON.parse(localStorage.getItem(PLAYLIST_SESSION_KEY) || '{}'));
+  } catch (error) {
+    console.warn(`[${SCRIPT_ID}] Failed to load playlist session.`, error);
+    return { active: false, currentKey: '', startedAt: 0 };
+  }
+}
+
 export function normalizeShowsListProgress(progress) {
   if (!progress || typeof progress !== 'object') {
     return null;
@@ -290,6 +312,20 @@ export function persistPlaylist(playlistStore) {
     localStorage.setItem(PLAYLIST_KEY, JSON.stringify(playlistStore));
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to save playlist.`, error);
+  }
+}
+
+export function persistPlaylistSession(session) {
+  try {
+    const normalized = normalizePlaylistSession(session);
+    if (!normalized.active) {
+      localStorage.removeItem(PLAYLIST_SESSION_KEY);
+      return;
+    }
+
+    localStorage.setItem(PLAYLIST_SESSION_KEY, JSON.stringify(normalized));
+  } catch (error) {
+    console.warn(`[${SCRIPT_ID}] Failed to save playlist session.`, error);
   }
 }
 

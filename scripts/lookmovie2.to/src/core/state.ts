@@ -3,6 +3,7 @@
 import {
   loadMovieWatchlist,
   loadPlaylist,
+  loadPlaylistSession,
   loadSettings,
   loadShowsListProgress,
   loadWatchlist,
@@ -13,6 +14,7 @@ export const appState = {
   watchlistStore: loadWatchlist(),
   movieWatchlistStore: loadMovieWatchlist(),
   playlistStore: loadPlaylist(),
+  playlistSession: loadPlaylistSession(),
   showsListProgress: loadShowsListProgress(),
   showsListProgressOrder: -1,
   showsListSeenCandidate: null,

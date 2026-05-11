@@ -2,11 +2,11 @@
 // @ts-nocheck
 import { SCRIPT_ID } from '../../config/constants';
 import { formatEpisodeLabel } from '../../domain/episodes';
-import { buildShowViewUrl } from '../../features/pages';
-import { removeFromPlaylist } from '../../features/playlist';
+import { buildShowPlayUrl } from '../../features/pages';
+import { removeFromPlaylist, startPlaylistPlayback } from '../../features/playlist';
 
-export function PlaylistItem({ entry, viewMode }) {
-  const openHref = buildShowViewUrl(entry.slug, entry.episode);
+export function PlaylistItem({ entry, viewMode, isActive }) {
+  const openHref = buildShowPlayUrl(entry.slug, entry.episode);
   const episodeCopy = formatEpisodeLabel(entry.episode);
   const addedCopy = entry.addedAt ? `Queued ${new Date(entry.addedAt).toLocaleDateString()}` : '';
   const summaryPieces = [episodeCopy];
@@ -16,12 +16,21 @@ export function PlaylistItem({ entry, viewMode }) {
   }
 
   return (
-    <article className={`${SCRIPT_ID}-watch-item`} data-state="new" data-view={viewMode}>
+    <article
+      className={`${SCRIPT_ID}-watch-item`}
+      data-state="new"
+      data-view={viewMode}
+      data-playlist-active={isActive ? 'true' : 'false'}
+    >
       <div className={`${SCRIPT_ID}-watch-item-poster`}>
         <a
           className={`${SCRIPT_ID}-watch-poster-link`}
           href={openHref}
           aria-label={`Open ${entry.title} ${episodeCopy}`}
+          onClick={(event) => {
+            event.preventDefault();
+            startPlaylistPlayback(entry.key);
+          }}
         >
           {entry.poster ? (
             <img src={entry.poster} alt={entry.title} loading="lazy" />
@@ -49,13 +58,20 @@ export function PlaylistItem({ entry, viewMode }) {
         </button>
         <div className={`${SCRIPT_ID}-watch-item-poster-overlay`}>
           <span className={`${SCRIPT_ID}-watch-badge`} data-state="new">
-            Queued
+            {isActive ? 'Playing' : 'Queued'}
           </span>
         </div>
       </div>
       <div className={`${SCRIPT_ID}-watch-item-body`}>
         <div>
-          <a className={`${SCRIPT_ID}-watch-item-title`} href={openHref}>
+          <a
+            className={`${SCRIPT_ID}-watch-item-title`}
+            href={openHref}
+            onClick={(event) => {
+              event.preventDefault();
+              startPlaylistPlayback(entry.key);
+            }}
+          >
             {entry.title}
             {entry.year ? ` (${entry.year})` : ''}
           </a>

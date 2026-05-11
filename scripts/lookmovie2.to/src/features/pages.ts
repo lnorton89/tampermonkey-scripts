@@ -117,6 +117,18 @@ export function buildShowViewUrl(slug, episodeRecord) {
   return `/shows/view/${slug}?season=${episodeRecord.season}&episode=${episodeRecord.episode}&id_episode=${episodeRecord.idEpisode}`;
 }
 
+export function buildShowPlayUrl(slug, episodeRecord) {
+  if (!slug) {
+    return '/shows';
+  }
+
+  if (!episodeRecord) {
+    return `/shows/view/${slug}`;
+  }
+
+  return `/shows/play/${slug}#S${episodeRecord.season}-E${episodeRecord.episode}-${episodeRecord.idEpisode}`;
+}
+
 export function buildMovieViewUrl(slug) {
   return slug ? `/movies/view/${slug}` : '/movies';
 }

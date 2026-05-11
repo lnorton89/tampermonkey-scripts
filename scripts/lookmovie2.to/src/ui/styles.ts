@@ -763,6 +763,11 @@ export function getUiStyleText() {
             box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.18);
         }
 
+        .${SCRIPT_ID}-watch-item[data-playlist-active="true"] {
+            border-color: rgba(96, 165, 250, 0.72);
+            box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.28), 0 8px 24px rgba(37, 99, 235, 0.18);
+        }
+
         .${SCRIPT_ID}-watch-item[data-state="new"]:hover {
             box-shadow: 0 8px 24px rgba(249, 115, 22, 0.15);
         }
@@ -963,6 +968,11 @@ export function getUiStyleText() {
         .${SCRIPT_ID}-poster-icon-button[disabled] {
             cursor: not-allowed;
             opacity: 0;
+        }
+
+        .${SCRIPT_ID}-playlist-play-button[data-active="true"] {
+            border-color: rgba(251, 113, 133, 0.64);
+            color: #fecdd3;
         }
 
         .${SCRIPT_ID}-watch-item[data-view="list"] .${SCRIPT_ID}-poster-icon-button {

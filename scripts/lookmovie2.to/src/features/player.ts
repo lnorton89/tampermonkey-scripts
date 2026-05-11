@@ -3,6 +3,7 @@
 import { FULLSCREEN_EXIT_BUTTON_ID, FULLSCREEN_STYLE_ID, SCRIPT_ID } from '../config/constants';
 import { appState } from '../core/state';
 import { publishPlayerNotification } from './ntfyRemote';
+import { completeCurrentPlaylistEntryAndAdvance } from './playlist';
 import { maybeTrackWatchedEpisodeFromPlayer } from './watchlist';
 
 export function getActiveVideo() {
@@ -465,6 +466,9 @@ export function handleVideoPause() {
 
 export function handleVideoEnded() {
   publishPlayerNotification('ended');
+  window.setTimeout(() => {
+    completeCurrentPlaylistEntryAndAdvance();
+  }, 750);
 }
 
 export function attachAutoplayLogic(videoElement) {
