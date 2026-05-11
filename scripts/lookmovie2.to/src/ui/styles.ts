@@ -970,6 +970,12 @@ export function getUiStyleText() {
             opacity: 0;
         }
 
+        .${SCRIPT_ID}-poster-icon-button svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
         .${SCRIPT_ID}-playlist-play-button[data-active="true"] {
             border-color: rgba(251, 113, 133, 0.64);
             color: #fecdd3;
@@ -980,6 +986,11 @@ export function getUiStyleText() {
             width: 20px;
             height: 20px;
             font-size: 13px;
+        }
+
+        .${SCRIPT_ID}-watch-item[data-view="list"] .${SCRIPT_ID}-poster-icon-button svg {
+            width: 12px;
+            height: 12px;
         }
 
         .${SCRIPT_ID}-watch-item[data-view="list"] .${SCRIPT_ID}-poster-check-button {

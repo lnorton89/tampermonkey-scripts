@@ -4,6 +4,7 @@ import { SCRIPT_ID } from '../../config/constants';
 import { formatEpisodeLabel } from '../../domain/episodes';
 import { buildShowPlayUrl } from '../../features/pages';
 import { removeFromPlaylist, startPlaylistPlayback } from '../../features/playlist';
+import { CheckIcon, RemoveIcon } from './icons';
 
 export function PlaylistItem({ entry, viewMode, isActive }) {
   const openHref = buildShowPlayUrl(entry.slug, entry.episode);
@@ -45,7 +46,7 @@ export function PlaylistItem({ entry, viewMode, isActive }) {
           title="Done"
           onClick={() => removeFromPlaylist(entry.key)}
         >
-          âœ“
+          <CheckIcon />
         </button>
         <button
           className={`${SCRIPT_ID}-poster-icon-button ${SCRIPT_ID}-poster-remove-button`}
@@ -54,7 +55,7 @@ export function PlaylistItem({ entry, viewMode, isActive }) {
           title="Remove"
           onClick={() => removeFromPlaylist(entry.key)}
         >
-          Ã—
+          <RemoveIcon />
         </button>
         <div className={`${SCRIPT_ID}-watch-item-poster-overlay`}>
           <span className={`${SCRIPT_ID}-watch-badge`} data-state="new">
