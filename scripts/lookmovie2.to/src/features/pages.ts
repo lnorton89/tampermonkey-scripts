@@ -4,7 +4,7 @@ import { SCRIPT_ID } from '../config/constants';
 import { normalizeEpisodeRecord, compareEpisodes, sameEpisode } from '../domain/episodes';
 import { appState } from '../core/state';
 import { normalizeShowsListProgress, persistShowsListProgress } from '../core/storage';
-import { escapeHtml, toPositiveInteger } from '../core/utils';
+import { escapeHtml, normalizeImageUrl, toPositiveInteger } from '../core/utils';
 import { addShowToWatchlist, getWatchlistEntry, removeShowFromWatchlist } from './watchlist';
 import { addMovieToWatchlist, getMovieWatchlistEntry, removeMovieFromWatchlist } from './movies';
 
@@ -66,7 +66,7 @@ export function getElementImageUrl(element) {
     element.getAttribute('src'),
   ];
 
-  return (
+  return normalizeImageUrl(
     candidates.find(
       (candidate) =>
         typeof candidate === 'string' &&
@@ -278,11 +278,15 @@ export function getCurrentMovieViewData() {
         ? String(movieStorage.year)
         : extractYearFromSlug(slug),
     poster:
-      typeof movieStorage.movie_poster === 'string' && movieStorage.movie_poster
-        ? movieStorage.movie_poster
-        : typeof movieStorage.poster_medium === 'string' && movieStorage.poster_medium
-          ? movieStorage.poster_medium
-          : getElementImageUrl(imageNode) || ogImageNode?.getAttribute('content') || '',
+      normalizeImageUrl(
+        typeof movieStorage.movie_poster === 'string' && movieStorage.movie_poster
+          ? movieStorage.movie_poster
+          : typeof movieStorage.poster_medium === 'string' && movieStorage.poster_medium
+            ? movieStorage.poster_medium
+            : ''
+      ) ||
+      getElementImageUrl(imageNode) ||
+      normalizeImageUrl(ogImageNode?.getAttribute('content') || ''),
     href: location.href,
   };
 }

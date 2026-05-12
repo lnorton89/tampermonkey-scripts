@@ -40,9 +40,21 @@ export function decodeInlineJsString(value) {
 }
 
 export function normalizeImageUrl(url) {
-  if (!url) return '';
-  if (url.startsWith('//')) {
-    return window.location.protocol + url;
+  const value = typeof url === 'string' ? url.trim() : '';
+  if (!value || value.startsWith('data:image/')) return '';
+
+  const base =
+    typeof window !== 'undefined' && window.location
+      ? window.location.href
+      : 'https://www.lookmovie2.to/';
+
+  try {
+    return new URL(value, base).href;
+  } catch (error) {
+    if (value.startsWith('//')) {
+      return `https:${value}`;
+    }
+
+    return value;
   }
-  return url;
 }

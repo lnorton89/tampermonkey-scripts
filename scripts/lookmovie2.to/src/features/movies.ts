@@ -3,7 +3,7 @@
 import { SCRIPT_ID } from '../config/constants';
 import { appState } from '../core/state';
 import { normalizeMovieWatchlistEntry, persistMovieWatchlist } from '../core/storage';
-import { decodeInlineJsString, fetchText } from '../core/utils';
+import { decodeInlineJsString, fetchText, normalizeImageUrl } from '../core/utils';
 import { renderWatchlist, syncLauncherState } from '../ui';
 import { syncMovieCardButtons, syncMovieViewWatchButton } from './pages';
 
@@ -60,31 +60,64 @@ export function decodeInlineJsonString(value) {
   }
 }
 
+export function parseMovieStorageFromHtml(html) {
+  const storageMatch = html.match(/(?:var\s+|window\.)movie_storage\s*=\s*(\{[\s\S]*?\})\s*;/);
+  if (!storageMatch) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(storageMatch[1]);
+  } catch (error) {
+    console.warn(`[${SCRIPT_ID}] Failed to parse movie_storage metadata.`, error);
+    return {};
+  }
+}
+
 export async function resolveMovieRecordBySlug(slug, fallback) {
   const html = await fetchText(`/movies/view/${slug}`);
+  const movieStorage = parseMovieStorageFromHtml(html);
   const idMatch = html.match(/id_movie:\s*(\d+)/);
   const titleMatch = html.match(/title:\s*'((?:\\'|[^'])*)'/);
   const yearMatch = html.match(/year:\s*'((?:\\'|[^'])*)'/);
   const posterMatch = html.match(/poster_medium:\s*'((?:\\'|[^'])*)'/);
+  const storagePoster =
+    typeof movieStorage.movie_poster === 'string' && movieStorage.movie_poster
+      ? movieStorage.movie_poster
+      : typeof movieStorage.poster_medium === 'string' && movieStorage.poster_medium
+        ? movieStorage.poster_medium
+        : typeof movieStorage.poster === 'string'
+          ? movieStorage.poster
+          : '';
 
   return {
     slug,
-    idMovie: idMatch ? parseInt(idMatch[1], 10) : 0,
-    title: titleMatch
-      ? decodeInlineJsString(titleMatch[1]).trim()
-      : fallback && fallback.title
-        ? fallback.title
-        : slug,
-    year: yearMatch
-      ? decodeInlineJsString(yearMatch[1]).trim()
-      : fallback && fallback.year
-        ? fallback.year
-        : '',
-    poster: posterMatch
-      ? decodeInlineJsString(posterMatch[1]).trim()
-      : fallback && fallback.poster
-        ? fallback.poster
-        : '',
+    idMovie:
+      typeof movieStorage.id_movie === 'number'
+        ? movieStorage.id_movie
+        : idMatch
+          ? parseInt(idMatch[1], 10)
+          : 0,
+    title:
+      typeof movieStorage.title === 'string' && movieStorage.title.trim()
+        ? movieStorage.title.trim()
+        : titleMatch
+          ? decodeInlineJsString(titleMatch[1]).trim()
+          : fallback && fallback.title
+            ? fallback.title
+            : slug,
+    year:
+      typeof movieStorage.year === 'string' || typeof movieStorage.year === 'number'
+        ? String(movieStorage.year)
+        : yearMatch
+          ? decodeInlineJsString(yearMatch[1]).trim()
+          : fallback && fallback.year
+            ? fallback.year
+            : '',
+    poster:
+      normalizeImageUrl(storagePoster) ||
+      (posterMatch ? normalizeImageUrl(decodeInlineJsString(posterMatch[1])) : '') ||
+      (fallback && fallback.poster ? normalizeImageUrl(fallback.poster) : ''),
   };
 }
 
