@@ -1,0 +1,8 @@
+import './meta';
+import { bootstrapDomFeatures } from './app/bootstrap';
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootstrapDomFeatures, { once: true });
+} else {
+  bootstrapDomFeatures();
+}
