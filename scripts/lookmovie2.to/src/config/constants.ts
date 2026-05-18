@@ -15,7 +15,7 @@ export const NTFY_REMOTE_ACTIVE_TAB_KEY = `${SCRIPT_ID}:ntfy-active-tab`;
 export const NTFY_REMOTE_ACTIVE_TAB_TTL_MS = 15000;
 export const NTFY_REMOTE_RESTART_DEBOUNCE_MS = 500;
 export const NTFY_TOPIC_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
-export const WATCHLIST_REFRESH_MS = 30 * 60 * 1000;
+export const WATCHLIST_REFRESH_MS = 60 * 60 * 1000;
 export const ROUTE_POLL_MS = 1000;
 export const DEFAULT_SETTINGS = Object.freeze({
   autoPlay: true,

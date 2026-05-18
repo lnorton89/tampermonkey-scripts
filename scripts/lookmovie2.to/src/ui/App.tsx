@@ -5,7 +5,6 @@ import { createPortal } from 'react-dom';
 import { appState } from '../core/state';
 import { saveSettings } from '../core/settings';
 import { SCRIPT_ID, UI_ROOT_ID } from '../config/constants';
-import { refreshWatchlistEntries } from '../features/watchlist';
 import { SettingToggle } from './components/SettingToggle';
 import { WatchlistPanel } from './components/WatchlistPanel';
 import { subscribeUi } from './events';
@@ -195,7 +194,6 @@ export function LookMovieToolsApp() {
 
   function openModal() {
     setIsOpen(true);
-    refreshWatchlistEntries();
   }
 
   function openQuickSettings() {
