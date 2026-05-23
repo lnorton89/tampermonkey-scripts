@@ -1,0 +1,37 @@
+// ==UserScript==
+// @name         cineby.sc (loader)
+// @namespace    https://github.com/lnorton89/tampermonkey-scripts
+// @version      1.0.0
+// @description  Loader — fetches the latest build from GitHub
+// @match        *://*.cineby.sc/*
+// @run-at       document-start
+// @grant        GM_xmlhttpRequest
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @connect      github.com
+// @connect      raw.githubusercontent.com
+// @connect      ntfy.sh
+// @connect      *
+// ==/UserScript==
+
+(function () {
+  'use strict';
+
+  const SCRIPT_URL = 'https://raw.githubusercontent.com/lnorton89/tampermonkey-scripts/main/scripts/cineby.sc/dist/cineby.sc.user.js';
+
+  GM_xmlhttpRequest({
+    method: 'GET',
+    url: SCRIPT_URL + '?_=' + Date.now(),
+    onload(res) {
+      if (res.status === 200) {
+        eval(res.responseText);
+        console.log('[loader] Successfully loaded script from:', SCRIPT_URL);
+      } else {
+        console.error('[loader] Failed to fetch script:', res.status, SCRIPT_URL);
+      }
+    },
+    onerror(err) {
+      console.error('[loader] Network error fetching script:', err);
+    },
+  });
+})();
