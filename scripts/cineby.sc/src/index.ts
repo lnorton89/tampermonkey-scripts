@@ -30,6 +30,7 @@ const state = {
   lastNotificationAt: 0,
   status: 'disabled',
   statusMessage: '',
+  panelOpen: false,
 };
 
 function readSettingsSource() {
@@ -745,7 +746,7 @@ function injectStyles() {
     #${SCRIPT_ID}-panel {
       position: fixed;
       right: 16px;
-      bottom: 16px;
+      top: 68px;
       z-index: 2147483647;
       width: min(330px, calc(100vw - 32px));
       border: 1px solid rgba(255, 255, 255, 0.16);
@@ -755,6 +756,36 @@ function injectStyles() {
       box-shadow: 0 18px 40px rgba(0, 0, 0, 0.42);
       font: 13px/1.35 Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       backdrop-filter: blur(18px);
+    }
+
+    #${SCRIPT_ID}-launcher {
+      position: fixed;
+      top: 18px;
+      right: 22px;
+      z-index: 2147483647;
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.92);
+      cursor: pointer;
+      padding: 0;
+    }
+
+    #${SCRIPT_ID}-launcher:hover,
+    #${SCRIPT_ID}-launcher:focus-visible {
+      background: rgba(255, 255, 255, 0.1);
+      outline: none;
+    }
+
+    #${SCRIPT_ID}-launcher svg {
+      width: 26px;
+      height: 26px;
+      display: block;
+      stroke-width: 2.2;
     }
 
     #${SCRIPT_ID}-panel button,
@@ -781,10 +812,6 @@ function injectStyles() {
       display: grid;
       gap: 10px;
       padding: 12px;
-    }
-
-    .${SCRIPT_ID}-collapsed .${SCRIPT_ID}-body {
-      display: none;
     }
 
     .${SCRIPT_ID}-row {
@@ -837,6 +864,20 @@ function injectStyles() {
 
     .${SCRIPT_ID}-button:hover {
       background: rgba(255, 255, 255, 0.12);
+    }
+
+    .${SCRIPT_ID}-icon-button {
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+    }
+
+    .${SCRIPT_ID}-icon-button svg {
+      width: 18px;
+      height: 18px;
+      display: block;
     }
 
     .${SCRIPT_ID}-switch {
@@ -928,26 +969,51 @@ function renderPanel() {
 
   injectStyles();
 
-  const wasCollapsed = document
-    .getElementById(`${SCRIPT_ID}-panel`)
-    ?.classList.contains(`${SCRIPT_ID}-collapsed`);
+  document.getElementById(`${SCRIPT_ID}-launcher`)?.remove();
   document.getElementById(`${SCRIPT_ID}-panel`)?.remove();
+
+  const launcher = document.createElement('button');
+  launcher.id = `${SCRIPT_ID}-launcher`;
+  launcher.type = 'button';
+  launcher.title = state.panelOpen ? 'Hide Cineby settings' : 'Show Cineby settings';
+  launcher.setAttribute('aria-label', launcher.title);
+  launcher.innerHTML = state.panelOpen
+    ? `
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M18 6 6 18" fill="none" stroke="currentColor" stroke-linecap="round" />
+        <path d="m6 6 12 12" fill="none" stroke="currentColor" stroke-linecap="round" />
+      </svg>
+    `
+    : `
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M15 6 9 12l6 6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    `;
+  launcher.addEventListener('click', () => {
+    state.panelOpen = !state.panelOpen;
+    renderPanel();
+  });
+  document.body.appendChild(launcher);
+
+  if (!state.panelOpen) return;
 
   const panel = document.createElement('section');
   panel.id = `${SCRIPT_ID}-panel`;
-  if (wasCollapsed) panel.classList.add(`${SCRIPT_ID}-collapsed`);
 
   const head = document.createElement('div');
   head.className = `${SCRIPT_ID}-head`;
   head.innerHTML = `
     <p class="${SCRIPT_ID}-title">Cineby</p>
-    <button type="button" class="${SCRIPT_ID}-button" title="Collapse">^</button>
+    <button type="button" class="${SCRIPT_ID}-button ${SCRIPT_ID}-icon-button" title="Close" aria-label="Close Cineby settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M18 6 6 18" fill="none" stroke="currentColor" stroke-linecap="round" />
+        <path d="m6 6 12 12" fill="none" stroke="currentColor" stroke-linecap="round" />
+      </svg>
+    </button>
   `;
   head.querySelector('button').addEventListener('click', () => {
-    panel.classList.toggle(`${SCRIPT_ID}-collapsed`);
-    head.querySelector('button').textContent = panel.classList.contains(`${SCRIPT_ID}-collapsed`)
-      ? 'v'
-      : '^';
+    state.panelOpen = false;
+    renderPanel();
   });
 
   const body = document.createElement('div');
