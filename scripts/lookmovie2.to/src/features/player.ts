@@ -329,12 +329,11 @@ export function ensureWindowedFullscreenExitButton() {
       playerContainer.classList.add(`${SCRIPT_ID}-fullscreen-exit-active`);
       playerContainer._lookmovieFullscreenExitActivityTimer = window.setTimeout(() => {
         playerContainer.classList.remove(`${SCRIPT_ID}-fullscreen-exit-active`);
-      }, 1800);
+      }, 1600);
     };
 
     playerContainer._lookmovieFullscreenExitActivityAttached = true;
-    playerContainer.addEventListener('mouseenter', revealExitButton);
-    playerContainer.addEventListener('mousemove', revealExitButton);
+    playerContainer.addEventListener('pointermove', revealExitButton);
   }
 
   return true;
@@ -357,6 +356,11 @@ export function applyWindowedFullscreenFallback() {
                 height: 100vh !important;
                 z-index: 999999 !important;
                 background: black !important;
+                cursor: none !important;
+            }
+
+            #video_player.${SCRIPT_ID}-fullscreen-exit-active {
+                cursor: auto !important;
             }
 
             body.${SCRIPT_ID}-fullscreen {
@@ -384,16 +388,15 @@ export function applyWindowedFullscreenFallback() {
             }
 
             #video_player.${SCRIPT_ID}-fullscreen-exit-active #${FULLSCREEN_EXIT_BUTTON_ID},
-            #video_player:focus-within #${FULLSCREEN_EXIT_BUTTON_ID},
             #${FULLSCREEN_EXIT_BUTTON_ID}:hover,
-            #${FULLSCREEN_EXIT_BUTTON_ID}:focus {
+            #${FULLSCREEN_EXIT_BUTTON_ID}:focus-visible {
                 opacity: 1 !important;
                 pointer-events: auto !important;
                 transform: translateY(0) !important;
             }
 
             #${FULLSCREEN_EXIT_BUTTON_ID}:hover,
-            #${FULLSCREEN_EXIT_BUTTON_ID}:focus {
+            #${FULLSCREEN_EXIT_BUTTON_ID}:focus-visible {
                 border-color: rgba(125, 211, 252, 0.78) !important;
             }
         `;
