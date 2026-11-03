@@ -10,6 +10,7 @@ export const SHOWS_LIST_PROGRESS_KEY = `${SCRIPT_ID}:shows-list-progress`;
 export const BACKUP_SNAPSHOTS_KEY = `${SCRIPT_ID}:backup-snapshots`;
 export const BACKUP_SNAPSHOT_LIMIT = 14;
 export const UI_STYLE_ID = `${SCRIPT_ID}-style`;
+export const AD_BYPASS_STYLE_ID = `${SCRIPT_ID}-ad-bypass-style`;
 export const FULLSCREEN_STYLE_ID = `${SCRIPT_ID}-fullscreen-style`;
 export const FULLSCREEN_EXIT_BUTTON_ID = `${SCRIPT_ID}-fullscreen-exit`;
 export const UI_ROOT_ID = `${SCRIPT_ID}-root`;

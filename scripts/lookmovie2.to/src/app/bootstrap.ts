@@ -7,6 +7,7 @@ import {
   removeWindowedFullscreenFallback,
   watchVideos,
 } from '../features/player';
+import { watchAdCountdown } from '../features/adTimerBypass';
 import { startNtfyRemote } from '../features/ntfyRemote';
 import {
   ensureEpisodeCardButtons,
@@ -65,6 +66,7 @@ export function bootstrapDomFeatures() {
   }
 
   appState.domBootstrapped = true;
+  watchAdCountdown();
   watchVideos();
   startNtfyRemote();
   watchNavigation();
