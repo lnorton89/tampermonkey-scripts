@@ -1,9 +1,9 @@
 /* eslint-disable */
 // @ts-nocheck
-import { UI_ROOT_ID } from '../config/constants';
 import { appState } from '../core/state';
+import { installBannerHider } from '../features/hideBanner';
+import { watchPlaybackMenu } from '../features/playbackMenu';
 import { watchSkipIntro } from '../features/skipIntro';
-import { ensureUi } from '../ui';
 
 export function bootstrapDomFeatures() {
   if (appState.domBootstrapped) {
@@ -11,14 +11,7 @@ export function bootstrapDomFeatures() {
   }
 
   appState.domBootstrapped = true;
+  installBannerHider();
   watchSkipIntro();
-
-  const uiBootstrapper = window.setInterval(() => {
-    appState.uiBootAttempts += 1;
-    ensureUi();
-
-    if (document.getElementById(UI_ROOT_ID) || appState.uiBootAttempts > 100) {
-      window.clearInterval(uiBootstrapper);
-    }
-  }, 100);
+  watchPlaybackMenu();
 }
