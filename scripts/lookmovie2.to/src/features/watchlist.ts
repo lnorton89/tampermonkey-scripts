@@ -1,6 +1,6 @@
 /* eslint-disable */
 // @ts-nocheck
-import { SCRIPT_ID, WATCHLIST_REFRESH_MS } from '../config/constants';
+import { SCRIPT_ID, UPCOMING_EPISODE_LIMIT, WATCHLIST_REFRESH_MS } from '../config/constants';
 import { appState } from '../core/state';
 import {
   normalizeEpisodeRecord,
@@ -53,7 +53,7 @@ export function shouldRefreshEntry(entry, now) {
     return false;
   }
 
-  if (!entry.idShow || !entry.latestEpisode) {
+  if (!entry.idShow || !entry.latestEpisode || !entry.upcoming) {
     return true;
   }
 
@@ -102,21 +102,96 @@ export async function resolveShowRecordBySlug(slug, fallback) {
   };
 }
 
-export async function fetchLatestEpisodeByIdShow(idShow) {
+// Every regular-season episode in airing order, plus the site's latest episode.
+export async function fetchEpisodeListByIdShow(idShow) {
   const payload = await fetchJson(`/api/v2/download/episode/list?id=${idShow}`);
+  const episodes = [];
+
+  Object.entries((payload && payload.list) || {}).forEach(([season, seasonEpisodes]) => {
+    Object.entries(seasonEpisodes || {}).forEach(([episode, record]) => {
+      const normalized = normalizeEpisodeRecord({
+        season,
+        episode,
+        idEpisode: record && record.id_episode,
+      });
+      if (normalized) {
+        episodes.push(normalized);
+      }
+    });
+  });
+
+  episodes.sort(compareEpisodes);
   const latest = payload && payload.latest ? payload.latest : null;
-  const episodeRecord = normalizeEpisodeRecord({
+  const latestEpisode = normalizeEpisodeRecord({
     season: latest && latest.season,
     episode: latest && latest.episode,
     idEpisode: latest && latest.id_episode,
   });
 
-  if (!episodeRecord) {
+  if (latestEpisode) {
+    latestEpisode.updatedAt = Date.now();
+  }
+
+  return { latestEpisode, episodes };
+}
+
+export function buildUpcomingEpisodes(episodes, lastWatched) {
+  const startIndex = lastWatched
+    ? episodes.findIndex((episode) => compareEpisodes(episode, lastWatched) > 0)
+    : 0;
+  const remaining = startIndex < 0 ? [] : episodes.slice(startIndex);
+
+  return {
+    afterIdEpisode: lastWatched ? lastWatched.idEpisode : 0,
+    total: remaining.length,
+    episodes: remaining
+      .slice(0, UPCOMING_EPISODE_LIMIT)
+      .map(({ season, episode, idEpisode }) => ({ season, episode, idEpisode })),
+  };
+}
+
+// Unwatched episodes for the current "watched through" position, or null when the stored list
+// can't answer that (e.g. watched-through moved backwards) and a refresh is needed.
+export function getUpcomingEpisodes(entry) {
+  const upcoming = entry && entry.upcoming;
+  if (!upcoming) {
     return null;
   }
 
-  episodeRecord.updatedAt = Date.now();
-  return episodeRecord;
+  const watchedId = entry.lastWatched ? entry.lastWatched.idEpisode : 0;
+  if (upcoming.afterIdEpisode === watchedId) {
+    return upcoming;
+  }
+
+  if (!entry.lastWatched) {
+    return null;
+  }
+
+  const index = upcoming.episodes.findIndex(
+    (episode) => compareEpisodes(episode, entry.lastWatched) > 0
+  );
+  if (index < 0) {
+    return upcoming.episodes.length === upcoming.total
+      ? { afterIdEpisode: watchedId, total: 0, episodes: [] }
+      : null;
+  }
+
+  // Index 0 means watched-through moved before the stored list, so episodes may be missing.
+  if (index === 0) {
+    return null;
+  }
+
+  return {
+    afterIdEpisode: watchedId,
+    total: upcoming.total - index,
+    episodes: upcoming.episodes.slice(index),
+  };
+}
+
+function refreshIfUpcomingUnknown(entry) {
+  if (entry.upcoming && !getUpcomingEpisodes(entry)) {
+    refreshWatchlistEntries({ force: true, slugs: [entry.slug] });
+  }
 }
 
 export async function addShowToWatchlist(showDetails) {
@@ -199,6 +274,7 @@ export function toggleLatestEpisodeWatched(slug) {
   }
 
   saveWatchlist();
+  refreshIfUpcomingUnknown(entry);
 }
 
 export async function refreshWatchlistEntries(options) {
@@ -245,8 +321,9 @@ export async function refreshWatchlistEntries(options) {
           throw new Error('Unable to resolve show id.');
         }
 
-        const latestEpisode = await fetchLatestEpisodeByIdShow(entry.idShow);
+        const { latestEpisode, episodes } = await fetchEpisodeListByIdShow(entry.idShow);
         entry.latestEpisode = latestEpisode;
+        entry.upcoming = buildUpcomingEpisodes(episodes, entry.lastWatched);
         entry.lastSyncError = '';
         entry.lastSyncedAt = Date.now();
       } catch (error) {
@@ -273,6 +350,21 @@ export async function refreshWatchlistEntries(options) {
   return appState.watchlistRefreshPromise;
 }
 
+// window.id_show is a page global; the inline page data is the fallback when it isn't visible
+// from the userscript sandbox.
+export function getPlayPageIdShow() {
+  const fromGlobal = toPositiveInteger(window.id_show);
+  if (fromGlobal) {
+    return fromGlobal;
+  }
+
+  const script = Array.from(document.scripts).find((element) =>
+    /id_show:\s*\d+/.test(element.textContent || '')
+  );
+  const match = script ? script.textContent.match(/id_show:\s*(\d+)/) : null;
+  return match ? toPositiveInteger(match[1]) : 0;
+}
+
 export function readPlayPageEpisodeContext() {
   if (!location.pathname.startsWith('/shows/play/')) {
     return null;
@@ -283,7 +375,7 @@ export function readPlayPageEpisodeContext() {
     return null;
   }
 
-  const idShow = toPositiveInteger(window.id_show);
+  const idShow = getPlayPageIdShow();
   const season = toPositiveInteger(hashMatch[1]);
   const episode = toPositiveInteger(hashMatch[2]);
   const idEpisode = toPositiveInteger(hashMatch[3]);
@@ -334,6 +426,7 @@ export function maybeTrackWatchedEpisodeFromPlayer() {
 
   appState.lastTrackedEpisodeSignature = signature;
   saveWatchlist();
+  refreshIfUpcomingUnknown(entry);
   setWatchlistMessage(
     `${entry.title} updated to watched through ${formatEpisodeLabel(entry.lastWatched)}.`,
     'success'

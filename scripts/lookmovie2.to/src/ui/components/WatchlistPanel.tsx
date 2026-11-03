@@ -19,6 +19,7 @@ import {
 } from '../../features/watchlist';
 import { MovieWatchlistItem } from './MovieWatchlistItem';
 import { PlaylistItem } from './PlaylistItem';
+import { SearchBox } from './SearchBox';
 import { WatchlistItem } from './WatchlistItem';
 
 function GridIcon() {
@@ -176,6 +177,7 @@ export function WatchlistPanel() {
                 ) : null}
               </div>
             </div>
+            <SearchBox type={isShowsTab ? 'shows' : 'movies'} />
             {isShowsTab ? (
               <div id={`${UI_ROOT_ID}-watchlist-status`} data-tone={appState.watchlistMessageTone}>
                 {appState.watchlistBusy

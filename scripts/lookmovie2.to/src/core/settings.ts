@@ -5,6 +5,7 @@ import { normalizeSettings, persistSettings } from './storage';
 import { syncModalState } from '../ui';
 import { removeWindowedFullscreenFallback } from '../features/player';
 import { restartNtfyRemote } from '../features/ntfyRemote';
+import { syncSiteTheme } from '../features/siteTheme';
 import { NTFY_REMOTE_RESTART_DEBOUNCE_MS } from '../config/constants';
 
 let ntfyRestartTimer = 0;
@@ -27,6 +28,7 @@ export function saveSettings(nextSettings) {
 
   persistSettings(appState.settings);
   syncModalState();
+  syncSiteTheme();
 
   if (!appState.settings.autoFullscreen || !appState.settings.windowedFullscreen) {
     removeWindowedFullscreenFallback();

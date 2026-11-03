@@ -3,12 +3,15 @@
 import { SCRIPT_ID } from '../../config/constants';
 import { removeMovieFromWatchlist, toggleMovieWatched } from '../../features/movies';
 import { buildMovieViewUrl } from '../../features/pages';
+import { formatTimeLeft, getPartialResumePoint, movieResumeKey } from '../../features/resumePoints';
 
 export function MovieWatchlistItem({ entry, viewMode }) {
   const state = entry.watched ? 'watched' : 'new';
   const openHref = entry.href || buildMovieViewUrl(entry.slug);
   const addedCopy = entry.addedAt ? `Added ${new Date(entry.addedAt).toLocaleDateString()}` : '';
   const summaryPieces = [];
+  const inProgress = entry.idMovie ? getPartialResumePoint(movieResumeKey(entry.idMovie)) : null;
+  const playHref = `/movies/play/${entry.slug}`;
 
   if (addedCopy) {
     summaryPieces.push(addedCopy);
@@ -64,6 +67,12 @@ export function MovieWatchlistItem({ entry, viewMode }) {
             <p className={`${SCRIPT_ID}-watch-item-copy`}>{summaryPieces.join(' | ')}</p>
           ) : null}
         </div>
+        {inProgress || !entry.watched ? (
+          <a className={`${SCRIPT_ID}-watch-action`} href={playHref}>
+            <span aria-hidden="true">▶</span> {inProgress ? 'Continue' : 'Play'}
+            {inProgress ? <small>{formatTimeLeft(inProgress)}</small> : null}
+          </a>
+        ) : null}
       </div>
     </article>
   );

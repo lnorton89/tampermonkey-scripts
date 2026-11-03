@@ -7,7 +7,8 @@ import {
   SCRIPT_ID,
 } from '../config/constants';
 import { appState } from '../core/state';
-import { getControlText, isVisibleElement } from '../core/utils';
+import { cancelAutoNextCountdown, startAutoNextCountdown } from './autoNext';
+import { handleIntroTimeUpdate } from './introSkip';
 import { publishPlayerNotification } from './ntfyRemote';
 import { completeCurrentPlaylistEntryAndAdvance } from './playlist';
 import { maybeTrackWatchedEpisodeFromPlayer } from './watchlist';
@@ -207,35 +208,17 @@ function parseShowPlayEpisodeFromUrl(url) {
   }
 }
 
-function clickVisibleNextEpisodeControl() {
-  const selectors = [
-    '.vjs-next-control',
-    '.vjs-next-button',
-    '.next-episode',
-    '.episode-next',
-    '[aria-label*="next" i]',
-    '[title*="next" i]',
-    'button',
-    'a',
-    '[role="button"]',
-  ];
-
-  const control = Array.from(document.querySelectorAll(selectors.join(', '))).find((element) => {
-    if (!isVisibleElement(element)) {
-      return false;
-    }
-
-    return (
-      /\bnext\b/i.test(getControlText(element)) && !/\bpreview\b/i.test(getControlText(element))
-    );
-  });
-
-  if (!control) {
+// The site's episode switcher listens for this event and moves to the next episode itself,
+// rewriting the hash synchronously. With no next episode the hash stays the same.
+function switchToNextEpisodeViaSite() {
+  const previousHash = location.hash;
+  try {
+    window.dispatchEvent(new Event('switch-next-episode'));
+  } catch (_error) {
     return false;
   }
 
-  control.click();
-  return true;
+  return location.hash !== previousHash;
 }
 
 function navigateToNextEpisodeLink() {
@@ -272,7 +255,7 @@ export function playNextShowEpisode() {
     return false;
   }
 
-  return clickVisibleNextEpisodeControl() || navigateToNextEpisodeLink();
+  return switchToNextEpisodeViaSite() || navigateToNextEpisodeLink();
 }
 
 export function dismissResumeModalIfPresent() {
@@ -444,6 +427,7 @@ export function triggerVideoJsFullscreen() {
 }
 
 export function handleVideoPlay() {
+  cancelAutoNextCountdown();
   maybeTrackWatchedEpisodeFromPlayer();
   publishPlayerNotification('play');
 
@@ -470,7 +454,9 @@ export function handleVideoPause() {
 export function handleVideoEnded() {
   publishPlayerNotification('ended');
   window.setTimeout(() => {
-    completeCurrentPlaylistEntryAndAdvance();
+    if (!completeCurrentPlaylistEntryAndAdvance()) {
+      startAutoNextCountdown();
+    }
   }, 750);
 }
 
@@ -483,6 +469,11 @@ export function attachAutoplayLogic(videoElement) {
   videoElement.addEventListener('play', handleVideoPlay);
   videoElement.addEventListener('pause', handleVideoPause);
   videoElement.addEventListener('ended', handleVideoEnded);
+  videoElement.addEventListener('timeupdate', () => {
+    if (videoElement.closest('#video_player')) {
+      handleIntroTimeUpdate(videoElement);
+    }
+  });
 }
 
 export function findAndAttachToVideos() {

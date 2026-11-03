@@ -2,12 +2,55 @@
 // @ts-nocheck
 import { SCRIPT_ID } from '../../config/constants';
 import { formatEpisodeLabel, isLatestWatched } from '../../domain/episodes';
-import { buildShowViewUrl } from '../../features/pages';
+import { buildShowPlayUrl, buildShowViewUrl } from '../../features/pages';
 import { addLatestEpisodeToPlaylist, isEpisodeInPlaylist } from '../../features/playlist';
-import { removeShowFromWatchlist, toggleLatestEpisodeWatched } from '../../features/watchlist';
+import {
+  episodeResumeKey,
+  formatTimeLeft,
+  getPartialResumePoint,
+} from '../../features/resumePoints';
+import {
+  getUpcomingEpisodes,
+  removeShowFromWatchlist,
+  toggleLatestEpisodeWatched,
+} from '../../features/watchlist';
+
+// Continue the episode in progress, otherwise play the first unwatched one.
+function getPrimaryAction(entry, upcoming) {
+  const inProgress =
+    entry.lastWatched && getPartialResumePoint(episodeResumeKey(entry.lastWatched.idEpisode));
+  if (inProgress) {
+    return {
+      href: buildShowPlayUrl(entry.slug, entry.lastWatched),
+      label: `Continue ${formatEpisodeLabel(entry.lastWatched)}`,
+      detail: formatTimeLeft(inProgress),
+    };
+  }
+
+  const next = upcoming && upcoming.episodes[0];
+  return next
+    ? {
+        href: buildShowPlayUrl(entry.slug, next),
+        label: `Play ${formatEpisodeLabel(next)}`,
+        detail: '',
+      }
+    : null;
+}
 
 export function WatchlistItem({ entry, viewMode }) {
-  const state = entry.latestEpisode ? (isLatestWatched(entry) ? 'watched' : 'new') : 'pending';
+  const upcoming = getUpcomingEpisodes(entry);
+  const unwatchedCount = upcoming ? upcoming.total : null;
+  const action = getPrimaryAction(entry, upcoming);
+  const state =
+    unwatchedCount !== null
+      ? unwatchedCount > 0
+        ? 'new'
+        : 'watched'
+      : entry.latestEpisode
+        ? isLatestWatched(entry)
+          ? 'watched'
+          : 'new'
+        : 'pending';
   const latestCopy = entry.latestEpisode
     ? `Latest ${formatEpisodeLabel(entry.latestEpisode)}`
     : 'Latest episode not synced yet';
@@ -16,7 +59,13 @@ export function WatchlistItem({ entry, viewMode }) {
     : 'Nothing marked watched yet';
   const errorCopy = entry.lastSyncError ? `Sync issue: ${entry.lastSyncError}` : '';
   const statusLabel =
-    state === 'new' ? 'New episode' : state === 'watched' ? 'Up to date' : 'Pending sync';
+    state === 'new'
+      ? unwatchedCount
+        ? `${unwatchedCount > 99 ? '99+' : unwatchedCount} unwatched`
+        : 'New episode'
+      : state === 'watched'
+        ? 'Up to date'
+        : 'Pending sync';
   const openHref = buildShowViewUrl(entry.slug, entry.latestEpisode);
   const toggleLabel = isLatestWatched(entry) ? 'Mark latest unwatched' : 'Mark latest watched';
   const inPlaylist = isEpisodeInPlaylist(entry.slug, entry.latestEpisode);
@@ -86,6 +135,12 @@ export function WatchlistItem({ entry, viewMode }) {
           </a>
           <p className={`${SCRIPT_ID}-watch-item-copy`}>{summaryPieces.join(' | ')}</p>
         </div>
+        {action ? (
+          <a className={`${SCRIPT_ID}-watch-action`} href={action.href}>
+            <span aria-hidden="true">▶</span> {action.label}
+            {action.detail ? <small>{action.detail}</small> : null}
+          </a>
+        ) : null}
       </div>
     </article>
   );

@@ -126,7 +126,9 @@ export async function refreshMovieWatchlistMetadata() {
     return movieWatchlistRefreshPromise;
   }
 
-  const entries = getMovieWatchlistEntries().filter((entry) => !hasUsableMoviePoster(entry));
+  const entries = getMovieWatchlistEntries().filter(
+    (entry) => !hasUsableMoviePoster(entry) || !entry.idMovie
+  );
   if (!entries.length) {
     return Promise.resolve();
   }
@@ -137,6 +139,10 @@ export async function refreshMovieWatchlistMetadata() {
     for (const entry of entries) {
       try {
         const resolved = await resolveMovieRecordBySlug(entry.slug, entry);
+        if (resolved.idMovie && resolved.idMovie !== entry.idMovie) {
+          entry.idMovie = resolved.idMovie;
+          didUpdate = true;
+        }
         if (resolved.title && resolved.title !== entry.title) {
           entry.title = resolved.title;
           didUpdate = true;
@@ -174,12 +180,14 @@ export function addMovieToWatchlist(movieDetails) {
     title: movieDetails.title || movieDetails.slug,
     year: movieDetails.year || '',
     poster: movieDetails.poster || '',
+    idMovie: movieDetails.idMovie || 0,
   };
 
   resolveMovieRecordBySlug(movieDetails.slug, movieDetails).then((result) => {
     if (result.title) resolved.title = result.title;
     if (result.year) resolved.year = result.year;
     if (result.poster) resolved.poster = result.poster;
+    if (result.idMovie) resolved.idMovie = result.idMovie;
 
     appState.movieWatchlistStore.movies[movieDetails.slug] = normalizeMovieWatchlistEntry(
       movieDetails.slug,
@@ -188,6 +196,7 @@ export function addMovieToWatchlist(movieDetails) {
         title: resolved.title,
         year: resolved.year,
         poster: resolved.poster,
+        idMovie: resolved.idMovie,
         href: movieDetails.href || `/movies/view/${movieDetails.slug}`,
         addedAt: Date.now(),
         watched: false,

@@ -892,6 +892,219 @@ export function getUiStyleText() {
             overflow: hidden;
         }
 
+        .${SCRIPT_ID}-watch-action {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: auto;
+            padding: 7px 10px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #2563eb, #0ea5e9);
+            color: #f8fafc;
+            font: 700 11px/1.2 Arial, sans-serif;
+            text-decoration: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: filter 0.15s ease, transform 0.15s ease;
+        }
+
+        .${SCRIPT_ID}-watch-action:hover {
+            filter: brightness(1.12);
+            transform: translateY(-1px);
+        }
+
+        .${SCRIPT_ID}-watch-action small {
+            margin-left: auto;
+            color: rgba(248, 250, 252, 0.82);
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .${SCRIPT_ID}-watch-item[data-view="list"] .${SCRIPT_ID}-watch-action {
+            align-self: flex-start;
+            margin-top: 0;
+        }
+
+        .${SCRIPT_ID}-search {
+            position: relative;
+            margin: 0 0 12px;
+        }
+
+        .${SCRIPT_ID}-search input {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            border-radius: 10px;
+            padding: 10px 12px;
+            background: rgba(2, 6, 23, 0.58);
+            color: #f8fafc;
+            font: 13px/1.35 Arial, sans-serif;
+        }
+
+        .${SCRIPT_ID}-search input:focus {
+            outline: none;
+            border-color: rgba(125, 211, 252, 0.72);
+            box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.18);
+        }
+
+        .${SCRIPT_ID}-search-status {
+            margin: 6px 2px 0;
+            color: #94a3b8;
+            font: 12px/1.4 Arial, sans-serif;
+        }
+
+        .${SCRIPT_ID}-search-results {
+            position: absolute;
+            z-index: 5;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            max-height: 420px;
+            overflow-y: auto;
+            margin: 0;
+            padding: 6px;
+            list-style: none;
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            border-radius: 12px;
+            background: #0b1424;
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+        }
+
+        .${SCRIPT_ID}-search-results li {
+            display: grid;
+            grid-template-columns: 40px minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 10px;
+            padding: 6px;
+            border-radius: 8px;
+        }
+
+        .${SCRIPT_ID}-search-results li:hover {
+            background: rgba(30, 41, 59, 0.8);
+        }
+
+        .${SCRIPT_ID}-search-results img,
+        .${SCRIPT_ID}-search-results li > span {
+            width: 40px;
+            height: 60px;
+            border-radius: 6px;
+            object-fit: cover;
+            background: #1e293b;
+        }
+
+        .${SCRIPT_ID}-search-results strong {
+            display: block;
+            color: #f8fafc;
+            font: 700 13px/1.3 Arial, sans-serif;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .${SCRIPT_ID}-search-results small {
+            color: #94a3b8;
+            font: 11px/1.4 Arial, sans-serif;
+        }
+
+        .${SCRIPT_ID}-autonext {
+            position: absolute;
+            right: 24px;
+            bottom: 72px;
+            z-index: 1000001;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 14px;
+            background: rgba(2, 6, 23, 0.88);
+            color: #f8fafc;
+            font: 14px/1.3 Arial, sans-serif;
+            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+        }
+
+        .${SCRIPT_ID}-autonext p {
+            margin: 0;
+        }
+
+        .${SCRIPT_ID}-autonext button,
+        .${SCRIPT_ID}-intro button,
+        .${SCRIPT_ID}-intro-pill {
+            border: 1px solid rgba(255, 255, 255, 0.24);
+            border-radius: 999px;
+            padding: 7px 12px;
+            background: rgba(15, 23, 42, 0.9);
+            color: #f8fafc;
+            font: 700 12px/1 Arial, sans-serif;
+            cursor: pointer;
+        }
+
+        .${SCRIPT_ID}-autonext .${SCRIPT_ID}-autonext-play,
+        .${SCRIPT_ID}-intro .${SCRIPT_ID}-intro-skip {
+            border-color: transparent;
+            background: #f8fafc;
+            color: #020617;
+        }
+
+        .${SCRIPT_ID}-intro {
+            position: absolute;
+            right: 24px;
+            bottom: 72px;
+            z-index: 1000000;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+            pointer-events: none;
+        }
+
+        .${SCRIPT_ID}-intro > *,
+        .${SCRIPT_ID}-intro-manage > * {
+            pointer-events: auto;
+        }
+
+        .${SCRIPT_ID}-intro .${SCRIPT_ID}-intro-skip {
+            padding: 10px 18px;
+            font-size: 14px;
+            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+        }
+
+        .${SCRIPT_ID}-intro-manage {
+            display: flex;
+            gap: 6px;
+            transition: opacity 0.2s ease;
+        }
+
+        .${SCRIPT_ID}-intro-pill {
+            cursor: default;
+            opacity: 0.9;
+        }
+
+        button.${SCRIPT_ID}-intro-pill {
+            cursor: pointer;
+        }
+
+        /* Mirror the player's own controls: tuck the manage pills away while playing idle. */
+        .vjs-user-inactive.vjs-playing .${SCRIPT_ID}-intro-manage {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .${SCRIPT_ID}-intro-toast {
+            margin: 0;
+            padding: 6px 10px;
+            border-radius: 8px;
+            background: rgba(2, 6, 23, 0.86);
+            color: #f8fafc;
+            font: 12px/1.3 Arial, sans-serif;
+        }
+
+        .${SCRIPT_ID}-intro [hidden],
+        .${SCRIPT_ID}-intro-toast[hidden] {
+            display: none !important;
+        }
+
         .${SCRIPT_ID}-watch-badge {
             display: inline-flex;
             align-items: center;

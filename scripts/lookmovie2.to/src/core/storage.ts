@@ -4,6 +4,8 @@ import {
   BACKUP_SNAPSHOT_LIMIT,
   BACKUP_SNAPSHOTS_KEY,
   DEFAULT_SETTINGS,
+  INTRO_TIMES_KEY,
+  RESUME_POINTS_KEY,
   MOVIE_WATCHLIST_KEY,
   PLAYLIST_KEY,
   PLAYLIST_SESSION_KEY,
@@ -68,6 +70,16 @@ export function normalizeSettings(settings) {
       typeof settings.windowedFullscreen === 'boolean'
         ? settings.windowedFullscreen
         : DEFAULT_SETTINGS.windowedFullscreen,
+    autoNextEpisode:
+      typeof settings.autoNextEpisode === 'boolean'
+        ? settings.autoNextEpisode
+        : DEFAULT_SETTINGS.autoNextEpisode,
+    autoSkipIntro:
+      typeof settings.autoSkipIntro === 'boolean'
+        ? settings.autoSkipIntro
+        : DEFAULT_SETTINGS.autoSkipIntro,
+    siteTheme:
+      typeof settings.siteTheme === 'boolean' ? settings.siteTheme : DEFAULT_SETTINGS.siteTheme,
     ntfyRemoteEnabled:
       typeof settings.ntfyRemoteEnabled === 'boolean'
         ? settings.ntfyRemoteEnabled
@@ -127,6 +139,23 @@ export function normalizeWatchlistEntry(slug, entry) {
     lastSyncError: typeof entry.lastSyncError === 'string' ? entry.lastSyncError : '',
     latestEpisode: normalizeEpisodeRecord(entry.latestEpisode),
     lastWatched: normalizeEpisodeRecord(entry.lastWatched),
+    upcoming: normalizeUpcomingEpisodes(entry.upcoming),
+  };
+}
+
+// Episodes after the one watched through, as of the last refresh. Only the first few are kept so
+// long-running shows stay small in storage and snapshots.
+export function normalizeUpcomingEpisodes(upcoming) {
+  if (!upcoming || typeof upcoming !== 'object' || !Array.isArray(upcoming.episodes)) {
+    return null;
+  }
+
+  const episodes = upcoming.episodes.map(normalizeEpisodeRecord).filter(Boolean);
+  const total = toPositiveInteger(upcoming.total);
+  return {
+    afterIdEpisode: toPositiveInteger(upcoming.afterIdEpisode),
+    total: Math.max(total, episodes.length),
+    episodes,
   };
 }
 
@@ -172,6 +201,7 @@ export function normalizeMovieWatchlistEntry(slug, entry) {
         ? String(entry.year).trim()
         : '',
     poster: typeof entry.poster === 'string' ? entry.poster : '',
+    idMovie: toPositiveInteger(entry.idMovie || entry.id_movie),
     href: typeof entry.href === 'string' ? entry.href : `/movies/view/${normalizedSlug}`,
     addedAt: typeof entry.addedAt === 'number' ? entry.addedAt : Date.now(),
     watched: !!entry.watched,
@@ -436,4 +466,88 @@ function recordBackupSnapshot(partial) {
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to save backup snapshot.`, error);
   }
+}
+
+function readJsonStore(key, fallback) {
+  try {
+    const parsed = JSON.parse(readStoreSource(key) || 'null');
+    return parsed && typeof parsed === 'object' ? parsed : fallback;
+  } catch (error) {
+    console.warn(`[${SCRIPT_ID}] Failed to load ${key}.`, error);
+    return fallback;
+  }
+}
+
+function writeJsonStore(key, value) {
+  try {
+    writeStoreSource(key, JSON.stringify(value));
+  } catch (error) {
+    console.warn(`[${SCRIPT_ID}] Failed to save ${key}.`, error);
+  }
+}
+
+export function normalizeResumePoint(point) {
+  if (!point || typeof point !== 'object') {
+    return null;
+  }
+
+  const progress = Number(point.progress ?? point.currentTime);
+  const duration = Number(point.duration);
+  if (!Number.isFinite(progress) || !Number.isFinite(duration) || progress < 0 || duration <= 0) {
+    return null;
+  }
+
+  return {
+    progress,
+    duration,
+    savedAt: typeof point.savedAt === 'number' ? point.savedAt : Date.now(),
+  };
+}
+
+export function loadResumePoints() {
+  const points = {};
+  Object.entries(readJsonStore(RESUME_POINTS_KEY, {})).forEach(([key, point]) => {
+    const normalized = normalizeResumePoint(point);
+    if (normalized) {
+      points[key] = normalized;
+    }
+  });
+  return points;
+}
+
+export function persistResumePoints(points) {
+  writeJsonStore(RESUME_POINTS_KEY, points);
+}
+
+export function normalizeIntroTime(introTime) {
+  if (!introTime || typeof introTime !== 'object') {
+    return null;
+  }
+
+  const start = Number(introTime.start);
+  const end = Number(introTime.end);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start) {
+    return null;
+  }
+
+  return {
+    start,
+    end,
+    updatedAt: typeof introTime.updatedAt === 'number' ? introTime.updatedAt : Date.now(),
+  };
+}
+
+export function loadIntroTimes() {
+  const introTimes = {};
+  Object.entries(readJsonStore(INTRO_TIMES_KEY, {})).forEach(([showKey, introTime]) => {
+    const normalized = normalizeIntroTime(introTime);
+    if (normalized) {
+      introTimes[showKey] = normalized;
+    }
+  });
+  return introTimes;
+}
+
+export function persistIntroTimes(introTimes) {
+  writeJsonStore(INTRO_TIMES_KEY, introTimes);
 }

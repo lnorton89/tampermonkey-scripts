@@ -120,6 +120,30 @@ function WindowedFullscreenIcon() {
   );
 }
 
+function SiteThemeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4 4h7v7H4V4zm9 0h7v4h-7V4zm0 6h7v10h-7V10zM4 13h7v7H4v-7z" />
+    </svg>
+  );
+}
+
+function NextEpisodeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M5 6v12l8.5-6L5 6zm9 0v12h2V6h-2zm3 0v12h2V6h-2z" />
+    </svg>
+  );
+}
+
+function SkipIntroIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4 6v12l7-6-7-6zm7 0v12l7-6-7-6zm8 0h2v12h-2V6z" />
+    </svg>
+  );
+}
+
 function RemoteIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -351,6 +375,24 @@ export function LookMovieToolsApp() {
                   title="Windowed fullscreen"
                   copy="Stretches the player over the page when the browser blocks real fullscreen, e.g. after auto play or a remote command."
                   icon={<WindowedFullscreenIcon />}
+                />
+                <SettingToggle
+                  settingKey="siteTheme"
+                  title="Site UI polish"
+                  copy="Wider layout, responsive poster grids, a calmer background and no premium upsell links."
+                  icon={<SiteThemeIcon />}
+                />
+                <SettingToggle
+                  settingKey="autoNextEpisode"
+                  title="Auto next episode"
+                  copy="Counts down and plays the next episode when one ends, outside playlist mode."
+                  icon={<NextEpisodeIcon />}
+                />
+                <SettingToggle
+                  settingKey="autoSkipIntro"
+                  title="Auto skip intros"
+                  copy="Jumps past an intro you marked for that show. Off shows a Skip intro button instead."
+                  icon={<SkipIntroIcon />}
                 />
                 <SettingToggle
                   settingKey="ntfyRemoteEnabled"
