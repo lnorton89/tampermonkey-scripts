@@ -1,6 +1,8 @@
 /* eslint-disable */
 // @ts-nocheck
 import {
+  BACKUP_SNAPSHOT_LIMIT,
+  BACKUP_SNAPSHOTS_KEY,
   DEFAULT_SETTINGS,
   MOVIE_WATCHLIST_KEY,
   PLAYLIST_KEY,
@@ -13,21 +15,45 @@ import {
 import { normalizeEpisodeRecord } from '../domain/episodes';
 import { toPositiveInteger } from './utils';
 
-function readSettingsSource() {
-  if (typeof GM_getValue === 'function') {
-    return GM_getValue(STORAGE_KEY, null);
-  }
-
-  return localStorage.getItem(STORAGE_KEY);
+function hasGmStorage() {
+  return typeof GM_getValue === 'function' && typeof GM_setValue === 'function';
 }
 
-function writeSettingsSource(settings) {
-  if (typeof GM_setValue === 'function') {
-    GM_setValue(STORAGE_KEY, JSON.stringify(settings));
-    return;
+// Tampermonkey storage is the source of truth because it survives the site's localStorage
+// being cleared (Chrome wipes the whole localStorage database when it detects corruption).
+// localStorage is kept as a mirror and as the migration source for data saved before this.
+function readStoreSource(key) {
+  if (hasGmStorage()) {
+    const saved = GM_getValue(key, null);
+    if (typeof saved === 'string') {
+      return saved;
+    }
   }
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  const legacy = localStorage.getItem(key);
+  if (legacy !== null && hasGmStorage()) {
+    GM_setValue(key, legacy);
+  }
+
+  return legacy;
+}
+
+function writeStoreSource(key, value) {
+  if (hasGmStorage()) {
+    GM_setValue(key, value);
+  }
+
+  try {
+    if (value === null) {
+      localStorage.removeItem(key);
+    } else {
+      localStorage.setItem(key, value);
+    }
+  } catch (error) {
+    if (!hasGmStorage()) {
+      throw error;
+    }
+  }
 }
 
 function normalizeSettings(settings) {
@@ -63,7 +89,7 @@ function normalizeSettings(settings) {
 
 export function loadSettings() {
   try {
-    const saved = readSettingsSource();
+    const saved = readStoreSource(STORAGE_KEY);
     const parsed = JSON.parse(saved || '{}');
     return normalizeSettings(parsed);
   } catch (error) {
@@ -102,7 +128,7 @@ export function normalizeWatchlistEntry(slug, entry) {
 
 export function loadWatchlist() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(WATCHLIST_KEY) || '{}');
+    const parsed = JSON.parse(readStoreSource(WATCHLIST_KEY) || '{}');
     const sourceShows =
       parsed && typeof parsed === 'object' && parsed.shows && typeof parsed.shows === 'object'
         ? parsed.shows
@@ -151,7 +177,7 @@ export function normalizeMovieWatchlistEntry(slug, entry) {
 
 export function loadMovieWatchlist() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(MOVIE_WATCHLIST_KEY) || '{}');
+    const parsed = JSON.parse(readStoreSource(MOVIE_WATCHLIST_KEY) || '{}');
     const sourceMovies =
       parsed && typeof parsed === 'object' && parsed.movies && typeof parsed.movies === 'object'
         ? parsed.movies
@@ -208,7 +234,7 @@ export function normalizePlaylistEntry(key, entry) {
 
 export function loadPlaylist() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(PLAYLIST_KEY) || '{}');
+    const parsed = JSON.parse(readStoreSource(PLAYLIST_KEY) || '{}');
     const sourceEntries =
       parsed && typeof parsed === 'object' && parsed.entries && typeof parsed.entries === 'object'
         ? parsed.entries
@@ -243,7 +269,7 @@ export function normalizePlaylistSession(session) {
 
 export function loadPlaylistSession() {
   try {
-    return normalizePlaylistSession(JSON.parse(localStorage.getItem(PLAYLIST_SESSION_KEY) || '{}'));
+    return normalizePlaylistSession(JSON.parse(readStoreSource(PLAYLIST_SESSION_KEY) || '{}'));
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to load playlist session.`, error);
     return { active: false, currentKey: '', startedAt: 0 };
@@ -275,7 +301,7 @@ export function normalizeShowsListProgress(progress) {
 export function loadShowsListProgress() {
   try {
     return normalizeShowsListProgress(
-      JSON.parse(localStorage.getItem(SHOWS_LIST_PROGRESS_KEY) || 'null')
+      JSON.parse(readStoreSource(SHOWS_LIST_PROGRESS_KEY) || 'null')
     );
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to load shows list progress.`, error);
@@ -285,7 +311,7 @@ export function loadShowsListProgress() {
 
 export function persistSettings(settings) {
   try {
-    writeSettingsSource(settings);
+    writeStoreSource(STORAGE_KEY, JSON.stringify(settings));
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to save settings.`, error);
   }
@@ -293,7 +319,8 @@ export function persistSettings(settings) {
 
 export function persistWatchlist(watchlistStore) {
   try {
-    localStorage.setItem(WATCHLIST_KEY, JSON.stringify(watchlistStore));
+    writeStoreSource(WATCHLIST_KEY, JSON.stringify(watchlistStore));
+    recordBackupSnapshot({ watchlist: watchlistStore });
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to save watchlist.`, error);
   }
@@ -301,7 +328,8 @@ export function persistWatchlist(watchlistStore) {
 
 export function persistMovieWatchlist(movieWatchlistStore) {
   try {
-    localStorage.setItem(MOVIE_WATCHLIST_KEY, JSON.stringify(movieWatchlistStore));
+    writeStoreSource(MOVIE_WATCHLIST_KEY, JSON.stringify(movieWatchlistStore));
+    recordBackupSnapshot({ movieWatchlist: movieWatchlistStore });
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to save movie watchlist.`, error);
   }
@@ -309,7 +337,7 @@ export function persistMovieWatchlist(movieWatchlistStore) {
 
 export function persistPlaylist(playlistStore) {
   try {
-    localStorage.setItem(PLAYLIST_KEY, JSON.stringify(playlistStore));
+    writeStoreSource(PLAYLIST_KEY, JSON.stringify(playlistStore));
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to save playlist.`, error);
   }
@@ -319,11 +347,11 @@ export function persistPlaylistSession(session) {
   try {
     const normalized = normalizePlaylistSession(session);
     if (!normalized.active) {
-      localStorage.removeItem(PLAYLIST_SESSION_KEY);
+      writeStoreSource(PLAYLIST_SESSION_KEY, null);
       return;
     }
 
-    localStorage.setItem(PLAYLIST_SESSION_KEY, JSON.stringify(normalized));
+    writeStoreSource(PLAYLIST_SESSION_KEY, JSON.stringify(normalized));
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to save playlist session.`, error);
   }
@@ -333,12 +361,75 @@ export function persistShowsListProgress(progress) {
   try {
     const normalized = normalizeShowsListProgress(progress);
     if (!normalized) {
-      localStorage.removeItem(SHOWS_LIST_PROGRESS_KEY);
+      writeStoreSource(SHOWS_LIST_PROGRESS_KEY, null);
       return;
     }
 
-    localStorage.setItem(SHOWS_LIST_PROGRESS_KEY, JSON.stringify(normalized));
+    writeStoreSource(SHOWS_LIST_PROGRESS_KEY, JSON.stringify(normalized));
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to save shows list progress.`, error);
+  }
+}
+
+function countStoreEntries(store, field) {
+  return store && store[field] && typeof store[field] === 'object'
+    ? Object.keys(store[field]).length
+    : 0;
+}
+
+function getLocalDateKey(date = new Date()) {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+export function loadBackupSnapshots() {
+  if (!hasGmStorage()) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(GM_getValue(BACKUP_SNAPSHOTS_KEY, null) || '[]');
+    return Array.isArray(parsed)
+      ? parsed.filter((snapshot) => snapshot && typeof snapshot.date === 'string')
+      : [];
+  } catch (error) {
+    console.warn(`[${SCRIPT_ID}] Failed to load backup snapshots.`, error);
+    return [];
+  }
+}
+
+// Keeps one snapshot per day of both watchlists. An empty store never replaces a snapshot,
+// so a wipe can't overwrite the last good copy.
+function recordBackupSnapshot(partial) {
+  if (!hasGmStorage()) {
+    return;
+  }
+
+  try {
+    if (
+      (partial.watchlist && !countStoreEntries(partial.watchlist, 'shows')) ||
+      (partial.movieWatchlist && !countStoreEntries(partial.movieWatchlist, 'movies'))
+    ) {
+      return;
+    }
+
+    const date = getLocalDateKey();
+    const snapshots = loadBackupSnapshots();
+    const base = snapshots.find((snapshot) => snapshot.date === date) || snapshots[0] || {};
+    const nextSnapshot = {
+      watchlist: base.watchlist || { shows: {} },
+      movieWatchlist: base.movieWatchlist || { movies: {} },
+      ...partial,
+      date,
+      savedAt: Date.now(),
+    };
+    const nextSnapshots = [nextSnapshot, ...snapshots.filter((snapshot) => snapshot.date !== date)]
+      .sort((left, right) => right.date.localeCompare(left.date))
+      .slice(0, BACKUP_SNAPSHOT_LIMIT);
+
+    GM_setValue(BACKUP_SNAPSHOTS_KEY, JSON.stringify(nextSnapshots));
+  } catch (error) {
+    console.warn(`[${SCRIPT_ID}] Failed to save backup snapshot.`, error);
   }
 }

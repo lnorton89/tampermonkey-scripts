@@ -496,7 +496,8 @@ export function getUiStyleText() {
             font-weight: 700;
         }
 
-        .${SCRIPT_ID}-field input {
+        .${SCRIPT_ID}-field input,
+        .${SCRIPT_ID}-field select {
             width: 100%;
             min-width: 0;
             box-sizing: border-box;
@@ -512,10 +513,26 @@ export function getUiStyleText() {
             color: #64748b;
         }
 
-        .${SCRIPT_ID}-field input:focus {
+        .${SCRIPT_ID}-field input:focus,
+        .${SCRIPT_ID}-field select:focus {
             outline: none;
             border-color: rgba(125, 211, 252, 0.72);
             box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.18);
+        }
+
+        .${SCRIPT_ID}-backup-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .${SCRIPT_ID}-backup-actions .${SCRIPT_ID}-field {
+            flex: 1 1 180px;
+        }
+
+        .${SCRIPT_ID}-backup-actions .${SCRIPT_ID}-button {
+            padding: 8px 12px;
         }
 
         .${SCRIPT_ID}-ntfy-status {

@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { appState } from '../core/state';
 import { saveSettings } from '../core/settings';
 import { SCRIPT_ID, UI_ROOT_ID } from '../config/constants';
+import { BackupControls } from './components/BackupControls';
 import { SettingToggle } from './components/SettingToggle';
 import { WatchlistPanel } from './components/WatchlistPanel';
 import { subscribeUi } from './events';
@@ -409,9 +410,10 @@ export function LookMovieToolsApp() {
                     {appState.ntfyRemoteMessage || `Remote status: ${appState.ntfyRemoteStatus}`}
                   </p>
                 </div>
+                <BackupControls />
               </div>
               <div id={`${UI_ROOT_ID}-footer`}>
-                Settings and watchlist data are saved locally in your browser.
+                Settings and watchlist data are saved in Tampermonkey storage on this browser.
               </div>
             </section>
             <WatchlistPanel />
