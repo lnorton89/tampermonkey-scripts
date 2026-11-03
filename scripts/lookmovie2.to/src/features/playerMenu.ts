@@ -1,118 +1,167 @@
 /* eslint-disable */
 // @ts-nocheck
-import { SCRIPT_ID } from '../config/constants';
+import { PLAYBACK_RATES, SCRIPT_ID } from '../config/constants';
 import { saveSettings } from '../core/settings';
 import { appState } from '../core/state';
-import { buildIntroMenuSection } from './introSkip';
+import { buildIntroMenuSection, showPlayerToast } from './introSkip';
 
-const MENU_CLASS = `${SCRIPT_ID}-player-menu`;
-const GEAR_PATH =
-  'M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.7 7.7 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.7 7.7 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.7 7.7 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.7 7.7 0 0 0 1.7-1l2.5 1 2-3.5L19.4 13zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z';
+// Extends the site's own player settings menu (the gear in the control bar, which otherwise
+// only lists qualities) so everything is reachable in fullscreen.
+const SECTIONS_CLASS = `${SCRIPT_ID}-player-menu`;
+const BUTTON_CLASS = `${SCRIPT_ID}-player-menu-button`;
+const SITE_MENU_SELECTOR = '#video_player .vjs-settings-quality-menu';
 
-// Settings that matter while watching. showsOnly ones are hidden on movie pages.
+// showsOnly settings are hidden on movie pages.
 const QUICK_SETTINGS = [
   { key: 'autoPlay', label: 'Auto play' },
   { key: 'autoNextEpisode', label: 'Auto next episode', showsOnly: true },
   { key: 'autoSkipIntro', label: 'Auto skip intros', showsOnly: true },
+  { key: 'autoSkipCredits', label: 'Skip credits to next episode', showsOnly: true },
   { key: 'autoFullscreen', label: 'Auto fullscreen' },
   { key: 'windowedFullscreen', label: 'Windowed fullscreen' },
 ];
-
-let menu = null;
-let outsideClickInstalled = false;
 
 function isShowPlayPage() {
   return location.pathname.startsWith('/shows/play/');
 }
 
-function renderPanel() {
-  const panel = menu.querySelector(`.${MENU_CLASS}-panel`);
-  panel.replaceChildren();
+function getVideo() {
+  return document.querySelector('#video_player video');
+}
 
-  const settingsSection = document.createElement('div');
-  settingsSection.className = `${MENU_CLASS}-section`;
-  QUICK_SETTINGS.filter((setting) => !setting.showsOnly || isShowPlayPage()).forEach((setting) => {
-    const label = document.createElement('label');
-    label.className = `${MENU_CLASS}-toggle`;
-    const text = document.createElement('span');
-    text.textContent = setting.label;
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.checked = !!appState.settings[setting.key];
-    input.addEventListener('change', () => {
-      saveSettings({ ...appState.settings, [setting.key]: input.checked });
-    });
-    input.addEventListener('click', (event) => event.stopPropagation());
-    label.append(text, input);
-    settingsSection.append(label);
+export function applyPlaybackRate(video = getVideo()) {
+  if (video && video.playbackRate !== appState.settings.playbackRate) {
+    video.playbackRate = appState.settings.playbackRate;
+  }
+}
+
+export function setPlaybackRate(rate) {
+  saveSettings({ ...appState.settings, playbackRate: rate });
+  applyPlaybackRate();
+  showPlayerToast(`Speed ${rate}×`);
+  renderSections();
+}
+
+export function stepPlaybackRate(direction) {
+  const index = PLAYBACK_RATES.indexOf(appState.settings.playbackRate);
+  const next = PLAYBACK_RATES[Math.max(0, Math.min(PLAYBACK_RATES.length - 1, index + direction))];
+  if (next !== appState.settings.playbackRate) {
+    setPlaybackRate(next);
+  }
+}
+
+export async function togglePictureInPicture() {
+  const video = getVideo();
+  if (!video || !document.pictureInPictureEnabled) {
+    return false;
+  }
+
+  try {
+    if (document.pictureInPictureElement) {
+      await document.exitPictureInPicture();
+    } else {
+      await video.requestPictureInPicture();
+    }
+    return true;
+  } catch (error) {
+    console.warn(`[${SCRIPT_ID}] Picture-in-picture failed.`, error);
+    return false;
+  }
+}
+
+function makeSection(title) {
+  const section = document.createElement('div');
+  section.className = `${SCRIPT_ID}-player-menu-section`;
+  const heading = document.createElement('p');
+  heading.className = `${SCRIPT_ID}-player-menu-heading`;
+  heading.textContent = title;
+  section.append(heading);
+  return section;
+}
+
+function buildSpeedSection() {
+  const section = makeSection('Speed');
+  const row = document.createElement('div');
+  row.className = `${SCRIPT_ID}-player-menu-chips`;
+  PLAYBACK_RATES.forEach((rate) => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.textContent = `${rate}×`;
+    chip.dataset.active = rate === appState.settings.playbackRate ? 'true' : 'false';
+    chip.addEventListener('click', () => setPlaybackRate(rate));
+    row.append(chip);
   });
-  panel.append(settingsSection);
-
-  const introSection = buildIntroMenuSection(renderPanel);
-  if (introSection) {
-    panel.append(introSection);
-  }
+  section.append(row);
+  return section;
 }
 
-function setOpen(open) {
-  if (!menu) {
-    return;
-  }
-
-  menu.dataset.open = open ? 'true' : 'false';
-  menu.querySelector(`.${MENU_CLASS}-gear`).setAttribute('aria-expanded', String(open));
-  if (open) {
-    renderPanel();
-  }
-}
-
-function buildMenu() {
-  const element = document.createElement('div');
-  element.className = MENU_CLASS;
-  element.dataset.open = 'false';
-  // Keep clicks inside the menu from reaching the player (which would toggle playback).
-  element.addEventListener('click', (event) => event.stopPropagation());
-
-  const gear = document.createElement('button');
-  gear.type = 'button';
-  gear.className = `${MENU_CLASS}-gear`;
-  gear.title = 'Enhancer settings';
-  gear.setAttribute('aria-label', 'Enhancer settings');
-  gear.setAttribute('aria-expanded', 'false');
-  gear.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="${GEAR_PATH}"/></svg>`;
-  gear.addEventListener('click', () => setOpen(element.dataset.open !== 'true'));
-
-  const panel = document.createElement('div');
-  panel.className = `${MENU_CLASS}-panel`;
-  panel.setAttribute('role', 'dialog');
-  panel.setAttribute('aria-label', 'Enhancer settings');
-
-  element.append(gear, panel);
-  return element;
-}
-
-// Lives inside the player element so it stays usable in fullscreen.
-export function ensurePlayerMenu() {
-  const playerContainer = document.getElementById('video_player');
-  if (!playerContainer) {
-    return;
-  }
-
-  if (!menu) {
-    menu = buildMenu();
-  }
-
-  if (menu.parentElement !== playerContainer) {
-    playerContainer.appendChild(menu);
-  }
-
-  if (!outsideClickInstalled) {
-    outsideClickInstalled = true;
-    document.addEventListener('click', () => setOpen(false));
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') {
-        setOpen(false);
-      }
+function buildSettingsSection() {
+  const section = makeSection('Enhancer');
+  QUICK_SETTINGS.filter((setting) => !setting.showsOnly || isShowPlayPage()).forEach((setting) => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = `${SCRIPT_ID}-player-menu-toggle`;
+    item.setAttribute('role', 'menuitemcheckbox');
+    item.setAttribute('aria-checked', appState.settings[setting.key] ? 'true' : 'false');
+    item.textContent = setting.label;
+    item.addEventListener('click', () => {
+      saveSettings({ ...appState.settings, [setting.key]: !appState.settings[setting.key] });
+      renderSections();
     });
+    section.append(item);
+  });
+
+  if (document.pictureInPictureEnabled) {
+    const pip = document.createElement('button');
+    pip.type = 'button';
+    pip.className = `${SCRIPT_ID}-player-menu-toggle`;
+    pip.textContent = 'Picture-in-picture';
+    pip.addEventListener('click', togglePictureInPicture);
+    section.append(pip);
+  }
+
+  return section;
+}
+
+function renderSections() {
+  const container = document.querySelector(`${SITE_MENU_SELECTOR} .${SECTIONS_CLASS}`);
+  if (!container) {
+    return;
+  }
+
+  container.replaceChildren(buildSpeedSection(), buildSettingsSection());
+  const showSection = buildIntroMenuSection(BUTTON_CLASS, renderSections);
+  if (showSection) {
+    container.append(showSection);
+  }
+}
+
+// The site rebuilds its menu when qualities load, so this re-checks on every player update.
+export function ensurePlayerMenu() {
+  const siteMenu = document.querySelector(SITE_MENU_SELECTOR);
+  const body = siteMenu && siteMenu.querySelector('.vjs-settings-body');
+  if (!body || body.querySelector(`.${SECTIONS_CLASS}`)) {
+    return;
+  }
+
+  const qualityList = body.querySelector('.vjs-menu');
+  if (qualityList && !body.querySelector(`.${SCRIPT_ID}-quality-heading`)) {
+    const heading = document.createElement('p');
+    heading.className = `${SCRIPT_ID}-player-menu-heading ${SCRIPT_ID}-quality-heading`;
+    heading.textContent = 'Quality';
+    body.insertBefore(heading, qualityList);
+  }
+
+  const container = document.createElement('div');
+  container.className = SECTIONS_CLASS;
+  // Keep clicks inside our sections from reaching the player or closing the site's menu.
+  container.addEventListener('click', (event) => event.stopPropagation());
+  body.append(container);
+  renderSections();
+
+  // Refresh toggles each time the menu opens, in case settings changed elsewhere.
+  const gearButton = siteMenu.parentElement && siteMenu.parentElement.querySelector('button');
+  if (gearButton) {
+    gearButton.addEventListener('click', renderSections);
   }
 }

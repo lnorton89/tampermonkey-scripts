@@ -9,6 +9,7 @@ import {
 } from '../features/player';
 import { watchAdCountdown } from '../features/adTimerBypass';
 import { startNtfyRemote } from '../features/ntfyRemote';
+import { installPlayerShortcuts } from '../features/playerShortcuts';
 import {
   ensureEpisodeCardButtons,
   ensureMovieCardButtons,
@@ -67,6 +68,7 @@ export function bootstrapDomFeatures() {
 
   appState.domBootstrapped = true;
   watchAdCountdown();
+  installPlayerShortcuts();
   watchVideos();
   startNtfyRemote();
   watchNavigation();

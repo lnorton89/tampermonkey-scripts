@@ -31,12 +31,15 @@ export const UPCOMING_EPISODE_LIMIT = 25;
 export const AUTO_NEXT_COUNTDOWN_SECONDS = 10;
 export const SEARCH_RESULT_LIMIT = 8;
 export const SEARCH_DEBOUNCE_MS = 300;
+export const PLAYBACK_RATES = Object.freeze([0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]);
 export const DEFAULT_SETTINGS = Object.freeze({
   autoPlay: true,
   autoFullscreen: true,
   windowedFullscreen: true,
   autoNextEpisode: true,
   autoSkipIntro: true,
+  autoSkipCredits: true,
+  playbackRate: 1,
   siteTheme: true,
   ntfyRemoteEnabled: false,
   ntfyServer: 'https://ntfy.sh',

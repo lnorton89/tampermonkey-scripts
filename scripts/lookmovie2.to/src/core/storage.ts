@@ -5,6 +5,7 @@ import {
   BACKUP_SNAPSHOTS_KEY,
   DEFAULT_SETTINGS,
   INTRO_TIMES_KEY,
+  PLAYBACK_RATES,
   RESUME_POINTS_KEY,
   MOVIE_WATCHLIST_KEY,
   PLAYLIST_KEY,
@@ -78,6 +79,13 @@ export function normalizeSettings(settings) {
       typeof settings.autoSkipIntro === 'boolean'
         ? settings.autoSkipIntro
         : DEFAULT_SETTINGS.autoSkipIntro,
+    autoSkipCredits:
+      typeof settings.autoSkipCredits === 'boolean'
+        ? settings.autoSkipCredits
+        : DEFAULT_SETTINGS.autoSkipCredits,
+    playbackRate: PLAYBACK_RATES.includes(Number(settings.playbackRate))
+      ? Number(settings.playbackRate)
+      : DEFAULT_SETTINGS.playbackRate,
     siteTheme:
       typeof settings.siteTheme === 'boolean' ? settings.siteTheme : DEFAULT_SETTINGS.siteTheme,
     ntfyRemoteEnabled:
@@ -524,15 +532,20 @@ export function normalizeIntroTime(introTime) {
     return null;
   }
 
+  // Intro is a start/end range; credits are stored as seconds before the end because episode
+  // lengths vary. A show can have either or both.
   const start = Number(introTime.start);
   const end = Number(introTime.end);
-  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start) {
+  const hasIntro = Number.isFinite(start) && Number.isFinite(end) && start >= 0 && end > start;
+  const creditsFromEnd = Number(introTime.creditsFromEnd);
+  const hasCredits = Number.isFinite(creditsFromEnd) && creditsFromEnd > 0;
+  if (!hasIntro && !hasCredits) {
     return null;
   }
 
   return {
-    start,
-    end,
+    ...(hasIntro ? { start, end } : {}),
+    ...(hasCredits ? { creditsFromEnd } : {}),
     updatedAt: typeof introTime.updatedAt === 'number' ? introTime.updatedAt : Date.now(),
   };
 }

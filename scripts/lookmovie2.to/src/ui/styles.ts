@@ -1029,8 +1029,7 @@ export function getUiStyleText() {
         }
 
         .${SCRIPT_ID}-autonext button,
-        .${SCRIPT_ID}-intro button,
-        .${SCRIPT_ID}-player-menu-button {
+        .${SCRIPT_ID}-intro button {
             border: 1px solid rgba(255, 255, 255, 0.24);
             border-radius: 999px;
             padding: 7px 12px;
@@ -1069,101 +1068,95 @@ export function getUiStyleText() {
             box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
         }
 
+        /* Sections added to the site's own player settings menu (the control bar gear). */
+        #video_player .vjs-settings-quality-menu {
+            max-height: calc(100% - 64px);
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+
         .${SCRIPT_ID}-player-menu {
-            position: absolute;
-            top: 14px;
-            left: 14px;
-            z-index: 1000002;
-            transition: opacity 0.2s ease;
+            padding: 4px 0 8px;
+            text-align: left;
         }
 
-        /* Mirror the player's own controls: tuck the gear away while playing idle. */
-        .vjs-user-inactive.vjs-playing .${SCRIPT_ID}-player-menu[data-open="false"] {
-            opacity: 0;
-            pointer-events: none;
+        .${SCRIPT_ID}-player-menu-section {
+            padding: 8px 0 4px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .${SCRIPT_ID}-player-menu-gear {
-            display: inline-flex;
-            width: 40px;
-            height: 40px;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-            border: 1px solid rgba(255, 255, 255, 0.24);
-            border-radius: 50%;
-            background: rgba(2, 6, 23, 0.72);
-            color: #f8fafc;
-            cursor: pointer;
-            transition: transform 0.2s ease, background 0.2s ease;
-        }
-
-        .${SCRIPT_ID}-player-menu-gear:hover,
-        .${SCRIPT_ID}-player-menu[data-open="true"] .${SCRIPT_ID}-player-menu-gear {
-            background: rgba(37, 99, 235, 0.85);
-            transform: rotate(30deg);
-        }
-
-        .${SCRIPT_ID}-player-menu-gear svg {
-            width: 22px;
-            height: 22px;
-            fill: currentColor;
-        }
-
-        .${SCRIPT_ID}-player-menu-panel {
-            display: none;
-            min-width: 250px;
-            margin-top: 8px;
-            padding: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            border-radius: 14px;
-            background: rgba(2, 6, 23, 0.94);
-            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
-            color: #f8fafc;
-            font: 13px/1.3 Arial, sans-serif;
-        }
-
-        .${SCRIPT_ID}-player-menu[data-open="true"] .${SCRIPT_ID}-player-menu-panel {
-            display: grid;
-            gap: 6px;
-        }
-
-        .${SCRIPT_ID}-player-menu-section + .${SCRIPT_ID}-player-menu-section {
-            border-top: 1px solid rgba(148, 163, 184, 0.18);
-            padding-top: 8px;
+        .${SCRIPT_ID}-player-menu-heading {
+            margin: 4px 16px 6px;
+            color: rgba(255, 255, 255, 0.55);
+            font: 700 10px/1.2 Arial, sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
         }
 
         .${SCRIPT_ID}-player-menu-toggle {
             display: flex;
+            width: 100%;
             align-items: center;
             justify-content: space-between;
             gap: 16px;
             margin: 0;
-            padding: 8px 10px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-        }
-
-        .${SCRIPT_ID}-player-menu-toggle:hover {
-            background: rgba(30, 41, 59, 0.85);
-        }
-
-        .${SCRIPT_ID}-player-menu-toggle input {
-            width: 18px;
-            height: 18px;
-            margin: 0;
-            accent-color: #2563eb;
+            padding: 7px 16px;
+            border: 0;
+            background: transparent;
+            color: #fff;
+            font: 700 12px/1.2 Arial, sans-serif;
+            text-align: left;
             cursor: pointer;
         }
 
-        .${SCRIPT_ID}-player-menu-heading {
-            margin: 0 10px 6px;
-            color: #94a3b8;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
+        .${SCRIPT_ID}-player-menu-toggle:hover,
+        .${SCRIPT_ID}-player-menu-toggle:focus-visible {
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+        }
+
+        /* A small switch on the right, mirroring the on/off state. */
+        .${SCRIPT_ID}-player-menu-toggle[role="menuitemcheckbox"]::after {
+            content: '';
+            flex: 0 0 auto;
+            width: 28px;
+            height: 16px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.25)
+                radial-gradient(circle at 8px 50%, #fff 5px, transparent 5.5px);
+            transition: background 0.15s ease;
+        }
+
+        .${SCRIPT_ID}-player-menu-toggle[aria-checked="true"]::after {
+            background: #2563eb radial-gradient(circle at 20px 50%, #fff 5px, transparent 5.5px);
+        }
+
+        .${SCRIPT_ID}-player-menu-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 2px 16px 4px;
+        }
+
+        .${SCRIPT_ID}-player-menu-chips button {
+            min-width: 44px;
+            padding: 5px 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 999px;
+            background: transparent;
+            color: #fff;
+            font: 700 11px/1 Arial, sans-serif;
+            cursor: pointer;
+        }
+
+        .${SCRIPT_ID}-player-menu-chips button:hover {
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .${SCRIPT_ID}-player-menu-chips button[data-active="true"] {
+            border-color: transparent;
+            background: #fff;
+            color: #111;
         }
 
         .${SCRIPT_ID}-player-menu-row {
@@ -1171,7 +1164,32 @@ export function getUiStyleText() {
             flex-wrap: wrap;
             align-items: center;
             gap: 8px;
-            padding: 0 10px 4px;
+            padding: 5px 16px;
+            color: #fff;
+            font: 700 12px/1.2 Arial, sans-serif;
+        }
+
+        .${SCRIPT_ID}-player-menu-row > span {
+            min-width: 52px;
+        }
+
+        .${SCRIPT_ID}-player-menu-row em {
+            color: rgba(255, 255, 255, 0.7);
+            font-style: normal;
+        }
+
+        .${SCRIPT_ID}-player-menu-button {
+            padding: 5px 10px;
+            border: 1px solid rgba(255, 255, 255, 0.24);
+            border-radius: 999px;
+            background: transparent;
+            color: #fff;
+            font: 700 11px/1 Arial, sans-serif;
+            cursor: pointer;
+        }
+
+        .${SCRIPT_ID}-player-menu-button:hover {
+            background: rgba(255, 255, 255, 0.12);
         }
 
         .${SCRIPT_ID}-intro-toast {

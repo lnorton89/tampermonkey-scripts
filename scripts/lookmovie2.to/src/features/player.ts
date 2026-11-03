@@ -8,9 +8,9 @@ import {
 } from '../config/constants';
 import { appState } from '../core/state';
 import { cancelAutoNextCountdown, startAutoNextCountdown } from './autoNext';
-import { handleIntroTimeUpdate } from './introSkip';
+import { handleIntroTimeUpdate, showPlayerToast } from './introSkip';
 import { publishPlayerNotification } from './ntfyRemote';
-import { ensurePlayerMenu } from './playerMenu';
+import { applyPlaybackRate, ensurePlayerMenu } from './playerMenu';
 import { completeCurrentPlaylistEntryAndAdvance } from './playlist';
 import { findNextShowEpisode, maybeTrackWatchedEpisodeFromPlayer } from './watchlist';
 
@@ -208,6 +208,8 @@ export function playNextShowEpisode(nextEpisode) {
     .then((episode) => {
       if (episode) {
         switchToShowEpisode(episode);
+      } else {
+        showPlayerToast('This is the last episode.');
       }
     })
     .catch((error) => console.warn(`[${SCRIPT_ID}] Could not find the next episode.`, error));
@@ -426,6 +428,13 @@ export function attachAutoplayLogic(videoElement) {
   videoElement.addEventListener('loadedmetadata', () => {
     if (videoElement.closest('#video_player')) {
       ensurePlayerMenu();
+      applyPlaybackRate(videoElement);
+    }
+  });
+  // The site's player resets the rate when it loads a source, so it is reapplied on play.
+  videoElement.addEventListener('play', () => {
+    if (videoElement.closest('#video_player')) {
+      applyPlaybackRate(videoElement);
     }
   });
   videoElement.addEventListener('pause', handleVideoPause);

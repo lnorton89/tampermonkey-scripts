@@ -3,6 +3,7 @@
 import { SCRIPT_ID } from '../config/constants';
 import { appState } from '../core/state';
 import { loadIntroTimes, persistIntroTimes } from '../core/storage';
+import { startAutoNextCountdown } from './autoNext';
 
 const INTRO_CLASS = `${SCRIPT_ID}-intro`;
 // Leave the last moment of the intro alone so a skip never lands past the end of it.
@@ -12,6 +13,7 @@ const MIN_INTRO_SECONDS = 5;
 let introTimes = null;
 let markingStart = null;
 let skippedOnHash = '';
+let creditsTriggeredOnHash = '';
 let controls = null;
 let toastTimer = 0;
 
@@ -29,18 +31,40 @@ function getShowKey() {
   return match ? match[1].toLowerCase() : '';
 }
 
-function getSavedIntro() {
+function getSavedTimes() {
   const showKey = getShowKey();
   return showKey ? getIntroTimes()[showKey] || null : null;
 }
 
-function formatClock(seconds) {
+function getSavedIntro() {
+  const saved = getSavedTimes();
+  return saved && Number.isFinite(saved.start) ? saved : null;
+}
+
+function updateSavedTimes(changes) {
+  const showKey = getShowKey();
+  const next = { ...(getSavedTimes() || {}), ...changes, updatedAt: Date.now() };
+  Object.keys(next).forEach((key) => next[key] === undefined && delete next[key]);
+  if (Number.isFinite(next.start) || Number.isFinite(next.creditsFromEnd)) {
+    getIntroTimes()[showKey] = next;
+  } else {
+    delete getIntroTimes()[showKey];
+  }
+
+  persistIntroTimes(getIntroTimes());
+}
+
+export function formatClock(seconds) {
   const total = Math.max(0, Math.round(seconds));
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 
 function getVideo() {
   return document.querySelector('#video_player video');
+}
+
+function isInIntro(saved, time) {
+  return saved && time >= saved.start && time < saved.end - SKIP_END_MARGIN_SECONDS;
 }
 
 export function showPlayerToast(message) {
@@ -57,14 +81,18 @@ export function showPlayerToast(message) {
   }, 2500);
 }
 
-function saveIntro(start, end) {
-  getIntroTimes()[getShowKey()] = { start, end, updatedAt: Date.now() };
-  persistIntroTimes(getIntroTimes());
-}
+// Jumps past the saved intro if playback is inside it. Used by the S shortcut.
+export function skipIntroNow() {
+  const video = getVideo();
+  const saved = getSavedIntro();
+  if (!video || !isInIntro(saved, video.currentTime)) {
+    return false;
+  }
 
-function clearIntro() {
-  delete getIntroTimes()[getShowKey()];
-  persistIntroTimes(getIntroTimes());
+  skippedOnHash = location.hash;
+  video.currentTime = saved.end;
+  showPlayerToast('Skipped intro');
+  return true;
 }
 
 function makeButton(label, className, onClick) {
@@ -79,23 +107,13 @@ function makeButton(label, className, onClick) {
   return button;
 }
 
-// The intro part of the player menu; onChange re-renders the menu after an action.
-export function buildIntroMenuSection(onChange) {
-  if (!getShowKey()) {
-    return null;
-  }
-
-  const section = document.createElement('div');
-  section.className = `${SCRIPT_ID}-player-menu-section`;
-  const heading = document.createElement('p');
-  heading.className = `${SCRIPT_ID}-player-menu-heading`;
-  heading.textContent = 'Intro for this show';
+function buildIntroRow(buttonClass, onChange) {
   const row = document.createElement('div');
   row.className = `${SCRIPT_ID}-player-menu-row`;
-  section.append(heading, row);
-
+  const label = document.createElement('span');
+  label.textContent = 'Intro';
+  row.append(label);
   const saved = getSavedIntro();
-  const buttonClass = `${SCRIPT_ID}-player-menu-button`;
 
   if (markingStart !== null) {
     row.append(
@@ -107,7 +125,7 @@ export function buildIntroMenuSection(onChange) {
           return;
         }
 
-        saveIntro(markingStart, end);
+        updateSavedTimes({ start: markingStart, end });
         markingStart = null;
         skippedOnHash = location.hash;
         showPlayerToast(`Intro saved: ${formatClock(getSavedIntro().start)}–${formatClock(end)}`);
@@ -118,31 +136,86 @@ export function buildIntroMenuSection(onChange) {
         onChange();
       })
     );
-    return section;
-  }
-
-  if (saved) {
-    const range = document.createElement('span');
+  } else if (saved) {
+    const range = document.createElement('em');
     range.textContent = `${formatClock(saved.start)}–${formatClock(saved.end)}`;
     row.append(
       range,
       makeButton('Clear', buttonClass, () => {
-        clearIntro();
+        updateSavedTimes({ start: undefined, end: undefined });
         updateSkipButton(getVideo());
         showPlayerToast('Intro cleared for this show.');
         onChange();
       })
     );
-    return section;
+  } else {
+    row.append(
+      makeButton('Mark start here', buttonClass, () => {
+        const video = getVideo();
+        markingStart = video ? video.currentTime : 0;
+        showPlayerToast('Now play to the end of the intro and mark it.');
+        onChange();
+      })
+    );
   }
 
-  row.append(
-    makeButton('Mark intro start here', buttonClass, () => {
-      const video = getVideo();
-      markingStart = video ? video.currentTime : 0;
-      showPlayerToast('Now play to the end of the intro and mark it.');
-      onChange();
-    })
+  return row;
+}
+
+function buildCreditsRow(buttonClass, onChange) {
+  const row = document.createElement('div');
+  row.className = `${SCRIPT_ID}-player-menu-row`;
+  const label = document.createElement('span');
+  label.textContent = 'Credits';
+  row.append(label);
+  const saved = getSavedTimes();
+
+  if (saved && Number.isFinite(saved.creditsFromEnd)) {
+    const offset = document.createElement('em');
+    offset.textContent = `last ${formatClock(saved.creditsFromEnd)}`;
+    row.append(
+      offset,
+      makeButton('Clear', buttonClass, () => {
+        updateSavedTimes({ creditsFromEnd: undefined });
+        showPlayerToast('Credits cleared for this show.');
+        onChange();
+      })
+    );
+  } else {
+    row.append(
+      makeButton('Mark credits start here', buttonClass, () => {
+        const video = getVideo();
+        if (!video || !Number.isFinite(video.duration)) {
+          return;
+        }
+
+        const creditsFromEnd = video.duration - video.currentTime;
+        updateSavedTimes({ creditsFromEnd });
+        creditsTriggeredOnHash = location.hash;
+        showPlayerToast(`Credits saved: last ${formatClock(creditsFromEnd)} of each episode.`);
+        onChange();
+      })
+    );
+  }
+
+  return row;
+}
+
+// The intro/credits part of the player settings menu; onChange re-renders the menu.
+export function buildIntroMenuSection(buttonClass, onChange) {
+  if (!getShowKey()) {
+    return null;
+  }
+
+  const section = document.createElement('div');
+  section.className = `${SCRIPT_ID}-player-menu-section`;
+  const heading = document.createElement('p');
+  heading.className = `${SCRIPT_ID}-player-menu-heading`;
+  heading.textContent = 'This show';
+  section.append(
+    heading,
+    buildIntroRow(buttonClass, onChange),
+    buildCreditsRow(buttonClass, onChange)
   );
   return section;
 }
@@ -153,13 +226,8 @@ function updateSkipButton(video) {
   }
 
   const skip = controls.querySelector(`.${INTRO_CLASS}-skip`);
-  const saved = getSavedIntro();
-  const time = video ? video.currentTime : -1;
   skip.hidden = !(
-    saved &&
-    !appState.settings.autoSkipIntro &&
-    time >= saved.start &&
-    time < saved.end - SKIP_END_MARGIN_SECONDS
+    !appState.settings.autoSkipIntro && isInIntro(getSavedIntro(), video ? video.currentTime : -1)
   );
 }
 
@@ -176,13 +244,7 @@ function ensureControls() {
   controls = document.createElement('div');
   controls.className = INTRO_CLASS;
 
-  const skip = makeButton('Skip intro', `${INTRO_CLASS}-skip`, () => {
-    const video = getVideo();
-    const saved = getSavedIntro();
-    if (video && saved) {
-      video.currentTime = saved.end;
-    }
-  });
+  const skip = makeButton('Skip intro', `${INTRO_CLASS}-skip`, skipIntroNow);
   skip.hidden = true;
 
   const toast = document.createElement('p');
@@ -199,19 +261,29 @@ export function handleIntroTimeUpdate(video) {
     return;
   }
 
-  const saved = getSavedIntro();
+  const saved = getSavedTimes();
   const time = video.currentTime;
   if (
-    saved &&
     appState.settings.autoSkipIntro &&
     skippedOnHash !== location.hash &&
     markingStart === null &&
-    time >= saved.start &&
-    time < saved.end - SKIP_END_MARGIN_SECONDS
+    isInIntro(getSavedIntro(), time)
   ) {
-    skippedOnHash = location.hash;
-    video.currentTime = saved.end;
-    showPlayerToast('Skipped intro');
+    skipIntroNow();
+  }
+
+  // Reaching the credits starts the next-episode countdown instead of waiting for the end.
+  if (
+    saved &&
+    Number.isFinite(saved.creditsFromEnd) &&
+    appState.settings.autoSkipCredits &&
+    creditsTriggeredOnHash !== location.hash &&
+    Number.isFinite(video.duration) &&
+    !video.paused &&
+    video.duration - time <= saved.creditsFromEnd
+  ) {
+    creditsTriggeredOnHash = location.hash;
+    startAutoNextCountdown({ force: true });
   }
 
   updateSkipButton(video);

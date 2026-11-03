@@ -61,8 +61,13 @@ function buildOverlay(nextEpisode) {
 }
 
 // Shown inside the player so it also appears in fullscreen. Only used outside playlist mode.
-export async function startAutoNextCountdown() {
-  if (!appState.settings.autoNextEpisode || !location.pathname.startsWith('/shows/play/')) {
+// force: started by reaching marked credits, which has its own setting.
+export async function startAutoNextCountdown(options) {
+  const force = !!(options && options.force);
+  if (
+    (!force && !appState.settings.autoNextEpisode) ||
+    !location.pathname.startsWith('/shows/play/')
+  ) {
     return false;
   }
 
