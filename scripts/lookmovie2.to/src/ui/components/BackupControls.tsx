@@ -39,6 +39,7 @@ export function BackupControls() {
         </button>
         <input
           ref={fileInput}
+          className={`${SCRIPT_ID}-file-input`}
           type="file"
           accept="application/json,.json"
           hidden

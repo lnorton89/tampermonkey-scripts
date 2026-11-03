@@ -368,7 +368,9 @@ export function getUiStyleText() {
                 border-bottom: none;
                 border-right: 1px solid rgba(148, 163, 184, 0.12);
                 padding-bottom: 0;
-                padding-right: 20px;
+                padding-right: 14px;
+                overflow-y: auto;
+                scrollbar-width: thin;
             }
         }
 
@@ -383,12 +385,13 @@ export function getUiStyleText() {
 
         #${UI_ROOT_ID}-settings {
             display: grid;
+            grid-template-columns: minmax(0, 1fr);
             gap: 12px;
         }
 
         .${SCRIPT_ID}-setting {
             display: grid;
-            grid-template-columns: 1fr auto;
+            grid-template-columns: minmax(0, 1fr) auto;
             gap: 12px;
             align-items: center;
             padding: 14px;
@@ -398,7 +401,7 @@ export function getUiStyleText() {
         }
 
         .${SCRIPT_ID}-setting-stack {
-            grid-template-columns: 1fr;
+            grid-template-columns: minmax(0, 1fr);
             align-items: stretch;
         }
 
@@ -529,6 +532,11 @@ export function getUiStyleText() {
 
         .${SCRIPT_ID}-backup-actions .${SCRIPT_ID}-field {
             flex: 1 1 180px;
+        }
+
+        /* The site's input styles override the hidden attribute. */
+        .${SCRIPT_ID}-file-input {
+            display: none !important;
         }
 
         .${SCRIPT_ID}-backup-actions .${SCRIPT_ID}-button {
