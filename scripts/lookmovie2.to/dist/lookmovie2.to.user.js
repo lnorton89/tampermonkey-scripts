@@ -1682,6 +1682,11 @@ Error generating stack: `+l.message+`
     box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.45);
   }
 
+  /* The site only sometimes reveals its slider; the in-theaters grid replaces it. */
+  .hero-slider {
+    display: none !important;
+  }
+
   .${c}-in-theaters {
     margin-bottom: 40px;
   }
