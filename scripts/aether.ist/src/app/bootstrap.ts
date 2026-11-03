@@ -1,9 +1,11 @@
 /* eslint-disable */
 // @ts-nocheck
 import { appState } from '../core/state';
+import { removeLoadedSiteAdScript } from '../features/adBlock';
 import { installBannerHider } from '../features/hideBanner';
+import { watchCommunityLinks } from '../features/hideCommunityLinks';
 import { watchPlaybackMenu } from '../features/playbackMenu';
-import { watchSkipIntro } from '../features/skipIntro';
+import { watchSkipSegments } from '../features/skipSegments';
 
 export function bootstrapDomFeatures() {
   if (appState.domBootstrapped) {
@@ -11,7 +13,9 @@ export function bootstrapDomFeatures() {
   }
 
   appState.domBootstrapped = true;
+  removeLoadedSiteAdScript();
   installBannerHider();
-  watchSkipIntro();
+  watchCommunityLinks();
+  watchSkipSegments();
   watchPlaybackMenu();
 }

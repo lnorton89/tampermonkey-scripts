@@ -2,9 +2,11 @@
 // @ts-nocheck
 import './meta';
 import { bootstrapDomFeatures } from './app/bootstrap';
-import { installIntroTimesCapture } from './features/introTimes';
+import { installAdBlock } from './features/adBlock';
+import { installSkipTimesCapture } from './features/skipTimes';
 
-installIntroTimesCapture();
+installAdBlock();
+installSkipTimesCapture();
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', bootstrapDomFeatures, { once: true });

@@ -34,12 +34,12 @@ function writeStoreSource(key, value) {
 }
 
 export function normalizeSettings(settings) {
-  return {
-    autoSkipIntro:
-      typeof settings.autoSkipIntro === 'boolean'
-        ? settings.autoSkipIntro
-        : DEFAULT_SETTINGS.autoSkipIntro,
-  };
+  return Object.fromEntries(
+    Object.entries(DEFAULT_SETTINGS).map(([key, defaultValue]) => [
+      key,
+      typeof settings[key] === 'boolean' ? settings[key] : defaultValue,
+    ])
+  );
 }
 
 export function loadSettings() {

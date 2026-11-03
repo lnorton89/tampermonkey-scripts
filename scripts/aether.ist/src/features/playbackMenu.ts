@@ -1,11 +1,11 @@
 /* eslint-disable */
 // @ts-nocheck
-import { SCRIPT_ID } from '../config/constants';
+import { SCRIPT_ID, SKIP_SEGMENTS } from '../config/constants';
+import { onDomChange } from '../core/domWatcher';
 import { saveSettings } from '../core/settings';
 import { appState } from '../core/state';
 
 const SETTING_ROW_ATTR = `data-${SCRIPT_ID}-setting`;
-const PLAYBACK_MENU_SETTINGS = [{ settingKey: 'autoSkipIntro', label: 'Auto skip intro' }];
 
 // "Audio Booster" is a hard-coded (untranslated) label that only appears in Aether's playback menu.
 function findPlaybackMenuContent() {
@@ -83,24 +83,9 @@ function ensurePlaybackMenuSettings() {
     content.appendChild(section);
   }
 
-  PLAYBACK_MENU_SETTINGS.forEach((setting) => toggleList.appendChild(createSettingRow(setting)));
+  SKIP_SEGMENTS.forEach((setting) => toggleList.appendChild(createSettingRow(setting)));
 }
 
 export function watchPlaybackMenu() {
-  let scheduled = false;
-
-  const observer = new MutationObserver(() => {
-    if (scheduled) {
-      return;
-    }
-
-    scheduled = true;
-    window.requestAnimationFrame(() => {
-      scheduled = false;
-      ensurePlaybackMenuSettings();
-    });
-  });
-
-  observer.observe(document.body, { childList: true, subtree: true });
-  ensurePlaybackMenuSettings();
+  onDomChange(ensurePlaybackMenuSettings);
 }

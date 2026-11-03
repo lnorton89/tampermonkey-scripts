@@ -5,9 +5,9 @@ import { loadSettings } from './storage';
 export const appState = {
   settings: loadSettings(),
   domBootstrapped: false,
-  skipIntroEpisodeKey: '',
-  skipIntroStaleLabel: '',
-  skipIntroDone: false,
+  skipEpisodeKey: '',
+  skipStaleLabel: '',
+  skippedSegments: {},
   skipIntroStartTime: null,
   skipIntroControlsNudged: false,
 };
