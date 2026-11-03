@@ -1068,11 +1068,36 @@ export function getUiStyleText() {
             box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
         }
 
-        /* Sections added to the site's own player settings menu (the control bar gear). */
+        /* Sections added to the site's own player settings menu (the control bar gear). The
+           site fixes that menu at 232px and its .video-js button rules override display and
+           borders, hence the !important overrides below. */
         #video_player .vjs-settings-quality-menu {
-            max-height: calc(100% - 64px);
-            overflow-y: auto;
+            height: auto !important;
+            max-height: min(60vh, 520px) !important;
+            overflow-y: auto !important;
             scrollbar-width: thin;
+        }
+
+        #video_player .${SCRIPT_ID}-player-menu-toggle {
+            display: flex !important;
+            width: 100% !important;
+        }
+
+        #video_player .${SCRIPT_ID}-player-menu-toggle[role="menuitemcheckbox"]::after {
+            display: block !important;
+        }
+
+        #video_player .${SCRIPT_ID}-player-menu-button,
+        #video_player .${SCRIPT_ID}-player-menu-chips button {
+            border: 1px solid rgba(255, 255, 255, 0.24) !important;
+        }
+
+        #video_player .${SCRIPT_ID}-player-menu-chips button[data-active="true"] {
+            border-color: transparent !important;
+        }
+
+        #video_player .${SCRIPT_ID}-player-menu-heading {
+            text-align: left !important;
         }
 
         .${SCRIPT_ID}-player-menu {
