@@ -100,18 +100,26 @@ function readMetaValues(scriptDir, key) {
 }
 
 // Bump when the loader template changes so Tampermonkey offers the update via @updateURL.
-const LOADER_VERSION = '1.1.0';
+const LOADER_VERSION = '1.2.0';
+// How long a loader reuses the latest commit SHA before asking GitHub again. Unauthenticated
+// API calls are limited to 60 an hour per IP, shared by every loader.
+const LOADER_SHA_CACHE_MS = 60 * 1000;
 
 function generateLoader(scriptDir, scriptName) {
   const loaderPath = path.join(scriptDir, 'tampermonkey-loader.user.js');
-  const scriptUrl = `${rawUrl}/${branch}/scripts/${scriptName}/dist/${scriptName}.user.js`;
+  const distPath = `scripts/${scriptName}/dist/${scriptName}.user.js`;
+  const scriptUrl = `${rawUrl}/${branch}/${distPath}`;
   const loaderUrl = `${rawUrl}/${branch}/scripts/${scriptName}/tampermonkey-loader.user.js`;
+  const latestCommitUrl = `${repoUrl.replace('github.com', 'api.github.com/repos')}/commits/${branch}`;
   const matchLines = readMetaMatches(scriptDir)
     .map((match) => `// @match        ${match}`)
     .join('\n');
   const runAt = readMetaRunAt(scriptDir);
   const grants = [...new Set(['GM_xmlhttpRequest', ...readMetaValues(scriptDir, 'grant')])];
-  const grantLines = grants.map((grant) => `// @grant        ${grant}`).join('\n');
+  // The loader itself also needs storage to cache the latest commit SHA.
+  const grantLines = [...new Set([...grants, 'GM_getValue', 'GM_setValue'])]
+    .map((grant) => `// @grant        ${grant}`)
+    .join('\n');
   // Code eval'd from inside Tampermonkey's sandbox can't see the granted APIs, so the loader
   // passes them to the build as named parameters instead.
   const apiNames = grants.filter((grant) => /^GM_\w+$|^unsafeWindow$/.test(grant));
@@ -120,7 +128,12 @@ function generateLoader(scriptDir, scriptName) {
     .map((name) => `typeof ${name} === 'undefined' ? undefined : ${name}`)
     .join(',\n          ');
   const connectLines = [
-    ...new Set(['github.com', 'raw.githubusercontent.com', ...readMetaValues(scriptDir, 'connect')]),
+    ...new Set([
+      'github.com',
+      'api.github.com',
+      'raw.githubusercontent.com',
+      ...readMetaValues(scriptDir, 'connect'),
+    ]),
   ]
     .map((connect) => `// @connect      ${connect}`)
     .join('\n');
@@ -141,13 +154,60 @@ ${connectLines}
 (function () {
   'use strict';
 
-  const SCRIPT_URL = '${scriptUrl}';
+  const BRANCH_SCRIPT_URL = '${scriptUrl}';
+  const COMMIT_SCRIPT_URL = '${rawUrl}/{sha}/${distPath}';
+  const LATEST_COMMIT_URL = '${latestCommitUrl}';
+  const SHA_CACHE_KEY = '__loader:latest-commit';
+  const SHA_CACHE_MS = ${LOADER_SHA_CACHE_MS};
 
-  GM_xmlhttpRequest({
-    method: 'GET',
-    url: SCRIPT_URL + '?_=' + Date.now(),
-    onload(res) {
-      if (res.status === 200) {
+  function get(url, headers) {
+    return new Promise((resolve, reject) => {
+      GM_xmlhttpRequest({
+        method: 'GET',
+        url,
+        headers,
+        nocache: true,
+        timeout: 8000,
+        onload: resolve,
+        onerror: reject,
+        ontimeout: reject,
+      });
+    });
+  }
+
+  // raw.githubusercontent.com caches branch URLs for 5 minutes and ignores query strings, so a
+  // push can take that long to show up. Loading by commit SHA always gets the latest build; the
+  // branch URL is the fallback when the GitHub API is unreachable or rate limited.
+  async function resolveScriptUrl() {
+    const cached = GM_getValue(SHA_CACHE_KEY, null);
+    if (cached && cached.sha && Date.now() - cached.at < SHA_CACHE_MS) {
+      return COMMIT_SCRIPT_URL.replace('{sha}', cached.sha);
+    }
+
+    try {
+      const res = await get(LATEST_COMMIT_URL, { Accept: 'application/vnd.github.sha' });
+      const sha = res.status === 200 ? String(res.responseText).trim() : '';
+      if (/^[0-9a-f]{40}$/.test(sha)) {
+        GM_setValue(SHA_CACHE_KEY, { sha, at: Date.now() });
+        return COMMIT_SCRIPT_URL.replace('{sha}', sha);
+      }
+
+      console.warn('[loader] Latest commit lookup failed:', res.status);
+    } catch (err) {
+      console.warn('[loader] Latest commit lookup failed:', err);
+    }
+
+    return BRANCH_SCRIPT_URL + '?_=' + Date.now();
+  }
+
+  resolveScriptUrl()
+    .then((scriptUrl) =>
+      get(scriptUrl).then((res) => {
+        if (res.status !== 200) {
+          console.error('[loader] Failed to fetch script:', res.status, scriptUrl);
+          return;
+        }
+
         // eval keeps the evaluation context the build has always had; the wrapper function only
         // adds the granted APIs as parameters.
         const run = eval(
@@ -158,15 +218,12 @@ ${connectLines}
         run(
           ${apiArgs}
         );
-        console.log('[loader] Successfully loaded script from:', SCRIPT_URL);
-      } else {
-        console.error('[loader] Failed to fetch script:', res.status, SCRIPT_URL);
-      }
-    },
-    onerror(err) {
-      console.error('[loader] Network error fetching script:', err);
-    },
-  });
+        console.log('[loader] Successfully loaded script from:', scriptUrl);
+      })
+    )
+    .catch((err) => {
+      console.error('[loader] Failed to load script:', err);
+    });
 })();
 `;
 

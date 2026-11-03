@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         fmovies.nz (loader)
 // @namespace    https://github.com/lnorton89/tampermonkey-scripts
-// @version      1.1.0
+// @version      1.2.0
 // @description  Loader — fetches the latest build from GitHub
 // @updateURL    https://raw.githubusercontent.com/lnorton89/tampermonkey-scripts/main/scripts/fmovies.nz/tampermonkey-loader.user.js
 // @downloadURL  https://raw.githubusercontent.com/lnorton89/tampermonkey-scripts/main/scripts/fmovies.nz/tampermonkey-loader.user.js
@@ -9,20 +9,70 @@
 // @match        https://www.fmovies.nz/*
 // @run-at       document-start
 // @grant        GM_xmlhttpRequest
+// @grant        GM_getValue
+// @grant        GM_setValue
 // @connect      github.com
+// @connect      api.github.com
 // @connect      raw.githubusercontent.com
 // ==/UserScript==
 
 (function () {
   'use strict';
 
-  const SCRIPT_URL = 'https://raw.githubusercontent.com/lnorton89/tampermonkey-scripts/main/scripts/fmovies.nz/dist/fmovies.nz.user.js';
+  const BRANCH_SCRIPT_URL = 'https://raw.githubusercontent.com/lnorton89/tampermonkey-scripts/main/scripts/fmovies.nz/dist/fmovies.nz.user.js';
+  const COMMIT_SCRIPT_URL = 'https://raw.githubusercontent.com/lnorton89/tampermonkey-scripts/{sha}/scripts/fmovies.nz/dist/fmovies.nz.user.js';
+  const LATEST_COMMIT_URL = 'https://api.github.com/repos/lnorton89/tampermonkey-scripts/commits/main';
+  const SHA_CACHE_KEY = '__loader:latest-commit';
+  const SHA_CACHE_MS = 60000;
 
-  GM_xmlhttpRequest({
-    method: 'GET',
-    url: SCRIPT_URL + '?_=' + Date.now(),
-    onload(res) {
-      if (res.status === 200) {
+  function get(url, headers) {
+    return new Promise((resolve, reject) => {
+      GM_xmlhttpRequest({
+        method: 'GET',
+        url,
+        headers,
+        nocache: true,
+        timeout: 8000,
+        onload: resolve,
+        onerror: reject,
+        ontimeout: reject,
+      });
+    });
+  }
+
+  // raw.githubusercontent.com caches branch URLs for 5 minutes and ignores query strings, so a
+  // push can take that long to show up. Loading by commit SHA always gets the latest build; the
+  // branch URL is the fallback when the GitHub API is unreachable or rate limited.
+  async function resolveScriptUrl() {
+    const cached = GM_getValue(SHA_CACHE_KEY, null);
+    if (cached && cached.sha && Date.now() - cached.at < SHA_CACHE_MS) {
+      return COMMIT_SCRIPT_URL.replace('{sha}', cached.sha);
+    }
+
+    try {
+      const res = await get(LATEST_COMMIT_URL, { Accept: 'application/vnd.github.sha' });
+      const sha = res.status === 200 ? String(res.responseText).trim() : '';
+      if (/^[0-9a-f]{40}$/.test(sha)) {
+        GM_setValue(SHA_CACHE_KEY, { sha, at: Date.now() });
+        return COMMIT_SCRIPT_URL.replace('{sha}', sha);
+      }
+
+      console.warn('[loader] Latest commit lookup failed:', res.status);
+    } catch (err) {
+      console.warn('[loader] Latest commit lookup failed:', err);
+    }
+
+    return BRANCH_SCRIPT_URL + '?_=' + Date.now();
+  }
+
+  resolveScriptUrl()
+    .then((scriptUrl) =>
+      get(scriptUrl).then((res) => {
+        if (res.status !== 200) {
+          console.error('[loader] Failed to fetch script:', res.status, scriptUrl);
+          return;
+        }
+
         // eval keeps the evaluation context the build has always had; the wrapper function only
         // adds the granted APIs as parameters.
         const run = eval(
@@ -33,13 +83,10 @@
         run(
           typeof GM_xmlhttpRequest === 'undefined' ? undefined : GM_xmlhttpRequest
         );
-        console.log('[loader] Successfully loaded script from:', SCRIPT_URL);
-      } else {
-        console.error('[loader] Failed to fetch script:', res.status, SCRIPT_URL);
-      }
-    },
-    onerror(err) {
-      console.error('[loader] Network error fetching script:', err);
-    },
-  });
+        console.log('[loader] Successfully loaded script from:', scriptUrl);
+      })
+    )
+    .catch((err) => {
+      console.error('[loader] Failed to load script:', err);
+    });
 })();
