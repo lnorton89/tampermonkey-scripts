@@ -6,8 +6,10 @@ export const appState = {
   settings: loadSettings(),
   domBootstrapped: false,
   skipEpisodeKey: '',
-  skipStaleLabel: '',
+  skipLastEpisode: '',
+  skipStaleEpisode: '',
   skippedSegments: {},
+  skipSeekAttempts: {},
   skipIntroStartTime: null,
   skipIntroControlsNudged: false,
 };

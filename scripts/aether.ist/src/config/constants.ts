@@ -10,6 +10,7 @@ export const SITE_AD_SCRIPT_SRC_PATTERN = /scarreddeponer\.com/;
 export const PLAYER_PATH_PATTERN = /^\/media\/[^/]+\/[^/]+\/[^/]+/;
 export const INTRO_DB_API_PREFIX = 'https://api.theintrodb.org/';
 export const SKIP_POLL_MS = 500;
+export const SKIP_SEEK_ATTEMPTS = 3;
 // Aether always shows its Skip Intro button for the first 10s of playback; after that it only
 // appears while the player controls are visible.
 export const SKIP_INTRO_ALWAYS_VISIBLE_SECONDS = 10;
