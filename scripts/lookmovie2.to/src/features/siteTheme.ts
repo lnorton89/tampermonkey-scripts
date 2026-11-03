@@ -1,6 +1,6 @@
 /* eslint-disable */
 // @ts-nocheck
-import { SITE_THEME_STYLE_ID } from '../config/constants';
+import { SCRIPT_ID, SITE_THEME_STYLE_ID } from '../config/constants';
 import { appState } from '../core/state';
 
 // Restyles LookMovie's own pages: wider layout on big screens, responsive poster grids,
@@ -98,6 +98,30 @@ const SITE_THEME_CSS = `
 
   .tv-episodes-list .episode-item:hover {
     box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.45);
+  }
+
+  .${SCRIPT_ID}-in-theaters {
+    margin-bottom: 40px;
+  }
+
+  .${SCRIPT_ID}-in-theaters .flex-wrap-movielist[data-expanded='false'] .${SCRIPT_ID}-in-theaters-extra {
+    display: none !important;
+  }
+
+  .${SCRIPT_ID}-in-theaters-toggle {
+    display: block;
+    margin: 28px auto 0;
+    padding: 10px 22px;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.85);
+    color: #f8fafc;
+    font: 700 13px/1 Arial, sans-serif;
+    cursor: pointer;
+  }
+
+  .${SCRIPT_ID}-in-theaters-toggle:hover {
+    border-color: rgba(56, 189, 248, 0.6);
   }
 
   a[href="/premium.html"] {

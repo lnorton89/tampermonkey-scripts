@@ -8,6 +8,7 @@ import {
   watchVideos,
 } from '../features/player';
 import { watchAdCountdown } from '../features/adTimerBypass';
+import { ensureInTheatersSection } from '../features/inTheaters';
 import { startNtfyRemote } from '../features/ntfyRemote';
 import { installPlayerShortcuts } from '../features/playerShortcuts';
 import {
@@ -83,6 +84,7 @@ export function bootstrapDomFeatures() {
     ensureShowViewWatchButton();
     ensureMovieCardButtons();
     ensureMovieViewWatchButton();
+    ensureInTheatersSection();
 
     if (document.getElementById(UI_ROOT_ID) || appState.uiBootAttempts > 100) {
       window.clearInterval(uiBootstrapper);
