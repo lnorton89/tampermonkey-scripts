@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "workspaces": [
-    "scripts/lookmovie2.to"
+    "scripts/lookmovie2.to",
+    "scripts/aether.ist"
   ],
   "type": "module",
   "repository": {

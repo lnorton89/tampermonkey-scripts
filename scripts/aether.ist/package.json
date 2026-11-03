@@ -1,0 +1,28 @@
+{
+  "name": "@tampermonkey-scripts/aether-ist",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Aether Tampermonkey enhancer userscript.",
+  "main": "tampermonkey-loader.user.js",
+  "scripts": {
+    "build": "node ../../build.js --script aether.ist",
+    "build:debug": "node ../../build.js --script aether.ist --debug",
+    "build:watch": "node ../../build.js --script aether.ist --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3"
+  }
+}
