@@ -10,8 +10,9 @@ import { appState } from '../core/state';
 import { cancelAutoNextCountdown, startAutoNextCountdown } from './autoNext';
 import { handleIntroTimeUpdate } from './introSkip';
 import { publishPlayerNotification } from './ntfyRemote';
+import { ensurePlayerMenu } from './playerMenu';
 import { completeCurrentPlaylistEntryAndAdvance } from './playlist';
-import { maybeTrackWatchedEpisodeFromPlayer } from './watchlist';
+import { findNextShowEpisode, maybeTrackWatchedEpisodeFromPlayer } from './watchlist';
 
 export function getActiveVideo() {
   const playerContainer = document.getElementById('video_player');
@@ -185,77 +186,32 @@ export function exitActiveVideoFullscreen() {
   return handled;
 }
 
-function parseShowPlayEpisodeFromUrl(url) {
-  try {
-    const parsed = new URL(url, location.origin);
-    if (!parsed.pathname.startsWith('/shows/play/')) {
-      return null;
-    }
-
-    const match = parsed.hash.match(/^#S(\d+)-E(\d+)-(\d+)$/i);
-    if (!match) {
-      return null;
-    }
-
-    return {
-      href: parsed.href,
-      season: Number(match[1]),
-      episode: Number(match[2]),
-      idEpisode: Number(match[3]),
-    };
-  } catch (_error) {
-    return null;
-  }
+// Switches episodes the way the site's own episode picker does: rewrite the hash, then fire the
+// event its player listens for. The site's "switch-next-episode" event isn't used because it
+// relies on an index that is stale when the page was opened on an episode URL.
+export function switchToShowEpisode(episode) {
+  history.replaceState(null, '', `#S${episode.season}-E${episode.episode}-${episode.idEpisode}`);
+  window.dispatchEvent(new Event('ChangedEpisodeHash'));
 }
 
-// The site's episode switcher listens for this event and moves to the next episode itself,
-// rewriting the hash synchronously. With no next episode the hash stays the same.
-function switchToNextEpisodeViaSite() {
-  const previousHash = location.hash;
-  try {
-    window.dispatchEvent(new Event('switch-next-episode'));
-  } catch (_error) {
-    return false;
-  }
-
-  return location.hash !== previousHash;
-}
-
-function navigateToNextEpisodeLink() {
-  const currentEpisode = parseShowPlayEpisodeFromUrl(location.href);
-  if (!currentEpisode) {
-    return false;
-  }
-
-  const nextEpisode = Array.from(document.querySelectorAll('a[href*="/shows/play/"]'))
-    .map((link) => parseShowPlayEpisodeFromUrl(link.getAttribute('href')))
-    .filter((episode) => {
-      if (!episode) {
-        return false;
-      }
-
-      if (episode.season > currentEpisode.season) {
-        return true;
-      }
-
-      return episode.season === currentEpisode.season && episode.episode > currentEpisode.episode;
-    })
-    .sort((left, right) => left.season - right.season || left.episode - right.episode)[0];
-
-  if (!nextEpisode) {
-    return false;
-  }
-
-  location.href = nextEpisode.href;
-  return true;
-}
-
-export function playNextShowEpisode() {
+export function playNextShowEpisode(nextEpisode) {
   if (!location.pathname.startsWith('/shows/play/')) {
     return false;
   }
 
-  return switchToNextEpisodeViaSite() || navigateToNextEpisodeLink();
+  if (nextEpisode) {
+    switchToShowEpisode(nextEpisode);
+    return true;
+  }
+
+  findNextShowEpisode()
+    .then((episode) => {
+      if (episode) {
+        switchToShowEpisode(episode);
+      }
+    })
+    .catch((error) => console.warn(`[${SCRIPT_ID}] Could not find the next episode.`, error));
+  return true;
 }
 
 export function dismissResumeModalIfPresent() {
@@ -467,10 +423,16 @@ export function attachAutoplayLogic(videoElement) {
 
   videoElement._lookmovieEnhancerAttached = true;
   videoElement.addEventListener('play', handleVideoPlay);
+  videoElement.addEventListener('loadedmetadata', () => {
+    if (videoElement.closest('#video_player')) {
+      ensurePlayerMenu();
+    }
+  });
   videoElement.addEventListener('pause', handleVideoPause);
   videoElement.addEventListener('ended', handleVideoEnded);
   videoElement.addEventListener('timeupdate', () => {
     if (videoElement.closest('#video_player')) {
+      ensurePlayerMenu();
       handleIntroTimeUpdate(videoElement);
     }
   });

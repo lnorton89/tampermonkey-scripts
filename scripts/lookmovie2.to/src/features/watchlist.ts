@@ -432,3 +432,22 @@ export function maybeTrackWatchedEpisodeFromPlayer() {
     'success'
   );
 }
+
+function readCurrentEpisodeFromHash() {
+  const match = location.hash.match(/^#S(\d+)-E(\d+)-(\d+)$/i);
+  return match
+    ? { season: Number(match[1]), episode: Number(match[2]), idEpisode: Number(match[3]) }
+    : null;
+}
+
+// The episode after the one in the play page URL, from the site's episode list.
+export async function findNextShowEpisode() {
+  const idShow = getPlayPageIdShow();
+  const current = readCurrentEpisodeFromHash();
+  if (!idShow || !current) {
+    return null;
+  }
+
+  const { episodes } = await fetchEpisodeListByIdShow(idShow);
+  return episodes.find((episode) => compareEpisodes(episode, current) > 0) || null;
+}

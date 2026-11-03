@@ -1030,7 +1030,7 @@ export function getUiStyleText() {
 
         .${SCRIPT_ID}-autonext button,
         .${SCRIPT_ID}-intro button,
-        .${SCRIPT_ID}-intro-pill {
+        .${SCRIPT_ID}-player-menu-button {
             border: 1px solid rgba(255, 255, 255, 0.24);
             border-radius: 999px;
             padding: 7px 12px;
@@ -1059,8 +1059,7 @@ export function getUiStyleText() {
             pointer-events: none;
         }
 
-        .${SCRIPT_ID}-intro > *,
-        .${SCRIPT_ID}-intro-manage > * {
+        .${SCRIPT_ID}-intro > * {
             pointer-events: auto;
         }
 
@@ -1070,25 +1069,109 @@ export function getUiStyleText() {
             box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
         }
 
-        .${SCRIPT_ID}-intro-manage {
-            display: flex;
-            gap: 6px;
+        .${SCRIPT_ID}-player-menu {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            z-index: 1000002;
             transition: opacity 0.2s ease;
         }
 
-        .${SCRIPT_ID}-intro-pill {
-            cursor: default;
-            opacity: 0.9;
+        /* Mirror the player's own controls: tuck the gear away while playing idle. */
+        .vjs-user-inactive.vjs-playing .${SCRIPT_ID}-player-menu[data-open="false"] {
+            opacity: 0;
+            pointer-events: none;
         }
 
-        button.${SCRIPT_ID}-intro-pill {
+        .${SCRIPT_ID}-player-menu-gear {
+            display: inline-flex;
+            width: 40px;
+            height: 40px;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            border: 1px solid rgba(255, 255, 255, 0.24);
+            border-radius: 50%;
+            background: rgba(2, 6, 23, 0.72);
+            color: #f8fafc;
+            cursor: pointer;
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+
+        .${SCRIPT_ID}-player-menu-gear:hover,
+        .${SCRIPT_ID}-player-menu[data-open="true"] .${SCRIPT_ID}-player-menu-gear {
+            background: rgba(37, 99, 235, 0.85);
+            transform: rotate(30deg);
+        }
+
+        .${SCRIPT_ID}-player-menu-gear svg {
+            width: 22px;
+            height: 22px;
+            fill: currentColor;
+        }
+
+        .${SCRIPT_ID}-player-menu-panel {
+            display: none;
+            min-width: 250px;
+            margin-top: 8px;
+            padding: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 14px;
+            background: rgba(2, 6, 23, 0.94);
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+            color: #f8fafc;
+            font: 13px/1.3 Arial, sans-serif;
+        }
+
+        .${SCRIPT_ID}-player-menu[data-open="true"] .${SCRIPT_ID}-player-menu-panel {
+            display: grid;
+            gap: 6px;
+        }
+
+        .${SCRIPT_ID}-player-menu-section + .${SCRIPT_ID}-player-menu-section {
+            border-top: 1px solid rgba(148, 163, 184, 0.18);
+            padding-top: 8px;
+        }
+
+        .${SCRIPT_ID}-player-menu-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin: 0;
+            padding: 8px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .${SCRIPT_ID}-player-menu-toggle:hover {
+            background: rgba(30, 41, 59, 0.85);
+        }
+
+        .${SCRIPT_ID}-player-menu-toggle input {
+            width: 18px;
+            height: 18px;
+            margin: 0;
+            accent-color: #2563eb;
             cursor: pointer;
         }
 
-        /* Mirror the player's own controls: tuck the manage pills away while playing idle. */
-        .vjs-user-inactive.vjs-playing .${SCRIPT_ID}-intro-manage {
-            opacity: 0;
-            pointer-events: none;
+        .${SCRIPT_ID}-player-menu-heading {
+            margin: 0 10px 6px;
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .${SCRIPT_ID}-player-menu-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            padding: 0 10px 4px;
         }
 
         .${SCRIPT_ID}-intro-toast {

@@ -2,32 +2,14 @@
 // @ts-nocheck
 import { AUTO_NEXT_COUNTDOWN_SECONDS, SCRIPT_ID } from '../config/constants';
 import { appState } from '../core/state';
-import { compareEpisodes, formatEpisodeLabel } from '../domain/episodes';
+import { formatEpisodeLabel } from '../domain/episodes';
 import { playNextShowEpisode } from './player';
-import { fetchEpisodeListByIdShow, getPlayPageIdShow } from './watchlist';
+import { findNextShowEpisode } from './watchlist';
 
 const OVERLAY_CLASS = `${SCRIPT_ID}-autonext`;
 
 let countdownTimer = 0;
 let overlay = null;
-
-function readCurrentEpisodeFromHash() {
-  const match = location.hash.match(/^#S(\d+)-E(\d+)-(\d+)$/i);
-  return match
-    ? { season: Number(match[1]), episode: Number(match[2]), idEpisode: Number(match[3]) }
-    : null;
-}
-
-async function findNextEpisode() {
-  const idShow = getPlayPageIdShow();
-  const current = readCurrentEpisodeFromHash();
-  if (!idShow || !current) {
-    return null;
-  }
-
-  const { episodes } = await fetchEpisodeListByIdShow(idShow);
-  return episodes.find((episode) => compareEpisodes(episode, current) > 0) || null;
-}
 
 export function cancelAutoNextCountdown() {
   window.clearInterval(countdownTimer);
@@ -38,9 +20,9 @@ export function cancelAutoNextCountdown() {
   }
 }
 
-function playNextNow() {
+function playNextNow(nextEpisode) {
   cancelAutoNextCountdown();
-  playNextShowEpisode();
+  playNextShowEpisode(nextEpisode);
 }
 
 function buildOverlay(nextEpisode) {
@@ -63,7 +45,7 @@ function buildOverlay(nextEpisode) {
   playButton.textContent = 'Play now';
   playButton.addEventListener('click', (event) => {
     event.stopPropagation();
-    playNextNow();
+    playNextNow(nextEpisode);
   });
 
   const cancelButton = document.createElement('button');
@@ -87,7 +69,7 @@ export async function startAutoNextCountdown() {
   const startedOnHash = location.hash;
   let nextEpisode = null;
   try {
-    nextEpisode = await findNextEpisode();
+    nextEpisode = await findNextShowEpisode();
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Could not look up the next episode.`, error);
   }
@@ -109,7 +91,7 @@ export async function startAutoNextCountdown() {
     if (location.hash !== startedOnHash) {
       cancelAutoNextCountdown();
     } else if (remaining <= 0) {
-      playNextNow();
+      playNextNow(nextEpisode);
     } else {
       secondsNode.textContent = String(remaining);
     }

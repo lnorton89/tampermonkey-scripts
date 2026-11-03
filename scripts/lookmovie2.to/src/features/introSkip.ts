@@ -43,8 +43,8 @@ function getVideo() {
   return document.querySelector('#video_player video');
 }
 
-function showToast(message) {
-  if (!controls) {
+export function showPlayerToast(message) {
+  if (!ensureControls()) {
     return;
   }
 
@@ -58,22 +58,12 @@ function showToast(message) {
 }
 
 function saveIntro(start, end) {
-  const showKey = getShowKey();
-  if (!showKey) {
-    return;
-  }
-
-  getIntroTimes()[showKey] = { start, end, updatedAt: Date.now() };
+  getIntroTimes()[getShowKey()] = { start, end, updatedAt: Date.now() };
   persistIntroTimes(getIntroTimes());
 }
 
 function clearIntro() {
-  const showKey = getShowKey();
-  if (!showKey) {
-    return;
-  }
-
-  delete getIntroTimes()[showKey];
+  delete getIntroTimes()[getShowKey()];
   persistIntroTimes(getIntroTimes());
 }
 
@@ -89,59 +79,72 @@ function makeButton(label, className, onClick) {
   return button;
 }
 
-function renderManage() {
-  const manage = controls.querySelector(`.${INTRO_CLASS}-manage`);
-  manage.replaceChildren();
+// The intro part of the player menu; onChange re-renders the menu after an action.
+export function buildIntroMenuSection(onChange) {
+  if (!getShowKey()) {
+    return null;
+  }
+
+  const section = document.createElement('div');
+  section.className = `${SCRIPT_ID}-player-menu-section`;
+  const heading = document.createElement('p');
+  heading.className = `${SCRIPT_ID}-player-menu-heading`;
+  heading.textContent = 'Intro for this show';
+  const row = document.createElement('div');
+  row.className = `${SCRIPT_ID}-player-menu-row`;
+  section.append(heading, row);
+
   const saved = getSavedIntro();
-  const pillClass = `${INTRO_CLASS}-pill`;
+  const buttonClass = `${SCRIPT_ID}-player-menu-button`;
 
   if (markingStart !== null) {
-    manage.append(
-      makeButton(`Mark intro end (from ${formatClock(markingStart)})`, pillClass, () => {
+    row.append(
+      makeButton(`Mark end (from ${formatClock(markingStart)})`, buttonClass, () => {
         const video = getVideo();
         const end = video ? video.currentTime : 0;
         if (end - markingStart < MIN_INTRO_SECONDS) {
-          showToast(`Play past the intro first (at least ${MIN_INTRO_SECONDS}s).`);
+          showPlayerToast(`Play past the intro first (at least ${MIN_INTRO_SECONDS}s).`);
           return;
         }
 
         saveIntro(markingStart, end);
         markingStart = null;
         skippedOnHash = location.hash;
-        renderManage();
-        showToast(`Intro saved: ${formatClock(getSavedIntro().start)}–${formatClock(end)}`);
+        showPlayerToast(`Intro saved: ${formatClock(getSavedIntro().start)}–${formatClock(end)}`);
+        onChange();
       }),
-      makeButton('×', `${pillClass} ${INTRO_CLASS}-cancel`, () => {
+      makeButton('Cancel', buttonClass, () => {
         markingStart = null;
-        renderManage();
+        onChange();
       })
     );
-    return;
+    return section;
   }
 
   if (saved) {
-    const label = document.createElement('span');
-    label.className = pillClass;
-    label.textContent = `Intro ${formatClock(saved.start)}–${formatClock(saved.end)}`;
-    manage.append(
-      label,
-      makeButton('Clear', `${pillClass} ${INTRO_CLASS}-cancel`, () => {
+    const range = document.createElement('span');
+    range.textContent = `${formatClock(saved.start)}–${formatClock(saved.end)}`;
+    row.append(
+      range,
+      makeButton('Clear', buttonClass, () => {
         clearIntro();
-        renderManage();
         updateSkipButton(getVideo());
-        showToast('Intro cleared for this show.');
+        showPlayerToast('Intro cleared for this show.');
+        onChange();
       })
     );
-    return;
+    return section;
   }
 
-  manage.append(
-    makeButton('Mark intro start', pillClass, () => {
+  row.append(
+    makeButton('Mark intro start here', buttonClass, () => {
       const video = getVideo();
       markingStart = video ? video.currentTime : 0;
-      renderManage();
+      showPlayerToast('Now play to the end of the intro and mark it.');
+      onChange();
     })
   );
+  return section;
 }
 
 function updateSkipButton(video) {
@@ -162,7 +165,7 @@ function updateSkipButton(video) {
 
 function ensureControls() {
   const playerContainer = document.getElementById('video_player');
-  if (!playerContainer || !getShowKey()) {
+  if (!playerContainer) {
     return null;
   }
 
@@ -182,21 +185,17 @@ function ensureControls() {
   });
   skip.hidden = true;
 
-  const manage = document.createElement('div');
-  manage.className = `${INTRO_CLASS}-manage`;
-
   const toast = document.createElement('p');
   toast.className = `${INTRO_CLASS}-toast`;
   toast.hidden = true;
 
-  controls.append(skip, manage, toast);
+  controls.append(skip, toast);
   playerContainer.appendChild(controls);
-  renderManage();
   return controls;
 }
 
 export function handleIntroTimeUpdate(video) {
-  if (!location.pathname.startsWith('/shows/play/') || !ensureControls()) {
+  if (!getShowKey() || !ensureControls()) {
     return;
   }
 
@@ -212,7 +211,7 @@ export function handleIntroTimeUpdate(video) {
   ) {
     skippedOnHash = location.hash;
     video.currentTime = saved.end;
-    showToast('Skipped intro');
+    showPlayerToast('Skipped intro');
   }
 
   updateSkipButton(video);
