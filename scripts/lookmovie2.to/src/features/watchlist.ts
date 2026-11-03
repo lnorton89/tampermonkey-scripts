@@ -7,15 +7,12 @@ import {
   formatEpisodeLabel,
   compareEpisodes,
   sameEpisode,
+  isLatestWatched,
 } from '../domain/episodes';
 import { normalizeWatchlistEntry, persistWatchlist } from '../core/storage';
 import { decodeInlineJsString, fetchJson, fetchText, toPositiveInteger } from '../core/utils';
 import { buildShowViewUrl, syncEpisodeCardButtons, syncShowViewWatchButton } from './pages';
 import { renderWatchlist, syncLauncherState } from '../ui';
-
-export function isLatestWatched(entry) {
-  return !!entry && sameEpisode(entry.latestEpisode, entry.lastWatched);
-}
 
 export function getWatchlistEntries() {
   return Object.values(appState.watchlistStore.shows);
@@ -75,28 +72,6 @@ export function setWatchlistMessage(message, tone) {
   appState.watchlistMessage = message || '';
   appState.watchlistMessageTone = tone || 'muted';
   renderWatchlist();
-}
-
-export async function fetchText(url) {
-  const response = await fetch(url, { credentials: 'same-origin' });
-  if (!response.ok) {
-    throw new Error(`Request failed (${response.status})`);
-  }
-
-  return response.text();
-}
-
-export async function fetchJson(url) {
-  const response = await fetch(url, { credentials: 'same-origin' });
-  if (!response.ok) {
-    throw new Error(`Request failed (${response.status})`);
-  }
-
-  return response.json();
-}
-
-export function decodeInlineJsString(value) {
-  return value.replaceAll("\\'", "'").replaceAll('\\\\', '\\');
 }
 
 export async function resolveShowRecordBySlug(slug, fallback) {

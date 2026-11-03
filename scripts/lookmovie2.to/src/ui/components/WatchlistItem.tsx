@@ -1,14 +1,10 @@
 /* eslint-disable */
 // @ts-nocheck
 import { SCRIPT_ID } from '../../config/constants';
-import { formatEpisodeLabel } from '../../domain/episodes';
+import { formatEpisodeLabel, isLatestWatched } from '../../domain/episodes';
 import { buildShowViewUrl } from '../../features/pages';
 import { addLatestEpisodeToPlaylist, isEpisodeInPlaylist } from '../../features/playlist';
-import {
-  isLatestWatched,
-  removeShowFromWatchlist,
-  toggleLatestEpisodeWatched,
-} from '../../features/watchlist';
+import { removeShowFromWatchlist, toggleLatestEpisodeWatched } from '../../features/watchlist';
 
 export function WatchlistItem({ entry, viewMode }) {
   const state = entry.latestEpisode ? (isLatestWatched(entry) ? 'watched' : 'new') : 'pending';

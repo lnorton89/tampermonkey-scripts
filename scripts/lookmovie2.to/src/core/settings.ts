@@ -1,7 +1,7 @@
 /* eslint-disable */
 // @ts-nocheck
 import { appState } from './state';
-import { persistSettings } from './storage';
+import { normalizeSettings, persistSettings } from './storage';
 import { syncModalState } from '../ui';
 import { removeWindowedFullscreenFallback } from '../features/player';
 import { restartNtfyRemote } from '../features/ntfyRemote';
@@ -23,32 +23,12 @@ export function saveSettings(nextSettings) {
     ntfyCommandSecret: appState.settings.ntfyCommandSecret,
   };
 
-  appState.settings = {
-    autoPlay: !!nextSettings.autoPlay,
-    autoFullscreen: !!nextSettings.autoFullscreen,
-    ntfyRemoteEnabled: !!nextSettings.ntfyRemoteEnabled,
-    ntfyServer:
-      typeof nextSettings.ntfyServer === 'string' && nextSettings.ntfyServer.trim()
-        ? nextSettings.ntfyServer.trim().replace(/\/+$/, '')
-        : 'https://ntfy.sh',
-    ntfyTopic:
-      typeof nextSettings.ntfyTopic === 'string' && nextSettings.ntfyTopic.trim()
-        ? nextSettings.ntfyTopic.trim()
-        : '',
-    ntfyControlTopic:
-      typeof nextSettings.ntfyControlTopic === 'string' && nextSettings.ntfyControlTopic.trim()
-        ? nextSettings.ntfyControlTopic.trim()
-        : '',
-    ntfyCommandSecret:
-      typeof nextSettings.ntfyCommandSecret === 'string' && nextSettings.ntfyCommandSecret.trim()
-        ? nextSettings.ntfyCommandSecret.trim()
-        : '',
-  };
+  appState.settings = normalizeSettings(nextSettings);
 
   persistSettings(appState.settings);
   syncModalState();
 
-  if (!appState.settings.autoFullscreen) {
+  if (!appState.settings.autoFullscreen || !appState.settings.windowedFullscreen) {
     removeWindowedFullscreenFallback();
     appState.fullscreenTriggered = false;
   }

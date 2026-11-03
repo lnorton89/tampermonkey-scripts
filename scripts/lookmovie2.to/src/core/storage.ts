@@ -56,7 +56,7 @@ function writeStoreSource(key, value) {
   }
 }
 
-function normalizeSettings(settings) {
+export function normalizeSettings(settings) {
   return {
     autoPlay:
       typeof settings.autoPlay === 'boolean' ? settings.autoPlay : DEFAULT_SETTINGS.autoPlay,
@@ -64,6 +64,10 @@ function normalizeSettings(settings) {
       typeof settings.autoFullscreen === 'boolean'
         ? settings.autoFullscreen
         : DEFAULT_SETTINGS.autoFullscreen,
+    windowedFullscreen:
+      typeof settings.windowedFullscreen === 'boolean'
+        ? settings.windowedFullscreen
+        : DEFAULT_SETTINGS.windowedFullscreen,
     ntfyRemoteEnabled:
       typeof settings.ntfyRemoteEnabled === 'boolean'
         ? settings.ntfyRemoteEnabled

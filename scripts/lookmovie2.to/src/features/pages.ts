@@ -4,7 +4,7 @@ import { SCRIPT_ID } from '../config/constants';
 import { normalizeEpisodeRecord, compareEpisodes, sameEpisode } from '../domain/episodes';
 import { appState } from '../core/state';
 import { normalizeShowsListProgress, persistShowsListProgress } from '../core/storage';
-import { escapeHtml, normalizeImageUrl, toPositiveInteger } from '../core/utils';
+import { getElementImageUrl, normalizeImageUrl, toPositiveInteger } from '../core/utils';
 import { addShowToWatchlist, getWatchlistEntry, removeShowFromWatchlist } from './watchlist';
 import { addMovieToWatchlist, getMovieWatchlistEntry, removeMovieFromWatchlist } from './movies';
 
@@ -48,32 +48,6 @@ export function extractMovieSlugFromViewHref(href) {
   } catch (error) {
     return '';
   }
-}
-
-export function getElementImageUrl(element) {
-  if (!element) {
-    return '';
-  }
-
-  const style = element.getAttribute('style') || '';
-  const styleMatch = style.match(/background-image:\s*url\((['"]?)(.*?)\1\)/i);
-  const candidates = [
-    element.getAttribute('data-lazy-background'),
-    element.getAttribute('data-src-portrait'),
-    element.getAttribute('data-background-image'),
-    element.getAttribute('data-src'),
-    styleMatch?.[2],
-    element.getAttribute('src'),
-  ];
-
-  return normalizeImageUrl(
-    candidates.find(
-      (candidate) =>
-        typeof candidate === 'string' &&
-        candidate.trim() &&
-        !candidate.trim().startsWith('data:image/')
-    ) || ''
-  );
 }
 
 export function parseEpisodeCard(cardElement) {

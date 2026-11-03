@@ -5,25 +5,15 @@ import { createPortal } from 'react-dom';
 import { appState } from '../core/state';
 import { saveSettings } from '../core/settings';
 import { SCRIPT_ID, UI_ROOT_ID } from '../config/constants';
+import { getControlText, isVisibleElement } from '../core/utils';
 import { BackupControls } from './components/BackupControls';
 import { SettingToggle } from './components/SettingToggle';
 import { WatchlistPanel } from './components/WatchlistPanel';
 import { subscribeUi } from './events';
 
-function isVisible(element) {
-  const rect = element.getBoundingClientRect();
-  return rect.width > 0 && rect.height > 0;
-}
-
-function getControlText(element) {
-  return `${element.textContent || ''} ${element.getAttribute('aria-label') || ''} ${
-    element.getAttribute('title') || ''
-  }`.trim();
-}
-
 function findVisibleControl(pattern) {
   return Array.from(document.querySelectorAll('a, button')).find((control) => {
-    if (!isVisible(control)) {
+    if (!isVisibleElement(control)) {
       return false;
     }
 
@@ -118,6 +108,14 @@ function FullscreenIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M5 10V5h5v2H7v3H5zm9-5h5v5h-2V7h-3V5zM7 14v3h3v2H5v-5h2zm10 0h2v5h-5v-2h3v-3z" />
+    </svg>
+  );
+}
+
+function WindowedFullscreenIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M3 5h18v14H3V5zm2 2v10h14V7H5zm2 2h4v2H9v2H7V9zm10 6h-4v-2h2v-2h2v4z" />
     </svg>
   );
 }
@@ -345,8 +343,14 @@ export function LookMovieToolsApp() {
                 <SettingToggle
                   settingKey="autoFullscreen"
                   title="Auto fullscreen"
-                  copy="Clicks fullscreen and applies the fullscreen fallback after playback starts."
+                  copy="Clicks the player's fullscreen button after playback starts."
                   icon={<FullscreenIcon />}
+                />
+                <SettingToggle
+                  settingKey="windowedFullscreen"
+                  title="Windowed fullscreen"
+                  copy="Stretches the player over the page when the browser blocks real fullscreen, e.g. after auto play or a remote command."
+                  icon={<WindowedFullscreenIcon />}
                 />
                 <SettingToggle
                   settingKey="ntfyRemoteEnabled"

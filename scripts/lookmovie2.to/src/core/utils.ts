@@ -7,15 +7,6 @@ export function toPositiveInteger(value) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
 
-export function escapeHtml(value) {
-  return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
-
 export async function fetchText(url) {
   const response = await fetch(url, { credentials: 'same-origin' });
   if (!response.ok) {
@@ -57,4 +48,46 @@ export function normalizeImageUrl(url) {
 
     return value;
   }
+}
+
+export function getElementImageUrl(element) {
+  if (!element) {
+    return '';
+  }
+
+  const style = element.getAttribute('style') || '';
+  const styleMatch = style.match(/background-image:\s*url\((['"]?)(.*?)\1\)/i);
+  const candidates = [
+    element.getAttribute('content'),
+    element.getAttribute('data-lazy-background'),
+    element.getAttribute('data-src-portrait'),
+    element.getAttribute('data-background-image'),
+    element.getAttribute('data-src'),
+    styleMatch?.[2],
+    element.getAttribute('src'),
+  ];
+
+  return normalizeImageUrl(
+    candidates.find(
+      (candidate) =>
+        typeof candidate === 'string' &&
+        candidate.trim() &&
+        !candidate.trim().startsWith('data:image/')
+    ) || ''
+  );
+}
+
+export function isVisibleElement(element) {
+  if (!element || typeof element.getBoundingClientRect !== 'function') {
+    return false;
+  }
+
+  const rect = element.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+}
+
+export function getControlText(element) {
+  return `${element.textContent || ''} ${element.getAttribute('aria-label') || ''} ${
+    element.getAttribute('title') || ''
+  }`.trim();
 }

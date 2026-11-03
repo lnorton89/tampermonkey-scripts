@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { SCRIPT_ID, UI_ROOT_ID } from '../../config/constants';
 import { appState } from '../../core/state';
+import { isLatestWatched } from '../../domain/episodes';
 import { getMovieWatchlistEntries, sortMovieWatchlistEntries } from '../../features/movies';
 import {
   getPlaylistEntries,
@@ -13,7 +14,6 @@ import {
 } from '../../features/playlist';
 import {
   getWatchlistEntries,
-  isLatestWatched,
   refreshWatchlistEntries,
   sortWatchlistEntries,
 } from '../../features/watchlist';

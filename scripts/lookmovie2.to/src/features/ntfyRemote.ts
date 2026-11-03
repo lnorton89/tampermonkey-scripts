@@ -7,6 +7,8 @@ import {
   SCRIPT_ID,
 } from '../config/constants';
 import { appState } from '../core/state';
+import { decodeInlineJsString, getElementImageUrl, normalizeImageUrl } from '../core/utils';
+import { isMoviePlayPage } from './pages';
 import { notifyUiChanged } from '../ui/events';
 import {
   getActiveVideo,
@@ -204,10 +206,6 @@ function isShowPlayPage() {
   return location.pathname.startsWith('/shows/play/');
 }
 
-function isMoviePlayPage() {
-  return location.pathname.startsWith('/movies/play/');
-}
-
 function isMoviePlaybackContext() {
   if (isMoviePlayPage()) {
     return true;
@@ -290,38 +288,6 @@ function getRouteEpisodeLabel() {
   return `S${String(match[1]).padStart(2, '0')}E${String(match[2]).padStart(2, '0')}`;
 }
 
-function normalizeImageUrl(url) {
-  const value = String(url || '').trim();
-  if (!value || value.startsWith('data:image/')) {
-    return '';
-  }
-
-  try {
-    return new URL(value, location.origin).href;
-  } catch (_error) {
-    return '';
-  }
-}
-
-function getElementImageUrl(element) {
-  if (!element) {
-    return '';
-  }
-
-  const style = element.getAttribute('style') || '';
-  const styleMatch = style.match(/background-image:\s*url\((['"]?)(.*?)\1\)/i);
-
-  return normalizeImageUrl(
-    element.getAttribute('content') ||
-      element.getAttribute('data-background-image') ||
-      element.getAttribute('data-lazy-background') ||
-      element.getAttribute('data-src-portrait') ||
-      element.getAttribute('data-src') ||
-      styleMatch?.[2] ||
-      element.getAttribute('src')
-  );
-}
-
 function getCurrentShowWatchlistEntry() {
   const showStorage = window.show_storage || window.show || {};
   const idShow = Number(window.id_show || showStorage.id_show || showStorage.idShow || 0);
@@ -352,12 +318,6 @@ function getCurrentShowSlug() {
     (pathMatch ? pathMatch[1] : '') ||
     (linkMatch ? linkMatch[1] : '')
   );
-}
-
-function decodeInlineJsString(value) {
-  return String(value || '')
-    .replaceAll("\\'", "'")
-    .replaceAll('\\\\', '\\');
 }
 
 function getShowPosterFromViewPage(slug) {
@@ -433,37 +393,30 @@ function resolvePlayerPosterUrl() {
   return getShowPosterFromViewPage(getCurrentShowSlug());
 }
 
+// ntfy.sh allows CORS, so fetch normally works; GM_xmlhttpRequest covers servers that don't.
 function sendJsonRequest(url, body, method = 'POST') {
-  return new Promise((resolve, reject) => {
-    const payload = JSON.stringify(body);
+  const payload = JSON.stringify(body);
+  const headers = { 'Content-Type': 'application/json' };
 
-    fetch(url, {
-      method,
-      body: payload,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+  return fetch(url, { method, body: payload, headers })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`ntfy request failed with HTTP ${response.status}`);
+      }
+
+      return response;
     })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`ntfy request failed with HTTP ${response.status}`);
-        }
+    .catch((fetchError) => {
+      if (typeof GM_xmlhttpRequest !== 'function') {
+        throw fetchError;
+      }
 
-        resolve(response);
-      })
-      .catch((fetchError) => {
-        if (typeof GM_xmlhttpRequest !== 'function') {
-          reject(fetchError);
-          return;
-        }
-
+      return new Promise((resolve, reject) => {
         GM_xmlhttpRequest({
           method,
           url,
           data: payload,
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
           onload(response) {
             if (response.status >= 200 && response.status < 300) {
               resolve(response);
@@ -472,12 +425,10 @@ function sendJsonRequest(url, body, method = 'POST') {
 
             reject(new Error(`ntfy request failed with HTTP ${response.status}`));
           },
-          onerror(error) {
-            reject(error);
-          },
+          onerror: reject,
         });
       });
-  });
+    });
 }
 
 function sendBinaryRequest(url, body, headers, method = 'POST') {

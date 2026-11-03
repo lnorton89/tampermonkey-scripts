@@ -1,7 +1,13 @@
 /* eslint-disable */
 // @ts-nocheck
-import { FULLSCREEN_EXIT_BUTTON_ID, FULLSCREEN_STYLE_ID, SCRIPT_ID } from '../config/constants';
+import {
+  FULLSCREEN_EXIT_BUTTON_ID,
+  FULLSCREEN_STYLE_ID,
+  RESUME_FINISHED_PERCENT,
+  SCRIPT_ID,
+} from '../config/constants';
 import { appState } from '../core/state';
+import { getControlText, isVisibleElement } from '../core/utils';
 import { publishPlayerNotification } from './ntfyRemote';
 import { completeCurrentPlaylistEntryAndAdvance } from './playlist';
 import { maybeTrackWatchedEpisodeFromPlayer } from './watchlist';
@@ -115,25 +121,22 @@ export function toggleActiveVideoFullscreen() {
     return true;
   }
 
-  if (!playerContainer) {
-    return false;
-  }
-
-  if (fullscreenButton) {
-    fullscreenButton.click();
-  }
-
-  applyWindowedFullscreenFallback();
-  appState.fullscreenTriggered = true;
-  return true;
+  return enterActiveVideoFullscreen();
 }
 
+// Clicks the player's own fullscreen button. Browsers only honour that right after a user
+// gesture, so the windowed fallback (player stretched over the page) covers the other cases
+// unless the user turned it off.
 export function enterActiveVideoFullscreen() {
-  if (document.getElementById(FULLSCREEN_STYLE_ID)) {
+  const playerContainer = document.getElementById('video_player');
+  if (
+    document.getElementById(FULLSCREEN_STYLE_ID) ||
+    document.fullscreenElement ||
+    playerContainer?.classList.contains('vjs-fullscreen')
+  ) {
     return true;
   }
 
-  const playerContainer = document.getElementById('video_player');
   if (!playerContainer) {
     return false;
   }
@@ -143,7 +146,12 @@ export function enterActiveVideoFullscreen() {
     fullscreenButton.click();
   }
 
-  applyWindowedFullscreenFallback();
+  if (appState.settings.windowedFullscreen) {
+    applyWindowedFullscreenFallback();
+  } else if (!fullscreenButton) {
+    return false;
+  }
+
   appState.fullscreenTriggered = true;
   return true;
 }
@@ -174,21 +182,6 @@ export function exitActiveVideoFullscreen() {
   }
 
   return handled;
-}
-
-function isVisibleControl(element) {
-  if (!element || typeof element.getBoundingClientRect !== 'function') {
-    return false;
-  }
-
-  const rect = element.getBoundingClientRect();
-  return rect.width > 0 && rect.height > 0;
-}
-
-function getControlText(element) {
-  return `${element.textContent || ''} ${element.getAttribute('aria-label') || ''} ${
-    element.getAttribute('title') || ''
-  }`.trim();
 }
 
 function parseShowPlayEpisodeFromUrl(url) {
@@ -228,7 +221,7 @@ function clickVisibleNextEpisodeControl() {
   ];
 
   const control = Array.from(document.querySelectorAll(selectors.join(', '))).find((element) => {
-    if (!isVisibleControl(element)) {
+    if (!isVisibleElement(element)) {
       return false;
     }
 
@@ -287,9 +280,16 @@ export function dismissResumeModalIfPresent() {
     return false;
   }
 
-  const dismissButton = document.getElementById('progress-from-beginning-button');
+  // The site's resume dialog: continue where playback stopped unless it was already finished.
+  const continueButton = document.getElementById('progress-continue-button');
+  const restartButton = document.getElementById('progress-from-beginning-button');
+  const progressPercent = Number.parseFloat(document.getElementById('progress-bar')?.style.width);
+  const dismissButton =
+    Number.isFinite(progressPercent) && progressPercent >= RESUME_FINISHED_PERCENT
+      ? restartButton || continueButton
+      : continueButton || restartButton;
   if (dismissButton) {
-    console.log(`[${SCRIPT_ID}] Dismissing playback modal.`);
+    console.log(`[${SCRIPT_ID}] Dismissing playback modal (${dismissButton.id}).`);
     dismissButton.click();
     return true;
   }
