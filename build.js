@@ -99,18 +99,26 @@ function readMetaValues(scriptDir, key) {
     .filter((value) => value && value !== 'none');
 }
 
+// Bump when the loader template changes so Tampermonkey offers the update via @updateURL.
+const LOADER_VERSION = '1.1.0';
+
 function generateLoader(scriptDir, scriptName) {
   const loaderPath = path.join(scriptDir, 'tampermonkey-loader.user.js');
   const scriptUrl = `${rawUrl}/${branch}/scripts/${scriptName}/dist/${scriptName}.user.js`;
+  const loaderUrl = `${rawUrl}/${branch}/scripts/${scriptName}/tampermonkey-loader.user.js`;
   const matchLines = readMetaMatches(scriptDir)
     .map((match) => `// @match        ${match}`)
     .join('\n');
   const runAt = readMetaRunAt(scriptDir);
-  const grantLines = [
-    ...new Set(['GM_xmlhttpRequest', ...readMetaValues(scriptDir, 'grant')]),
-  ]
-    .map((grant) => `// @grant        ${grant}`)
-    .join('\n');
+  const grants = [...new Set(['GM_xmlhttpRequest', ...readMetaValues(scriptDir, 'grant')])];
+  const grantLines = grants.map((grant) => `// @grant        ${grant}`).join('\n');
+  // Code eval'd from inside Tampermonkey's sandbox can't see the granted APIs, so the loader
+  // passes them to the build as named parameters instead.
+  const apiNames = grants.filter((grant) => /^GM_\w+$|^unsafeWindow$/.test(grant));
+  const apiParams = apiNames.join(', ');
+  const apiArgs = apiNames
+    .map((name) => `typeof ${name} === 'undefined' ? undefined : ${name}`)
+    .join(',\n          ');
   const connectLines = [
     ...new Set(['github.com', 'raw.githubusercontent.com', ...readMetaValues(scriptDir, 'connect')]),
   ]
@@ -120,8 +128,10 @@ function generateLoader(scriptDir, scriptName) {
   const template = `// ==UserScript==
 // @name         ${scriptName} (loader)
 // @namespace    ${pkg.repository?.url?.replace('git+', '').replace('.git', '') || 'http://tampermonkey.net/'}
-// @version      1.0.0
+// @version      ${LOADER_VERSION}
 // @description  Loader — fetches the latest build from GitHub
+// @updateURL    ${loaderUrl}
+// @downloadURL  ${loaderUrl}
 ${matchLines}
 // @run-at       ${runAt}
 ${grantLines}
@@ -138,7 +148,16 @@ ${connectLines}
     url: SCRIPT_URL + '?_=' + Date.now(),
     onload(res) {
       if (res.status === 200) {
-        eval(res.responseText);
+        // eval keeps the evaluation context the build has always had; the wrapper function only
+        // adds the granted APIs as parameters.
+        const run = eval(
+          '(function (${apiParams}) {\\n' +
+            res.responseText +
+            '\\n})\\n//# sourceURL=${scriptName}.user.js'
+        );
+        run(
+          ${apiArgs}
+        );
         console.log('[loader] Successfully loaded script from:', SCRIPT_URL);
       } else {
         console.error('[loader] Failed to fetch script:', res.status, SCRIPT_URL);
