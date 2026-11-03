@@ -5,6 +5,8 @@ import { INTRO_DB_API_PREFIX, SCRIPT_ID } from '../config/constants';
 // TheIntroDB segments keyed by `${tmdbId}:${season}:${episode}`. Aether only exposes the end of
 // each segment through its skip buttons, so the full times are read from its own API responses.
 const skipTimesByMedia = new Map();
+const requestedMediaKeys = new Set();
+const EMPTY_SKIP_TIMES = Object.freeze({ intro: null, recap: null, credits: null, preview: null });
 
 // Credits and previews may run to the end of the file, which TheIntroDB reports as a null end.
 const OPEN_ENDED_SEGMENTS = new Set(['credits', 'preview']);
@@ -59,6 +61,41 @@ function recordSkipTimes(requestUrl, data) {
     credits: toSegmentTimes('credits', data?.credits),
     preview: toSegmentTimes('preview', data?.preview),
   });
+}
+
+// The loader fetches this build asynchronously, so on a direct page load Aether has usually
+// requested the times before the fetch hook exists. In that case they're requested again here.
+export function requestSkipTimes({ tmdbId, season, episode }) {
+  const mediaKey = getMediaKey(tmdbId, season, episode);
+  if (skipTimesByMedia.has(mediaKey) || requestedMediaKeys.has(mediaKey)) {
+    return;
+  }
+
+  requestedMediaKeys.add(mediaKey);
+  const params = new URLSearchParams({ tmdb_id: tmdbId });
+  if (season && episode) {
+    params.set('season', season);
+    params.set('episode', episode);
+  }
+
+  const requestUrl = `${INTRO_DB_API_PREFIX}v3/media?${params.toString()}`;
+  fetch(requestUrl, { headers: { Accept: 'application/json' } })
+    .then((response) => (response.ok ? response.json() : null))
+    .then((data) => {
+      if (!skipTimesByMedia.has(mediaKey)) {
+        if (data) {
+          recordSkipTimes(requestUrl, data);
+        } else {
+          skipTimesByMedia.set(mediaKey, EMPTY_SKIP_TIMES);
+        }
+      }
+    })
+    .catch((error) => {
+      console.warn(`[${SCRIPT_ID}] Failed to fetch skip times.`, error);
+      if (!skipTimesByMedia.has(mediaKey)) {
+        skipTimesByMedia.set(mediaKey, EMPTY_SKIP_TIMES);
+      }
+    });
 }
 
 export function installSkipTimesCapture() {

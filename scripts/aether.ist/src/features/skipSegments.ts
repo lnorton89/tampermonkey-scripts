@@ -8,7 +8,7 @@ import {
   SKIP_SEGMENTS,
 } from '../config/constants';
 import { appState } from '../core/state';
-import { getMediaKey, getSkipTimes } from './skipTimes';
+import { getMediaKey, getSkipTimes, requestSkipTimes } from './skipTimes';
 
 function getEpisodeKey() {
   return PLAYER_PATH_PATTERN.test(location.pathname) ? location.pathname : '';
@@ -20,25 +20,27 @@ function getEpisodeLabel() {
   return `${navigator.mediaSession?.metadata?.title || ''} | ${document.title}`;
 }
 
-// After an in-player episode change the label still names the previous episode for a moment,
-// so it isn't trusted until it changes.
-function getCurrentMediaKey() {
+// Returns undefined while the label still names the previous episode (after an in-player episode
+// change it lags for a moment), and null when the media can't be identified at all.
+function getCurrentMedia() {
   const episodeLabel = getEpisodeLabel();
   if (appState.skipStaleLabel && episodeLabel === appState.skipStaleLabel) {
-    return '';
+    return undefined;
   }
 
   const tmdbMatch = location.pathname.match(/^\/media\/tmdb-(tv|movie)-(\d+)/);
   if (!tmdbMatch) {
-    return '';
+    return null;
   }
 
   if (tmdbMatch[1] === 'movie') {
-    return getMediaKey(tmdbMatch[2]);
+    return { tmdbId: tmdbMatch[2] };
   }
 
   const episodeMatch = episodeLabel.match(/\bS(\d+)\s*-?\s*E(\d+)\b/);
-  return episodeMatch ? getMediaKey(tmdbMatch[2], episodeMatch[1], episodeMatch[2]) : '';
+  return episodeMatch
+    ? { tmdbId: tmdbMatch[2], season: episodeMatch[1], episode: episodeMatch[2] }
+    : null;
 }
 
 function resetForEpisode(episodeKey) {
@@ -126,13 +128,24 @@ function checkSkipSegments() {
     return;
   }
 
-  const mediaKey = getCurrentMediaKey();
-  if (!mediaKey) {
+  const media = getCurrentMedia();
+  if (media === undefined) {
     return;
   }
 
   appState.skipStaleLabel = '';
-  const skipTimes = getSkipTimes(mediaKey);
+  let skipTimes = null;
+  if (media) {
+    skipTimes = getSkipTimes(getMediaKey(media.tmdbId, media.season, media.episode));
+
+    // Clicking Aether's own button before the times arrive would skip cold opens, so wait for
+    // them; requestSkipTimes always records an entry, even when the lookup fails.
+    if (!skipTimes) {
+      requestSkipTimes(media);
+      return;
+    }
+  }
+
   pendingSegments.forEach(({ segment }) => {
     const times = skipTimes?.[segment];
     if (times) {
