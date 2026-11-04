@@ -14,6 +14,7 @@ export const SKIP_SEEK_ATTEMPTS = 3;
 export const SKIP_INTRO_ALWAYS_VISIBLE_SECONDS = 10;
 export const AUDIO_OFFSET_LIMIT_MS = 1000;
 export const AUDIO_OFFSET_STEP_MS = 10;
+export const SUBTITLE_RESYNC_INTERVAL_MS = 60_000;
 
 export interface Settings {
   autoSkipIntro: boolean;
@@ -21,6 +22,7 @@ export interface Settings {
   autoSkipCredits: boolean;
   autoSkipPreview: boolean;
   audioOffsetMs: number;
+  subtitleResyncEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
@@ -29,6 +31,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   autoSkipCredits: false,
   autoSkipPreview: false,
   audioOffsetMs: 0,
+  subtitleResyncEnabled: true,
 });
 
 export type SettingKey = keyof Settings;
@@ -36,7 +39,7 @@ export type SkipSegment = 'recap' | 'intro' | 'credits' | 'preview';
 
 export interface SkipSegmentSetting {
   segment: SkipSegment;
-  settingKey: Exclude<SettingKey, 'audioOffsetMs'>;
+  settingKey: 'autoSkipIntro' | 'autoSkipRecap' | 'autoSkipCredits' | 'autoSkipPreview';
   label: string;
 }
 

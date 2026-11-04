@@ -3,8 +3,9 @@ import type * as Core from '@userscripts/core';
 
 const mocks = vi.hoisted(() => ({
   support: 'supported',
+  live: false,
   onDomChange: vi.fn((callback: () => void) => callback()),
-  reload: vi.fn(() => true),
+  reload: vi.fn(async () => true),
 }));
 vi.mock('@userscripts/core', async (importOriginal) => ({
   ...(await importOriginal<typeof Core>()),
@@ -14,11 +15,14 @@ vi.mock('../../scripts/aether.ist/src/features/audioOffset', () => ({
   AUDIO_OFFSET_EVENT: 'aether-test:offset',
   getAppliedAudioOffset: () => 0,
   getAudioOffsetSupport: () => mocks.support,
-  reloadWithAudioOffset: mocks.reload,
+  applyAudioOffset: mocks.reload,
+  canApplyAudioOffsetLive: () => mocks.live,
+  isAudioOffsetApplying: () => false,
 }));
 
 beforeEach(() => {
   mocks.support = 'supported';
+  mocks.live = false;
   mocks.reload.mockClear();
   document.body.innerHTML = `
     <div class="overflow-y-auto">
@@ -74,5 +78,21 @@ describe('playback menu audio offset', () => {
     const row = document.querySelector('[data-aether-enhancer-audio-offset]')!;
     expect(row.querySelector('[role="status"]')!.textContent).toContain('Try another source');
     expect(row.querySelector<HTMLButtonElement>('[data-apply]')!.disabled).toBe(true);
+  });
+
+  it('applies on slider release without a reload button when connected to Aether', async () => {
+    mocks.live = true;
+    const { watchPlaybackMenu } =
+      await import('../../scripts/aether.ist/src/features/playbackMenu');
+    watchPlaybackMenu();
+    const row = document.querySelector('[data-aether-enhancer-audio-offset]')!;
+    const slider = row.querySelector<HTMLInputElement>('input[type="range"]')!;
+    expect(row.querySelector<HTMLButtonElement>('[data-apply]')!.hidden).toBe(true);
+    slider.value = '-300';
+    slider.dispatchEvent(new Event('input'));
+    expect(mocks.reload).not.toHaveBeenCalled();
+    slider.dispatchEvent(new Event('change'));
+    expect(mocks.reload).toHaveBeenCalledWith(-300);
+    await Promise.resolve();
   });
 });

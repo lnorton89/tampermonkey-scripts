@@ -5,6 +5,7 @@ import { installBannerHider } from '../features/hideBanner';
 import { watchCommunityLinks } from '../features/hideCommunityLinks';
 import { watchPlaybackMenu } from '../features/playbackMenu';
 import { watchSkipSegments } from '../features/skipSegments';
+import { watchSubtitleResync } from '../features/subtitleResync';
 
 export function bootstrapDomFeatures(): void {
   if (appState.domBootstrapped) {
@@ -18,4 +19,5 @@ export function bootstrapDomFeatures(): void {
   watchSkipSegments();
   watchAudioOffsetPlayback();
   watchPlaybackMenu();
+  watchSubtitleResync();
 }

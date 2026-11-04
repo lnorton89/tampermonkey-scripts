@@ -1,8 +1,8 @@
 /* ==UserScript==
 // @name         Aether Enhancer
 // @namespace    https://github.com/lnorton89/tampermonkey-scripts
-// @version      0.3.0
-// @description  Aether playback helpers: audio sync offset, segment auto-skip, popup ad blocking, and less clutter.
+// @version      0.4.0
+// @description  Aether playback helpers: live audio offset, periodic subtitle re-sync, segment auto-skip, and ad blocking.
 // @author       Lawrence
 // @match        *://*.aether.ist/*
 // @match        *://aether.ist/*

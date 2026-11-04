@@ -11,9 +11,11 @@ import { appState } from '../core/state';
 import { normalizeAudioOffset } from '../core/storage';
 import {
   AUDIO_OFFSET_EVENT,
+  applyAudioOffset,
+  canApplyAudioOffsetLive,
   getAppliedAudioOffset,
   getAudioOffsetSupport,
-  reloadWithAudioOffset,
+  isAudioOffsetApplying,
 } from './audioOffset';
 
 const SETTING_ROW_ATTR = `data-${SCRIPT_ID}-setting`;
@@ -110,24 +112,35 @@ function createAudioOffsetSection(): HTMLDivElement {
   const apply = section.querySelector<HTMLButtonElement>('[data-apply]')!;
   const status = section.querySelector<HTMLElement>('[role="status"]')!;
   let draft = appState.settings.audioOffsetMs;
+  let errorMessage = '';
 
   const syncStatus = (): void => {
     const support = getAudioOffsetSupport();
     const changed = draft !== getAppliedAudioOffset();
+    const live = canApplyAudioOffsetLive();
+    const busy = isAudioOffsetApplying();
     const messages = {
       waiting: 'Start a video to adjust audio sync.',
       unsupported:
         'Audio offset needs an HLS stream with a separate audio track. Try another source.',
-      reopen:
-        'Reopen the video from Aether’s home page to enable audio offset. The script loaded after this stream.',
+      reopen: live
+        ? 'Adjust the offset to refresh this stream without reloading the page.'
+        : 'Reopen the video from Aether’s home page to enable audio offset. The script loaded after this stream.',
       supported: changed
-        ? 'Applying reloads this page and resumes at your current position.'
-        : `Current offset: ${draft > 0 ? '+' : ''}${draft} ms.`,
+        ? live
+          ? 'Release the slider or finish editing to apply. Playback may briefly buffer.'
+          : 'Applying reloads this page and resumes at your current position.'
+        : live
+          ? 'Changes apply without a page reload. Playback may briefly buffer.'
+          : `Current offset: ${draft > 0 ? '+' : ''}${draft} ms.`,
     };
-    const message = messages[support];
+    const message = busy ? 'Applying audio offset…' : errorMessage || messages[support];
     if (status.textContent !== message) status.textContent = message;
-    apply.disabled = support !== 'supported' || !changed;
-    reset.disabled = draft === 0;
+    apply.hidden = live;
+    apply.disabled = support !== 'supported' || !changed || busy;
+    reset.disabled = draft === 0 || busy;
+    slider.disabled = busy;
+    number.disabled = busy;
   };
   const syncInputs = (): void => {
     slider.value = String(draft);
@@ -145,6 +158,17 @@ function createAudioOffsetSection(): HTMLDivElement {
     draft = normalizeAudioOffset(slider.valueAsNumber);
     syncInputs();
   });
+  const commit = async (): Promise<void> => {
+    if (draft === getAppliedAudioOffset() || isAudioOffsetApplying()) return;
+    errorMessage = '';
+    if (!(await applyAudioOffset(draft))) {
+      errorMessage = 'Could not refresh the stream. Reopen the video to apply the saved offset.';
+    }
+    syncInputs();
+  };
+  slider.addEventListener('change', () => {
+    if (canApplyAudioOffsetLive()) void commit();
+  });
   number.addEventListener('input', () => {
     if (!Number.isFinite(number.valueAsNumber)) return;
     draft = normalizeAudioOffset(number.valueAsNumber);
@@ -156,16 +180,15 @@ function createAudioOffsetSection(): HTMLDivElement {
   number.addEventListener('change', () => {
     draft = normalizeAudioOffset(number.valueAsNumber);
     syncInputs();
+    if (canApplyAudioOffsetLive()) void commit();
   });
   reset.addEventListener('click', () => {
     draft = 0;
     syncInputs();
+    if (canApplyAudioOffsetLive()) void commit();
   });
   apply.addEventListener('click', () => {
-    if (!reloadWithAudioOffset(draft)) {
-      status.textContent =
-        'Could not save your playback position. Try again after the video loads.';
-    }
+    void commit();
   });
   // Aether's global keyboard shortcuts must not seek/change volume while editing the offset.
   for (const event of ['click', 'pointerdown', 'keydown', 'keyup']) {

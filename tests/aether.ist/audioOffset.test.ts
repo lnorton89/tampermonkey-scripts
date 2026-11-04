@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { STORAGE_KEY } from '../../scripts/aether.ist/src/config/constants';
+import type { SiteStores } from '../../scripts/aether.ist/src/core/siteStores';
+
+const bridge = vi.hoisted(() => ({ stores: null as SiteStores | null }));
+vi.mock('../../scripts/aether.ist/src/core/siteStores', () => ({
+  getSiteStores: () => bridge.stores,
+  connectSiteStores: async () => bridge.stores,
+}));
 
 function installMediaMocks() {
   class Buffer extends EventTarget {
@@ -43,6 +50,7 @@ function installMediaMocks() {
 }
 
 beforeEach(() => {
+  bridge.stores = null;
   vi.resetModules();
   document.body.innerHTML = '<video></video>';
   sessionStorage.clear();
@@ -190,5 +198,67 @@ describe('audio offset media timeline', () => {
     expect(video.muted).toBe(true);
     expect(pause).toHaveBeenCalledOnce();
     expect(sessionStorage.getItem('aether-enhancer:audio-offset-resume')).toBeNull();
+  });
+
+  it('refreshes the stream in place, freezes old buffer offsets and restores paused playback', async () => {
+    vi.useFakeTimers();
+    const feature = await setup(0);
+    const { source, Source, video, applyAudioOffset, getAppliedAudioOffset } = feature;
+    const original = source.addSourceBuffer('audio/mp4');
+    original.appendBuffer(new ArrayBuffer(0));
+    Object.defineProperty(video, 'readyState', { value: 1 });
+    Object.defineProperty(video, 'duration', { value: 100 });
+    const pause = vi.spyOn(video, 'pause').mockImplementation(() => undefined);
+    video.currentTime = 42.25;
+    video.playbackRate = 1.5;
+    video.volume = 0.4;
+    video.muted = true;
+    const state = {
+      source: { type: 'hls' },
+      caption: { selected: { id: 'en', srtData: 'subtitles' }, asTrack: false },
+      currentAudioTrack: null,
+      display: {
+        getType: () => 'web',
+        load: vi.fn(),
+        on: vi.fn(),
+        off: vi.fn(),
+        changeAudioTrack: vi.fn(),
+      },
+      redisplaySource: vi.fn(() => {
+        const next = new Source();
+        video.src = URL.createObjectURL(next as unknown as MediaSource);
+        const audio = next.addSourceBuffer('audio/mp4');
+        audio.appendBuffer(new ArrayBuffer(0));
+        expect(audio.actualOffset).toBeCloseTo(-0.25);
+        video.currentTime = 0;
+        video.dispatchEvent(new Event('loadedmetadata'));
+      }),
+    };
+    bridge.stores = {
+      player: { getState: () => state, setState: vi.fn(), subscribe: vi.fn() },
+      subtitles: {
+        getState: () => ({ autoSyncEnabled: true, delay: 0, setAutoSyncResult: vi.fn() }),
+        setState: vi.fn(),
+        subscribe: vi.fn(),
+      },
+    };
+    const first = applyAudioOffset(-250);
+    const overlapping = applyAudioOffset(300);
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(await first).toBe(true);
+    expect(await overlapping).toBe(false);
+    expect(state.display.load).toHaveBeenCalledWith(expect.objectContaining({ source: null }));
+    expect(state.redisplaySource).toHaveBeenCalledWith(42.25);
+    expect(video.currentTime).toBe(42.25);
+    expect(video.playbackRate).toBe(1.5);
+    expect(video.volume).toBe(0.4);
+    expect(video.muted).toBe(true);
+    expect(pause).toHaveBeenCalledOnce();
+    expect(getAppliedAudioOffset()).toBe(-250);
+    expect(original.timestampOffset).toBe(0);
+    original.appendBuffer(new ArrayBuffer(0));
+    expect(original.actualOffset).toBe(0);
+    expect(state.caption.selected.id).toBe('en');
   });
 });

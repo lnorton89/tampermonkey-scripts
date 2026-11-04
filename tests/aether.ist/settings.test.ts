@@ -9,7 +9,12 @@ describe('Aether audio offset settings', () => {
       autoSkipCredits: true,
       autoSkipPreview: false,
       audioOffsetMs: 0,
+      subtitleResyncEnabled: true,
     });
+  });
+
+  it('remembers an explicit opt-out of periodic subtitle re-sync', () => {
+    expect(normalizeSettings({ subtitleResyncEnabled: false }).subtitleResyncEnabled).toBe(false);
   });
 
   it.each([

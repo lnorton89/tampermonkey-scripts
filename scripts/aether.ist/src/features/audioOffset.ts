@@ -1,5 +1,6 @@
 import { SCRIPT_ID } from '../config/constants';
 import { saveSettings } from '../core/settings';
+import { connectSiteStores, getSiteStores, type AudioTrack } from '../core/siteStores';
 import { appState } from '../core/state';
 import { normalizeAudioOffset } from '../core/storage';
 
@@ -19,14 +20,30 @@ interface ResumePosition {
 
 export type AudioOffsetSupport = 'waiting' | 'supported' | 'unsupported' | 'reopen';
 
-// One offset per page: changing timestamps on an already-buffered stream creates overlaps/gaps.
-// Apply reloads the stream instead, retaining the exact position and playback state.
-const appliedOffsetMs = appState.settings.audioOffsetMs;
+// Each buffer retains its original offset. Live changes recreate the stream at the same
+// position; changing timestamps on an already-buffered stream creates overlaps/gaps.
+let appliedOffsetMs = appState.settings.audioOffsetMs;
 const mediaSources = new Map<string, MediaSource>();
 const audioBuffers = new WeakSet<SourceBuffer>();
-const shiftedBuffers = new WeakSet<SourceBuffer>();
+const bufferOffsets = new WeakMap<SourceBuffer, number>();
 let installed = false;
 let available = false;
+let applying = false;
+
+export function isAudioOffsetApplying(): boolean {
+  return applying;
+}
+
+export function canApplyAudioOffsetLive(): boolean {
+  const state = getSiteStores()?.player.getState();
+  return (
+    ['supported', 'reopen'].includes(getAudioOffsetSupport()) &&
+    !!state?.source &&
+    state.display?.getType() === 'web' &&
+    typeof state.display.load === 'function' &&
+    typeof state.redisplaySource === 'function'
+  );
+}
 
 export function getAppliedAudioOffset(): number {
   return appliedOffsetMs;
@@ -73,10 +90,10 @@ export function installAudioOffset(): void {
   Object.defineProperty(prototype, 'timestampOffset', {
     ...timestampOffset,
     get(this: SourceBuffer): number {
-      return getOffset.call(this) - (shiftedBuffers.has(this) ? appliedOffsetMs / 1000 : 0);
+      return getOffset.call(this) - (bufferOffsets.get(this) ?? 0) / 1000;
     },
     set(this: SourceBuffer, value: number): void {
-      setOffset.call(this, value + (shiftedBuffers.has(this) ? appliedOffsetMs / 1000 : 0));
+      setOffset.call(this, value + (bufferOffsets.get(this) ?? 0) / 1000);
     },
   });
 
@@ -84,14 +101,14 @@ export function installAudioOffset(): void {
   const appendBuffer = prototype.appendBuffer;
   prototype.appendBuffer = function (this: SourceBuffer, data: BufferSource): void {
     if (
-      appliedOffsetMs !== 0 &&
       audioBuffers.has(this) &&
       this.mode === 'segments' &&
-      !shiftedBuffers.has(this) &&
+      !bufferOffsets.has(this) &&
       !this.updating
     ) {
-      setOffset.call(this, getOffset.call(this) + appliedOffsetMs / 1000);
-      shiftedBuffers.add(this);
+      if (appliedOffsetMs !== 0)
+        setOffset.call(this, getOffset.call(this) + appliedOffsetMs / 1000);
+      bufferOffsets.set(this, appliedOffsetMs);
     }
     appendBuffer.call(this, data);
   };
@@ -176,7 +193,113 @@ export function reloadWithAudioOffset(offsetMs: number): boolean {
   return true;
 }
 
+/** Refresh only Aether's stream, keeping the same video, audio graph, page and captions. */
+export async function applyAudioOffset(offsetMs: number): Promise<boolean> {
+  if (applying) return false;
+  const stores = await connectSiteStores();
+  if (applying) return false;
+  if (!stores || !canApplyAudioOffsetLive()) return reloadWithAudioOffset(offsetMs);
+  const state = stores.player.getState();
+  const display = state.display!;
+  const video =
+    document.querySelector<HTMLVideoElement>('#video-element') || document.querySelector('video');
+  const support = getAudioOffsetSupport();
+  if (!video || video.readyState < 1 || !['supported', 'reopen'].includes(support)) return false;
+  const position = {
+    time: video.currentTime,
+    paused: video.paused,
+    rate: video.playbackRate,
+    volume: video.volume,
+    muted: video.muted,
+  };
+  const previousTrack = state.currentAudioTrack;
+  const href = location.href;
+  applying = true;
+  notifySupport();
+  return new Promise<boolean>((resolve) => {
+    let finished = false;
+    let restoreTimer: number | undefined;
+    const sameStream = (): boolean =>
+      location.href === href &&
+      video.isConnected &&
+      stores.player.getState().source === state.source;
+    const finish = (success: boolean): void => {
+      if (finished) return;
+      finished = true;
+      window.clearTimeout(timeout);
+      window.clearTimeout(restoreTimer);
+      video.removeEventListener('loadedmetadata', onMetadata);
+      video.removeEventListener('seeked', onSeeked);
+      video.removeEventListener('error', onError);
+      display.off('audiotracks', onTracks);
+      applying = false;
+      notifySupport();
+      resolve(success);
+    };
+    const onSeeked = (): void => {
+      if (!sameStream()) {
+        finish(false);
+        return;
+      }
+      if (position.paused) video.pause();
+      else
+        void video.play().catch(() => {
+          /* The play button remains available if autoplay is blocked. */
+        });
+      finish(true);
+    };
+    const onMetadata = (): void => {
+      restoreTimer = window.setTimeout(() => {
+        if (!sameStream()) {
+          finish(false);
+          return;
+        }
+        video.playbackRate = position.rate;
+        video.volume = position.volume;
+        video.muted = position.muted;
+        const end = Number.isFinite(video.duration) ? Math.max(0, video.duration - 0.05) : Infinity;
+        video.currentTime = Math.min(position.time, end);
+        if (!video.seeking) onSeeked();
+      }, 0);
+    };
+    const onError = (): void => finish(false);
+    const onTracks = (tracks: AudioTrack[]): void => {
+      if (!sameStream() || !previousTrack) return;
+      const track =
+        tracks.find(
+          (track) => track.id === previousTrack.id && track.language === previousTrack.language
+        ) ??
+        tracks.find(
+          (track) =>
+            track.language === previousTrack.language && track.label === previousTrack.label
+        );
+      if (track) display.changeAudioTrack(track);
+    };
+    const timeout = window.setTimeout(() => finish(false), 30_000);
+    video.addEventListener('loadedmetadata', onMetadata, { once: true });
+    video.addEventListener('seeked', onSeeked);
+    video.addEventListener('error', onError);
+    display.on('audiotracks', onTracks);
+    try {
+      // Aether's redisplaySource alone doesn't destroy its previous HLS instance. Clear it
+      // first so repeated slider adjustments cannot leave orphaned downloads/decoders.
+      display.load({
+        source: null,
+        startAt: position.time,
+        automaticQuality: false,
+        preferredQuality: null,
+      });
+      appliedOffsetMs = normalizeAudioOffset(offsetMs);
+      saveSettings({ ...appState.settings, audioOffsetMs: appliedOffsetMs });
+      stores.player.getState().redisplaySource(position.time);
+    } catch {
+      finish(false);
+    }
+  });
+}
+
 export function watchAudioOffsetPlayback(): void {
+  void connectSiteStores().then(notifySupport);
   let resume = readResumePosition();
   let scheduled = false;
   const sync = (): void => {
