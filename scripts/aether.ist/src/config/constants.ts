@@ -12,20 +12,31 @@ export const SKIP_SEEK_ATTEMPTS = 3;
 // Aether always shows its Skip Intro button for the first 10s of playback; after that it only
 // appears while the player controls are visible.
 export const SKIP_INTRO_ALWAYS_VISIBLE_SECONDS = 10;
-export const DEFAULT_SETTINGS = Object.freeze({
+export const AUDIO_OFFSET_LIMIT_MS = 1000;
+export const AUDIO_OFFSET_STEP_MS = 10;
+
+export interface Settings {
+  autoSkipIntro: boolean;
+  autoSkipRecap: boolean;
+  autoSkipCredits: boolean;
+  autoSkipPreview: boolean;
+  audioOffsetMs: number;
+}
+
+export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   autoSkipIntro: true,
   autoSkipRecap: false,
   autoSkipCredits: false,
   autoSkipPreview: false,
+  audioOffsetMs: 0,
 });
 
-export type Settings = { -readonly [K in keyof typeof DEFAULT_SETTINGS]: boolean };
 export type SettingKey = keyof Settings;
 export type SkipSegment = 'recap' | 'intro' | 'credits' | 'preview';
 
 export interface SkipSegmentSetting {
   segment: SkipSegment;
-  settingKey: SettingKey;
+  settingKey: Exclude<SettingKey, 'audioOffsetMs'>;
   label: string;
 }
 

@@ -5,7 +5,7 @@ Userscripts for a handful of sites, written in TypeScript and bundled with esbui
 | Script | What it does |
 | --- | --- |
 | [`lookmovie2.to`](scripts/lookmovie2.to) | Watchlist, playlist, resume points, intro skip, auto-next, ntfy remote |
-| [`aether.ist`](scripts/aether.ist) | Ad blocking, auto skip intro/recap/credits, playback menu tweaks |
+| [`aether.ist`](scripts/aether.ist) | Audio sync offset, ad blocking, auto skip intro/recap/credits, playback menu tweaks |
 | [`cineby.sc`](scripts/cineby.sc) | Auto-next episode, ntfy remote |
 | [`fmovies.nz`](scripts/fmovies.nz) | Keeps subtitles clear of the player controls |
 | [`datanodes.to`](scripts/datanodes.to) | Queue of datanodes.to downloads, one at a time |
