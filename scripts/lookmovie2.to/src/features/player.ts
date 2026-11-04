@@ -1,12 +1,12 @@
-/* eslint-disable */
-// @ts-nocheck
 import {
   FULLSCREEN_EXIT_BUTTON_ID,
   FULLSCREEN_STYLE_ID,
   RESUME_FINISHED_PERCENT,
   SCRIPT_ID,
 } from '../config/constants';
+import { createVideoControls, findActiveVideo, waitForBody } from '@userscripts/core';
 import { appState } from '../core/state';
+import type { EpisodeRecord } from '../domain/episodes';
 import { cancelAutoNextCountdown, startAutoNextCountdown } from './autoNext';
 import { handleIntroTimeUpdate, showPlayerToast } from './introSkip';
 import { publishPlayerNotification } from './ntfyRemote';
@@ -14,94 +14,53 @@ import { applyPlaybackRate, ensurePlayerMenu } from './playerMenu';
 import { completeCurrentPlaylistEntryAndAdvance } from './playlist';
 import { findNextShowEpisode, maybeTrackWatchedEpisodeFromPlayer } from './watchlist';
 
-export function getActiveVideo() {
+interface PlayerContainer extends HTMLElement {
+  _lookmovieFullscreenExitActivityAttached?: boolean;
+  _lookmovieFullscreenExitActivityTimer?: number;
+}
+
+interface TrackedVideo extends HTMLVideoElement {
+  _lookmovieEnhancerAttached?: boolean;
+}
+
+function getPlayerContainer(): PlayerContainer | null {
+  return document.getElementById('video_player');
+}
+
+// Videos inside the site's player come first.
+export function getActiveVideo(): HTMLVideoElement | null {
+  return findActiveVideo(document.getElementById('video_player'));
+}
+
+const videoControls = createVideoControls(getActiveVideo);
+
+export function playActiveVideo(): boolean {
+  return videoControls.play();
+}
+
+export function pauseActiveVideo(): boolean {
+  return videoControls.pause();
+}
+
+export function toggleActiveVideoPlayback(): boolean {
+  return videoControls.toggle();
+}
+
+export function seekActiveVideoBy(seconds: number): boolean {
+  return videoControls.seekBy(seconds);
+}
+
+export function setActiveVideoVolume(percent: number): boolean {
+  return videoControls.setVolume(percent);
+}
+
+export function setActiveVideoMuted(muted: boolean): boolean {
+  return videoControls.setMuted(muted);
+}
+
+export function toggleActiveVideoFullscreen(): boolean {
   const playerContainer = document.getElementById('video_player');
-  const playerVideos = playerContainer ? Array.from(playerContainer.querySelectorAll('video')) : [];
-  const videos = [
-    ...new Set([...playerVideos, ...Array.from(document.querySelectorAll('video'))]),
-  ].filter((video) => {
-    const rect = video.getBoundingClientRect();
-    return rect.width > 0 && rect.height > 0;
-  });
-
-  return (
-    videos.find((video) => !video.paused && !video.ended) ||
-    videos.find((video) => video.readyState > 0) ||
-    videos[0] ||
-    null
-  );
-}
-
-export function playActiveVideo() {
-  const video = getActiveVideo();
-  if (!video) {
-    return false;
-  }
-
-  video.play();
-  return true;
-}
-
-export function pauseActiveVideo() {
-  const video = getActiveVideo();
-  if (!video) {
-    return false;
-  }
-
-  video.pause();
-  return true;
-}
-
-export function toggleActiveVideoPlayback() {
-  const video = getActiveVideo();
-  if (!video) {
-    return false;
-  }
-
-  if (video.paused) {
-    video.play();
-  } else {
-    video.pause();
-  }
-
-  return true;
-}
-
-export function seekActiveVideoBy(seconds) {
-  const video = getActiveVideo();
-  if (!video || !Number.isFinite(seconds)) {
-    return false;
-  }
-
-  const duration = Number.isFinite(video.duration) ? video.duration : Number.MAX_SAFE_INTEGER;
-  video.currentTime = Math.max(0, Math.min(duration, video.currentTime + seconds));
-  return true;
-}
-
-export function setActiveVideoVolume(percent) {
-  const video = getActiveVideo();
-  if (!video || !Number.isFinite(percent)) {
-    return false;
-  }
-
-  video.volume = Math.max(0, Math.min(1, percent / 100));
-  video.muted = false;
-  return true;
-}
-
-export function setActiveVideoMuted(muted) {
-  const video = getActiveVideo();
-  if (!video) {
-    return false;
-  }
-
-  video.muted = !!muted;
-  return true;
-}
-
-export function toggleActiveVideoFullscreen() {
-  const playerContainer = document.getElementById('video_player');
-  const fullscreenButton = playerContainer?.querySelector('.vjs-fullscreen-control');
+  const fullscreenButton = playerContainer?.querySelector<HTMLElement>('.vjs-fullscreen-control');
   const isWindowedFullscreen = !!document.getElementById(FULLSCREEN_STYLE_ID);
   const isNativeFullscreen = !!document.fullscreenElement;
   const isVideoJsFullscreen = !!playerContainer?.classList.contains('vjs-fullscreen');
@@ -112,7 +71,7 @@ export function toggleActiveVideoFullscreen() {
     }
 
     if (isNativeFullscreen && typeof document.exitFullscreen === 'function') {
-      document.exitFullscreen();
+      void document.exitFullscreen();
     }
 
     if (isVideoJsFullscreen && fullscreenButton) {
@@ -129,7 +88,7 @@ export function toggleActiveVideoFullscreen() {
 // Clicks the player's own fullscreen button. Browsers only honour that right after a user
 // gesture, so the windowed fallback (player stretched over the page) covers the other cases
 // unless the user turned it off.
-export function enterActiveVideoFullscreen() {
+export function enterActiveVideoFullscreen(): boolean {
   const playerContainer = document.getElementById('video_player');
   if (
     document.getElementById(FULLSCREEN_STYLE_ID) ||
@@ -143,7 +102,7 @@ export function enterActiveVideoFullscreen() {
     return false;
   }
 
-  const fullscreenButton = playerContainer.querySelector('.vjs-fullscreen-control');
+  const fullscreenButton = playerContainer.querySelector<HTMLElement>('.vjs-fullscreen-control');
   if (fullscreenButton) {
     fullscreenButton.click();
   }
@@ -158,9 +117,9 @@ export function enterActiveVideoFullscreen() {
   return true;
 }
 
-export function exitActiveVideoFullscreen() {
+export function exitActiveVideoFullscreen(): boolean {
   const playerContainer = document.getElementById('video_player');
-  const fullscreenButton = playerContainer?.querySelector('.vjs-fullscreen-control');
+  const fullscreenButton = playerContainer?.querySelector<HTMLElement>('.vjs-fullscreen-control');
   const isVideoJsFullscreen = !!playerContainer?.classList.contains('vjs-fullscreen');
   let handled = false;
 
@@ -170,7 +129,7 @@ export function exitActiveVideoFullscreen() {
   }
 
   if (document.fullscreenElement && typeof document.exitFullscreen === 'function') {
-    document.exitFullscreen();
+    void document.exitFullscreen();
     handled = true;
   }
 
@@ -189,12 +148,12 @@ export function exitActiveVideoFullscreen() {
 // Switches episodes the way the site's own episode picker does: rewrite the hash, then fire the
 // event its player listens for. The site's "switch-next-episode" event isn't used because it
 // relies on an index that is stale when the page was opened on an episode URL.
-export function switchToShowEpisode(episode) {
+export function switchToShowEpisode(episode: EpisodeRecord): void {
   history.replaceState(null, '', `#S${episode.season}-E${episode.episode}-${episode.idEpisode}`);
   window.dispatchEvent(new Event('ChangedEpisodeHash'));
 }
 
-export function playNextShowEpisode(nextEpisode) {
+export function playNextShowEpisode(nextEpisode?: EpisodeRecord | null): boolean {
   if (!location.pathname.startsWith('/shows/play/')) {
     return false;
   }
@@ -212,11 +171,13 @@ export function playNextShowEpisode(nextEpisode) {
         showPlayerToast('This is the last episode.');
       }
     })
-    .catch((error) => console.warn(`[${SCRIPT_ID}] Could not find the next episode.`, error));
+    .catch((error: unknown) => {
+      console.warn(`[${SCRIPT_ID}] Could not find the next episode.`, error);
+    });
   return true;
 }
 
-export function dismissResumeModalIfPresent() {
+export function dismissResumeModalIfPresent(): boolean {
   if (!appState.settings.autoPlay) {
     return false;
   }
@@ -224,13 +185,16 @@ export function dismissResumeModalIfPresent() {
   // The site's resume dialog: continue where playback stopped unless it was already finished.
   const continueButton = document.getElementById('progress-continue-button');
   const restartButton = document.getElementById('progress-from-beginning-button');
-  const progressPercent = Number.parseFloat(document.getElementById('progress-bar')?.style.width);
+  // A missing bar parses as NaN, like `parseFloat(undefined)` did.
+  const progressPercent = Number.parseFloat(
+    document.getElementById('progress-bar')?.style.width ?? ''
+  );
   const dismissButton =
     Number.isFinite(progressPercent) && progressPercent >= RESUME_FINISHED_PERCENT
       ? restartButton || continueButton
       : continueButton || restartButton;
   if (dismissButton) {
-    console.log(`[${SCRIPT_ID}] Dismissing playback modal (${dismissButton.id}).`);
+    console.info(`[${SCRIPT_ID}] Dismissing playback modal (${dismissButton.id}).`);
     dismissButton.click();
     return true;
   }
@@ -238,13 +202,13 @@ export function dismissResumeModalIfPresent() {
   return false;
 }
 
-export function ensureWindowedFullscreenExitButton() {
-  const playerContainer = document.getElementById('video_player');
+export function ensureWindowedFullscreenExitButton(): boolean {
+  const playerContainer = getPlayerContainer();
   if (!playerContainer) {
     return false;
   }
 
-  let button = document.getElementById(FULLSCREEN_EXIT_BUTTON_ID);
+  let button = document.getElementById(FULLSCREEN_EXIT_BUTTON_ID) as HTMLButtonElement | null;
   if (!button) {
     button = document.createElement('button');
     button.id = FULLSCREEN_EXIT_BUTTON_ID;
@@ -265,7 +229,7 @@ export function ensureWindowedFullscreenExitButton() {
   }
 
   if (!playerContainer._lookmovieFullscreenExitActivityAttached) {
-    const revealExitButton = () => {
+    const revealExitButton = (): void => {
       window.clearTimeout(playerContainer._lookmovieFullscreenExitActivityTimer);
       playerContainer.classList.add(`${SCRIPT_ID}-fullscreen-exit-active`);
       playerContainer._lookmovieFullscreenExitActivityTimer = window.setTimeout(() => {
@@ -280,8 +244,9 @@ export function ensureWindowedFullscreenExitButton() {
   return true;
 }
 
-export function applyWindowedFullscreenFallback() {
-  if (!document.head) {
+export function applyWindowedFullscreenFallback(): boolean {
+  // `document.head` is typed non-null but is null before the parser reaches it.
+  if (!(document.head as HTMLHeadElement | null)) {
     return false;
   }
 
@@ -346,20 +311,20 @@ export function applyWindowedFullscreenFallback() {
 
   ensureWindowedFullscreenExitButton();
 
-  if (document.body) {
+  if (document.body as HTMLElement | null) {
     document.body.classList.add(`${SCRIPT_ID}-fullscreen`);
   }
 
   return true;
 }
 
-export function removeWindowedFullscreenFallback() {
+export function removeWindowedFullscreenFallback(): void {
   const style = document.getElementById(FULLSCREEN_STYLE_ID);
   if (style) {
     style.remove();
   }
 
-  const playerContainer = document.getElementById('video_player');
+  const playerContainer = getPlayerContainer();
   if (playerContainer) {
     window.clearTimeout(playerContainer._lookmovieFullscreenExitActivityTimer);
     playerContainer.classList.remove(`${SCRIPT_ID}-fullscreen-exit-active`);
@@ -370,21 +335,21 @@ export function removeWindowedFullscreenFallback() {
     exitButton.remove();
   }
 
-  if (document.body) {
+  if (document.body as HTMLElement | null) {
     document.body.classList.remove(`${SCRIPT_ID}-fullscreen`);
   }
 }
 
-export function triggerVideoJsFullscreen() {
+export function triggerVideoJsFullscreen(): boolean {
   if (!appState.settings.autoFullscreen || appState.fullscreenTriggered) {
     return false;
   }
 
-  console.log(`[${SCRIPT_ID}] Applying fullscreen behavior.`);
+  console.info(`[${SCRIPT_ID}] Applying fullscreen behavior.`);
   return enterActiveVideoFullscreen();
 }
 
-export function handleVideoPlay() {
+export function handleVideoPlay(): void {
   cancelAutoNextCountdown();
   maybeTrackWatchedEpisodeFromPlayer();
   publishPlayerNotification('play');
@@ -405,20 +370,20 @@ export function handleVideoPlay() {
   }, 300);
 }
 
-export function handleVideoPause() {
+export function handleVideoPause(): void {
   publishPlayerNotification('pause');
 }
 
-export function handleVideoEnded() {
+export function handleVideoEnded(): void {
   publishPlayerNotification('ended');
   window.setTimeout(() => {
     if (!completeCurrentPlaylistEntryAndAdvance()) {
-      startAutoNextCountdown();
+      void startAutoNextCountdown();
     }
   }, 750);
 }
 
-export function attachAutoplayLogic(videoElement) {
+export function attachAutoplayLogic(videoElement: TrackedVideo | null): void {
   if (!videoElement || videoElement._lookmovieEnhancerAttached) {
     return;
   }
@@ -447,17 +412,14 @@ export function attachAutoplayLogic(videoElement) {
   });
 }
 
-export function findAndAttachToVideos() {
-  document.querySelectorAll('video').forEach(attachAutoplayLogic);
+export function findAndAttachToVideos(): void {
+  document.querySelectorAll('video').forEach((video) => {
+    attachAutoplayLogic(video);
+  });
 }
 
-export function watchVideos() {
-  const waitForBody = window.setInterval(() => {
-    if (!document.body) {
-      return;
-    }
-
-    window.clearInterval(waitForBody);
+export function watchVideos(): void {
+  waitForBody((body) => {
     findAndAttachToVideos();
 
     const observer = new MutationObserver((mutations) => {
@@ -467,21 +429,24 @@ export function watchVideos() {
         }
 
         mutation.addedNodes.forEach((node) => {
-          if (!node || node.nodeType !== Node.ELEMENT_NODE) {
+          if (node.nodeType !== Node.ELEMENT_NODE) {
             return;
           }
 
-          if (node.tagName === 'VIDEO') {
-            attachAutoplayLogic(node);
+          const element = node as Element;
+          if (element.tagName === 'VIDEO') {
+            attachAutoplayLogic(element as HTMLVideoElement);
           }
 
-          if (typeof node.querySelectorAll === 'function') {
-            node.querySelectorAll('video').forEach(attachAutoplayLogic);
+          if (typeof element.querySelectorAll === 'function') {
+            element.querySelectorAll('video').forEach((video) => {
+              attachAutoplayLogic(video);
+            });
           }
         });
       });
     });
 
-    observer.observe(document.body, { childList: true, subtree: true });
-  }, 100);
+    observer.observe(body, { childList: true, subtree: true });
+  });
 }

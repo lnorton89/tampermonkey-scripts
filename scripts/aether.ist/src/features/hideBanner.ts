@@ -1,11 +1,9 @@
-/* eslint-disable */
-// @ts-nocheck
 import { HIDE_BANNER_STYLE_ID } from '../config/constants';
 
 // Hides the blue info banner ("Bookmark rentry.co/aetherdomains...") above the site. The red
 // offline banner uses a different background and stays visible. Hiding the wrapper the site
 // measures lets its layout offset collapse to zero.
-export function installBannerHider() {
+export function installBannerHider(): void {
   if (document.getElementById(HIDE_BANNER_STYLE_ID)) {
     return;
   }
@@ -18,5 +16,5 @@ export function installBannerHider() {
     }
   `;
 
-  (document.head || document.documentElement).appendChild(style);
+  ((document.head as HTMLHeadElement | null) || document.documentElement).appendChild(style);
 }

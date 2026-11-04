@@ -31,7 +31,7 @@ helpers for show tracking and playback quality of life.
 The generated userscript is still a single bundled `.user.js` file. React is compiled into the
 bundle by esbuild, so Tampermonkey does not need to load React from a CDN at runtime.
 
-The script keeps two localStorage records:
+Data is stored in Tampermonkey storage (mirrored to the site's localStorage) under keys such as:
 
 ```text
 lookmovie2-enhancer:settings
@@ -44,25 +44,13 @@ needed, and then calls the UI bridge in `src/ui/events.ts` so the React overlay 
 
 ## Commands
 
-Run these from `scripts/lookmovie2.to`:
+Run these from the repo root:
 
 ```sh
-npm run build
-npm run build:watch
-npm run build:debug
-npm run typecheck
-npm run lint
-npm run format
-```
-
-The generated Tampermonkey bundle is written to `dist/lookmovie2.to.user.js`.
-
-From the repo root, `npm run build` still builds every script. The root build script also supports:
-
-```sh
-node build.js --script lookmovie2.to
+node build.js --script lookmovie2.to             # build dist/lookmovie2.to.user.js
 node build.js --script lookmovie2.to --watch
-node build.js --script lookmovie2.to --debug
+node build.js --script lookmovie2.to --debug     # unminified build + dev loader in dist-debug/
+npm run check                                    # typecheck, lint, tests, dist up to date
 ```
 
 ## Source Layout

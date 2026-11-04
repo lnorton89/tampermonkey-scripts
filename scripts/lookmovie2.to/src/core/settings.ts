@@ -1,5 +1,3 @@
-/* eslint-disable */
-// @ts-nocheck
 import { appState } from './state';
 import { normalizeSettings, persistSettings } from './storage';
 import { syncModalState } from '../ui';
@@ -7,16 +5,18 @@ import { removeWindowedFullscreenFallback } from '../features/player';
 import { restartNtfyRemote } from '../features/ntfyRemote';
 import { ensureInTheatersSection } from '../features/inTheaters';
 import { syncSiteTheme } from '../features/siteTheme';
-import { NTFY_REMOTE_RESTART_DEBOUNCE_MS } from '../config/constants';
+import { NTFY_REMOTE_RESTART_DEBOUNCE_MS, type Settings } from '../config/constants';
 
 let ntfyRestartTimer = 0;
 
-function scheduleNtfyRemoteRestart() {
+function scheduleNtfyRemoteRestart(): void {
   window.clearTimeout(ntfyRestartTimer);
-  ntfyRestartTimer = window.setTimeout(restartNtfyRemote, NTFY_REMOTE_RESTART_DEBOUNCE_MS);
+  ntfyRestartTimer = window.setTimeout(() => {
+    restartNtfyRemote();
+  }, NTFY_REMOTE_RESTART_DEBOUNCE_MS);
 }
 
-export function saveSettings(nextSettings) {
+export function saveSettings(nextSettings: Settings): void {
   const previousNtfySettings = {
     ntfyRemoteEnabled: appState.settings.ntfyRemoteEnabled,
     ntfyServer: appState.settings.ntfyServer,

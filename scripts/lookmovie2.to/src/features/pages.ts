@@ -1,24 +1,76 @@
-/* eslint-disable */
-// @ts-nocheck
 import { SCRIPT_ID } from '../config/constants';
-import { normalizeEpisodeRecord, compareEpisodes, sameEpisode } from '../domain/episodes';
+import {
+  normalizeEpisodeRecord,
+  compareEpisodes,
+  sameEpisode,
+  type EpisodeRecord,
+} from '../domain/episodes';
 import { appState } from '../core/state';
-import { normalizeShowsListProgress, persistShowsListProgress } from '../core/storage';
-import { getElementImageUrl, normalizeImageUrl, toPositiveInteger } from '../core/utils';
+import {
+  normalizeShowsListProgress,
+  persistShowsListProgress,
+  type ShowsListProgress,
+} from '../core/storage';
+import {
+  getElementImageUrl,
+  normalizeImageUrl,
+  readWindowRecord,
+  toPositiveInteger,
+} from '../core/utils';
 import { addShowToWatchlist, getWatchlistEntry, removeShowFromWatchlist } from './watchlist';
 import { addMovieToWatchlist, getMovieWatchlistEntry, removeMovieFromWatchlist } from './movies';
 
-export function extractShowSlugFromViewHref(href) {
+export interface ShowCard {
+  slug: string;
+  title: string;
+  year: string;
+  poster: string;
+  href: string;
+  episode: EpisodeRecord | null;
+}
+
+export interface ShowViewData {
+  slug: string;
+  title: string;
+  year: string;
+  poster: string;
+  idShow: number;
+  episode: EpisodeRecord | null;
+}
+
+export interface MovieCard {
+  slug: string;
+  title: string;
+  year: string;
+  poster: string;
+  href: string;
+}
+
+// `document.body` is typed non-null but is null before the parser reaches <body>.
+function hasBody(): boolean {
+  return !!(document.body as HTMLElement | null);
+}
+
+/** Copies a card's episode into button data attributes, as normalizeEpisodeRecord input. */
+function readButtonEpisode(button: HTMLElement): EpisodeRecord | null {
+  return normalizeEpisodeRecord({
+    season: button.dataset.season,
+    episode: button.dataset.episode,
+    idEpisode: button.dataset.idEpisode,
+  });
+}
+
+export function extractShowSlugFromViewHref(href: string): string {
   try {
     const url = new URL(href, location.origin);
-    const pathMatch = url.pathname.match(/\/shows\/view\/([^/?#]+)/i);
-    return pathMatch ? pathMatch[1] : '';
-  } catch (error) {
+    const pathMatch = /\/shows\/view\/([^/?#]+)/i.exec(url.pathname);
+    return pathMatch?.[1] ?? '';
+  } catch {
     return '';
   }
 }
 
-export function extractEpisodeContextFromHref(href) {
+export function extractEpisodeContextFromHref(href: string): EpisodeRecord | null {
   try {
     const url = new URL(href, location.origin);
     const season = toPositiveInteger(url.searchParams.get('season'));
@@ -30,27 +82,27 @@ export function extractEpisodeContextFromHref(href) {
     }
 
     return { season, episode, idEpisode };
-  } catch (error) {
+  } catch {
     return null;
   }
 }
 
-export function extractYearFromSlug(slug) {
-  const yearMatch = typeof slug === 'string' ? slug.match(/-(\d{4})$/) : null;
-  return yearMatch ? yearMatch[1] : '';
+export function extractYearFromSlug(slug: unknown): string {
+  const yearMatch = typeof slug === 'string' ? /-(\d{4})$/.exec(slug) : null;
+  return yearMatch?.[1] ?? '';
 }
 
-export function extractMovieSlugFromViewHref(href) {
+export function extractMovieSlugFromViewHref(href: string): string {
   try {
     const url = new URL(href, location.origin);
-    const pathMatch = url.pathname.match(/\/movies\/view\/([^/?#]+)/i);
-    return pathMatch ? pathMatch[1] : '';
-  } catch (error) {
+    const pathMatch = /\/movies\/view\/([^/?#]+)/i.exec(url.pathname);
+    return pathMatch?.[1] ?? '';
+  } catch {
     return '';
   }
 }
 
-export function parseEpisodeCard(cardElement) {
+export function parseEpisodeCard(cardElement: Element | null): ShowCard | null {
   if (!cardElement) {
     return null;
   }
@@ -60,26 +112,28 @@ export function parseEpisodeCard(cardElement) {
     return null;
   }
 
-  const slug = extractShowSlugFromViewHref(link.getAttribute('href'));
+  // The selector guarantees the attribute.
+  const linkHref = link.getAttribute('href') ?? '';
+  const slug = extractShowSlugFromViewHref(linkHref);
   if (!slug) {
     return null;
   }
 
   const titleNode = cardElement.querySelector('.mv-item-infor h6');
   const imageNode = cardElement.querySelector('img[data-src], img[src]');
-  const episodeContext = extractEpisodeContextFromHref(link.getAttribute('href'));
+  const episodeContext = extractEpisodeContextFromHref(linkHref);
 
   return {
     slug,
-    title: titleNode ? titleNode.textContent.trim() : slug,
+    title: titleNode ? (titleNode.textContent ?? '').trim() : slug,
     year: extractYearFromSlug(slug),
     poster: getElementImageUrl(imageNode),
-    href: new URL(link.getAttribute('href'), location.origin).href,
+    href: new URL(linkHref, location.origin).href,
     episode: episodeContext,
   };
 }
 
-export function buildShowViewUrl(slug, episodeRecord) {
+export function buildShowViewUrl(slug: string, episodeRecord?: EpisodeRecord | null): string {
   if (!slug) {
     return '/shows';
   }
@@ -91,7 +145,7 @@ export function buildShowViewUrl(slug, episodeRecord) {
   return `/shows/view/${slug}?season=${episodeRecord.season}&episode=${episodeRecord.episode}&id_episode=${episodeRecord.idEpisode}`;
 }
 
-export function buildShowPlayUrl(slug, episodeRecord) {
+export function buildShowPlayUrl(slug: string, episodeRecord?: EpisodeRecord | null): string {
   if (!slug) {
     return '/shows';
   }
@@ -103,36 +157,36 @@ export function buildShowPlayUrl(slug, episodeRecord) {
   return `/shows/play/${slug}#S${episodeRecord.season}-E${episodeRecord.episode}-${episodeRecord.idEpisode}`;
 }
 
-export function buildMovieViewUrl(slug) {
+export function buildMovieViewUrl(slug: string): string {
   return slug ? `/movies/view/${slug}` : '/movies';
 }
 
-export function isLatestShowsPage() {
+export function isLatestShowsPage(): boolean {
   return location.pathname === '/shows';
 }
 
-export function isShowViewPage() {
+export function isShowViewPage(): boolean {
   return location.pathname.startsWith('/shows/view/');
 }
 
-export function isMoviesPage() {
+export function isMoviesPage(): boolean {
   return location.pathname === '/movies';
 }
 
-export function isMoviePlayPage() {
+export function isMoviePlayPage(): boolean {
   return location.pathname.startsWith('/movies/play/');
 }
 
-export function isMovieViewPage() {
+export function isMovieViewPage(): boolean {
   return location.pathname.startsWith('/movies/view/');
 }
 
-export function getCurrentShowViewData() {
+export function getCurrentShowViewData(): ShowViewData | null {
   if (!isShowViewPage()) {
     return null;
   }
 
-  const showStorage = window.show_storage || {};
+  const showStorage = readWindowRecord('show_storage');
   const slug =
     typeof showStorage.slug === 'string' && showStorage.slug
       ? showStorage.slug
@@ -167,7 +221,7 @@ export function getCurrentShowViewData() {
       typeof showStorage.title === 'string' && showStorage.title.trim()
         ? showStorage.title.trim()
         : titleNode
-          ? titleNode.textContent.replace(/\s*\d{4}\s*$/, '').trim()
+          ? (titleNode.textContent ?? '').replace(/\s*\d{4}\s*$/, '').trim()
           : slug,
     year:
       typeof showStorage.year === 'string' || typeof showStorage.year === 'number'
@@ -182,7 +236,7 @@ export function getCurrentShowViewData() {
   };
 }
 
-export function parseMovieCard(cardElement) {
+export function parseMovieCard(cardElement: Element | null): MovieCard | null {
   if (!cardElement) {
     return null;
   }
@@ -192,7 +246,9 @@ export function parseMovieCard(cardElement) {
     return null;
   }
 
-  const slug = extractMovieSlugFromViewHref(link.getAttribute('href'));
+  // The selector guarantees the attribute.
+  const linkHref = link.getAttribute('href') ?? '';
+  const slug = extractMovieSlugFromViewHref(linkHref);
   if (!slug) {
     return null;
   }
@@ -205,20 +261,22 @@ export function parseMovieCard(cardElement) {
     '[data-background-image], [style*="background-image"], [data-src-portrait], [data-src]'
   );
   const yearNode = cardElement.querySelector('.year');
-  const titleText = titleNode ? titleNode.textContent.trim() : '';
-  const yearFromTitle = titleText.match(/\((\d{4})\)/);
+  const titleText = titleNode ? (titleNode.textContent ?? '').trim() : '';
+  const yearFromTitle = /\((\d{4})\)/.exec(titleText);
   const poster = getElementImageUrl(imageNode) || getElementImageUrl(backgroundNode);
 
   return {
     slug,
     title: titleText ? titleText.replace(/\s*\(\d{4}\)\s*$/, '').trim() : slug,
-    year: yearNode ? yearNode.textContent.trim() : yearFromTitle?.[1] || extractYearFromSlug(slug),
+    year: yearNode
+      ? (yearNode.textContent ?? '').trim()
+      : yearFromTitle?.[1] || extractYearFromSlug(slug),
     poster,
-    href: new URL(link.getAttribute('href'), location.origin).href,
+    href: new URL(linkHref, location.origin).href,
   };
 }
 
-export function getCurrentMovieViewData() {
+export function getCurrentMovieViewData(): MovieCard | null {
   if (!isMovieViewPage()) {
     return null;
   }
@@ -228,7 +286,7 @@ export function getCurrentMovieViewData() {
     return null;
   }
 
-  const movieStorage = window.movie_storage || window.movie || {};
+  const movieStorage = readWindowRecord('movie_storage', 'movie');
   const titleNode =
     document.querySelector('.movie-single-ct h1') ||
     document.querySelector('.movie-single-ct h2') ||
@@ -245,7 +303,7 @@ export function getCurrentMovieViewData() {
       typeof movieStorage.title === 'string' && movieStorage.title.trim()
         ? movieStorage.title.trim()
         : titleNode
-          ? titleNode.textContent.trim()
+          ? (titleNode.textContent ?? '').trim()
           : slug,
     year:
       typeof movieStorage.year === 'string' || typeof movieStorage.year === 'number'
@@ -265,14 +323,10 @@ export function getCurrentMovieViewData() {
   };
 }
 
-export function updateEpisodeCardButton(button) {
+export function updateEpisodeCardButton(button: HTMLButtonElement): void {
   const slug = button.dataset.watchlistSlug || '';
   const entry = getWatchlistEntry(slug);
-  const cardEpisode = normalizeEpisodeRecord({
-    season: button.dataset.season,
-    episode: button.dataset.episode,
-    idEpisode: button.dataset.idEpisode,
-  });
+  const cardEpisode = readButtonEpisode(button);
   let state = 'add';
   let text = '+ Watch';
   let title = 'Add this show to your watchlist';
@@ -301,18 +355,18 @@ export function updateEpisodeCardButton(button) {
   }
 }
 
-export function syncEpisodeCardButtons() {
-  document.querySelectorAll(`.${SCRIPT_ID}-episode-watch-button`).forEach(updateEpisodeCardButton);
+export function syncEpisodeCardButtons(): void {
+  document
+    .querySelectorAll<HTMLButtonElement>(`.${SCRIPT_ID}-episode-watch-button`)
+    .forEach((button) => {
+      updateEpisodeCardButton(button);
+    });
 }
 
-export function updateShowViewWatchButton(button) {
+export function updateShowViewWatchButton(button: HTMLButtonElement): void {
   const slug = button.dataset.watchlistSlug || '';
   const entry = getWatchlistEntry(slug);
-  const pageEpisode = normalizeEpisodeRecord({
-    season: button.dataset.season,
-    episode: button.dataset.episode,
-    idEpisode: button.dataset.idEpisode,
-  });
+  const pageEpisode = readButtonEpisode(button);
 
   if (!entry) {
     button.dataset.state = 'add';
@@ -332,13 +386,15 @@ export function updateShowViewWatchButton(button) {
   button.disabled = false;
 }
 
-export function syncShowViewWatchButton() {
+export function syncShowViewWatchButton(): void {
   document
-    .querySelectorAll(`.${SCRIPT_ID}-show-view-watch-button`)
-    .forEach(updateShowViewWatchButton);
+    .querySelectorAll<HTMLButtonElement>(`.${SCRIPT_ID}-show-view-watch-button`)
+    .forEach((button) => {
+      updateShowViewWatchButton(button);
+    });
 }
 
-export function updateMovieCardButton(button) {
+export function updateMovieCardButton(button: HTMLButtonElement): void {
   const slug = button.dataset.watchlistSlug || '';
   const entry = getMovieWatchlistEntry(slug);
 
@@ -358,11 +414,15 @@ export function updateMovieCardButton(button) {
   button.disabled = false;
 }
 
-export function syncMovieCardButtons() {
-  document.querySelectorAll(`.${SCRIPT_ID}-movie-watch-button`).forEach(updateMovieCardButton);
+export function syncMovieCardButtons(): void {
+  document
+    .querySelectorAll<HTMLButtonElement>(`.${SCRIPT_ID}-movie-watch-button`)
+    .forEach((button) => {
+      updateMovieCardButton(button);
+    });
 }
 
-export function updateMovieViewWatchButton(button) {
+export function updateMovieViewWatchButton(button: HTMLButtonElement): void {
   const slug = button.dataset.watchlistSlug || '';
   const entry = getMovieWatchlistEntry(slug);
 
@@ -382,14 +442,19 @@ export function updateMovieViewWatchButton(button) {
   button.disabled = false;
 }
 
-export function syncMovieViewWatchButton() {
+export function syncMovieViewWatchButton(): void {
   document
-    .querySelectorAll(`.${SCRIPT_ID}-movie-view-watch-button`)
-    .forEach(updateMovieViewWatchButton);
+    .querySelectorAll<HTMLButtonElement>(`.${SCRIPT_ID}-movie-view-watch-button`)
+    .forEach((button) => {
+      updateMovieViewWatchButton(button);
+    });
 }
 
-export function buildShowsListProgress(card, source = 'auto') {
-  if (!card || !card.slug || !card.episode) {
+export function buildShowsListProgress(
+  card: ShowCard | null,
+  source: ShowsListProgress['source'] = 'auto'
+): ShowsListProgress | null {
+  if (!card?.slug || !card.episode) {
     return null;
   }
 
@@ -403,7 +468,10 @@ export function buildShowsListProgress(card, source = 'auto') {
   };
 }
 
-export function isShowsListProgressMatch(card, progress) {
+export function isShowsListProgressMatch(
+  card: ShowCard | null,
+  progress: ShowsListProgress | null
+): boolean {
   return (
     !!card &&
     !!progress &&
@@ -412,12 +480,12 @@ export function isShowsListProgressMatch(card, progress) {
   );
 }
 
-export function getEpisodeCardOrder(cardElement) {
+export function getEpisodeCardOrder(cardElement: Element): number {
   return Array.from(document.querySelectorAll('.episode-item')).indexOf(cardElement);
 }
 
-export function applyShowsListProgressMarker() {
-  if (!document.body || !isLatestShowsPage()) {
+export function applyShowsListProgressMarker(): void {
+  if (!hasBody() || !isLatestShowsPage()) {
     return;
   }
 
@@ -434,7 +502,7 @@ export function applyShowsListProgressMarker() {
     return;
   }
 
-  document.querySelectorAll('.episode-item').forEach((cardElement) => {
+  document.querySelectorAll<HTMLElement>('.episode-item').forEach((cardElement) => {
     const card = parseEpisodeCard(cardElement);
     if (!isShowsListProgressMatch(card, progress)) {
       return;
@@ -446,7 +514,7 @@ export function applyShowsListProgressMarker() {
   });
 }
 
-export function updateShowsListMarkerButton(button) {
+export function updateShowsListMarkerButton(button: HTMLButtonElement): void {
   const card = parseEpisodeCard(button.closest('.episode-item'));
   const isCurrent = isShowsListProgressMatch(card, appState.showsListProgress);
   const state = isCurrent ? 'current' : 'set';
@@ -466,13 +534,15 @@ export function updateShowsListMarkerButton(button) {
   }
 }
 
-export function syncShowsListMarkerButtons() {
+export function syncShowsListMarkerButtons(): void {
   document
-    .querySelectorAll(`.${SCRIPT_ID}-shows-list-marker-button`)
-    .forEach(updateShowsListMarkerButton);
+    .querySelectorAll<HTMLButtonElement>(`.${SCRIPT_ID}-shows-list-marker-button`)
+    .forEach((button) => {
+      updateShowsListMarkerButton(button);
+    });
 }
 
-export function setShowsListProgressMarker(cardElement) {
+export function setShowsListProgressMarker(cardElement: Element): void {
   const progress = buildShowsListProgress(parseEpisodeCard(cardElement), 'manual');
   if (!progress) {
     return;
@@ -488,7 +558,7 @@ export function setShowsListProgressMarker(cardElement) {
   syncShowsListMarkerButtons();
 }
 
-export function persistShowsListSeenCandidate() {
+export function persistShowsListSeenCandidate(): void {
   if (appState.showsListManualMarkerSet || appState.showsListProgress?.source === 'manual') {
     return;
   }
@@ -512,8 +582,8 @@ export function persistShowsListSeenCandidate() {
   applyShowsListProgressMarker();
 }
 
-export function stopShowsListProgressTracking(options) {
-  if (options && options.persist) {
+export function stopShowsListProgressTracking(options?: { persist?: boolean }): void {
+  if (options?.persist) {
     persistShowsListSeenCandidate();
   }
 
@@ -535,7 +605,7 @@ export function stopShowsListProgressTracking(options) {
   appState.showsListManualMarkerSet = false;
 }
 
-export function updateShowsListSeenCandidate(cardElement) {
+export function updateShowsListSeenCandidate(cardElement: Element): void {
   const card = parseEpisodeCard(cardElement);
   const progress = buildShowsListProgress(card);
   if (!progress) {
@@ -551,8 +621,9 @@ export function updateShowsListSeenCandidate(cardElement) {
   appState.showsListSeenCandidateOrder = order;
 }
 
-export function refreshShowsListProgressTracking() {
-  if (!document.body || !isLatestShowsPage() || !appState.showsListObserver) {
+export function refreshShowsListProgressTracking(): void {
+  const observer = appState.showsListObserver;
+  if (!hasBody() || !isLatestShowsPage() || !observer) {
     return;
   }
 
@@ -564,11 +635,11 @@ export function refreshShowsListProgressTracking() {
     }
 
     appState.showsListObservedCards.add(cardElement);
-    appState.showsListObserver.observe(cardElement);
+    observer.observe(cardElement);
   });
 }
 
-export function scheduleShowsListProgressRefresh() {
+export function scheduleShowsListProgressRefresh(): void {
   if (appState.showsListRefreshScheduled) {
     return;
   }
@@ -580,8 +651,8 @@ export function scheduleShowsListProgressRefresh() {
   }, 150);
 }
 
-export function ensureShowsListProgressTracking() {
-  if (!document.body || !isLatestShowsPage() || typeof IntersectionObserver !== 'function') {
+export function ensureShowsListProgressTracking(): void {
+  if (!hasBody() || !isLatestShowsPage() || typeof IntersectionObserver !== 'function') {
     return;
   }
 
@@ -590,30 +661,33 @@ export function ensureShowsListProgressTracking() {
       (entries) => {
         entries
           .filter((entry) => entry.isIntersecting)
-          .forEach((entry) => updateShowsListSeenCandidate(entry.target));
+          .forEach((entry) => {
+            updateShowsListSeenCandidate(entry.target);
+          });
       },
       { threshold: 0.55 }
     );
   }
 
   if (!appState.showsListMutationObserver) {
-    appState.showsListMutationObserver = new MutationObserver(() => {
+    const mutationObserver = new MutationObserver(() => {
       scheduleShowsListProgressRefresh();
     });
-    appState.showsListMutationObserver.observe(document.body, { childList: true, subtree: true });
+    appState.showsListMutationObserver = mutationObserver;
+    mutationObserver.observe(document.body, { childList: true, subtree: true });
   }
 
   refreshShowsListProgressTracking();
 }
 
-export function markShowsListSessionTouched() {
+export function markShowsListSessionTouched(): void {
   if (isLatestShowsPage()) {
     appState.showsListSessionTouched = true;
   }
 }
 
-export function ensureEpisodeCardButtons() {
-  if (!document.body || !isLatestShowsPage()) {
+export function ensureEpisodeCardButtons(): void {
+  if (!hasBody() || !isLatestShowsPage()) {
     return;
   }
 
@@ -623,18 +697,19 @@ export function ensureEpisodeCardButtons() {
       return;
     }
 
-    let button = cardElement.querySelector(`.${SCRIPT_ID}-episode-watch-button`);
+    let button = cardElement.querySelector<HTMLButtonElement>(`.${SCRIPT_ID}-episode-watch-button`);
     if (!button) {
-      button = document.createElement('button');
-      button.type = 'button';
-      button.className = `${SCRIPT_ID}-episode-watch-button`;
-      cardElement.appendChild(button);
+      const created = document.createElement('button');
+      button = created;
+      created.type = 'button';
+      created.className = `${SCRIPT_ID}-episode-watch-button`;
+      cardElement.appendChild(created);
 
-      button.addEventListener('click', async (event) => {
+      const handleClick = async (event: MouseEvent): Promise<void> => {
         event.preventDefault();
         event.stopPropagation();
 
-        const slug = button.dataset.watchlistSlug;
+        const slug = created.dataset.watchlistSlug;
         if (!slug) {
           return;
         }
@@ -644,23 +719,22 @@ export function ensureEpisodeCardButtons() {
           return;
         }
 
-        button.dataset.state = 'adding';
-        button.textContent = 'Adding...';
-        button.disabled = true;
+        created.dataset.state = 'adding';
+        created.textContent = 'Adding...';
+        created.disabled = true;
 
         await addShowToWatchlist({
           slug,
-          title: button.dataset.title || slug,
-          year: button.dataset.year || '',
-          poster: button.dataset.poster || '',
-          episode: normalizeEpisodeRecord({
-            season: button.dataset.season,
-            episode: button.dataset.episode,
-            idEpisode: button.dataset.idEpisode,
-          }),
+          title: created.dataset.title || slug,
+          year: created.dataset.year || '',
+          poster: created.dataset.poster || '',
+          episode: readButtonEpisode(created),
         });
 
-        updateEpisodeCardButton(button);
+        updateEpisodeCardButton(created);
+      };
+      created.addEventListener('click', (event) => {
+        void handleClick(event);
       });
     }
 
@@ -676,7 +750,9 @@ export function ensureEpisodeCardButtons() {
 
     updateEpisodeCardButton(button);
 
-    let markerButton = cardElement.querySelector(`.${SCRIPT_ID}-shows-list-marker-button`);
+    let markerButton = cardElement.querySelector<HTMLButtonElement>(
+      `.${SCRIPT_ID}-shows-list-marker-button`
+    );
     if (!markerButton) {
       markerButton = document.createElement('button');
       markerButton.type = 'button';
@@ -694,8 +770,8 @@ export function ensureEpisodeCardButtons() {
   });
 }
 
-export function ensureShowViewWatchButton() {
-  if (!document.body || !isShowViewPage()) {
+export function ensureShowViewWatchButton(): void {
+  if (!hasBody() || !isShowViewPage()) {
     return;
   }
 
@@ -719,15 +795,16 @@ export function ensureShowViewWatchButton() {
     actionHost.appendChild(wrap);
   }
 
-  let button = wrap.querySelector(`.${SCRIPT_ID}-show-view-watch-button`);
+  let button = wrap.querySelector<HTMLButtonElement>(`.${SCRIPT_ID}-show-view-watch-button`);
   if (!button) {
-    button = document.createElement('button');
-    button.type = 'button';
-    button.className = `${SCRIPT_ID}-show-view-watch-button`;
-    wrap.appendChild(button);
+    const created = document.createElement('button');
+    button = created;
+    created.type = 'button';
+    created.className = `${SCRIPT_ID}-show-view-watch-button`;
+    wrap.appendChild(created);
 
-    button.addEventListener('click', async () => {
-      const slug = button.dataset.watchlistSlug;
+    const handleClick = async (): Promise<void> => {
+      const slug = created.dataset.watchlistSlug;
       if (!slug) {
         return;
       }
@@ -737,23 +814,22 @@ export function ensureShowViewWatchButton() {
         return;
       }
 
-      button.dataset.state = 'adding';
-      button.textContent = 'Adding...';
-      button.disabled = true;
+      created.dataset.state = 'adding';
+      created.textContent = 'Adding...';
+      created.disabled = true;
 
       await addShowToWatchlist({
         slug,
-        title: button.dataset.title || slug,
-        year: button.dataset.year || '',
-        poster: button.dataset.poster || '',
-        episode: normalizeEpisodeRecord({
-          season: button.dataset.season,
-          episode: button.dataset.episode,
-          idEpisode: button.dataset.idEpisode,
-        }),
+        title: created.dataset.title || slug,
+        year: created.dataset.year || '',
+        poster: created.dataset.poster || '',
+        episode: readButtonEpisode(created),
       });
 
-      updateShowViewWatchButton(button);
+      updateShowViewWatchButton(created);
+    };
+    created.addEventListener('click', () => {
+      void handleClick();
     });
   }
 
@@ -774,8 +850,8 @@ export function ensureShowViewWatchButton() {
   updateShowViewWatchButton(button);
 }
 
-export function ensureMovieCardButtons() {
-  if (!document.body || isMoviePlayPage()) {
+export function ensureMovieCardButtons(): void {
+  if (!hasBody() || isMoviePlayPage()) {
     return;
   }
 
@@ -794,25 +870,26 @@ export function ensureMovieCardButtons() {
     }
 
     const buttonHost =
-      cardElement.querySelector('.slide-item__buttons') ||
-      cardElement.querySelector('.image__placeholder') ||
-      cardElement;
-    let button = buttonHost.querySelector(`.${SCRIPT_ID}-movie-watch-button`);
+      cardElement.querySelector<HTMLElement>('.slide-item__buttons') ||
+      cardElement.querySelector<HTMLElement>('.image__placeholder') ||
+      (cardElement as HTMLElement);
+    let button = buttonHost.querySelector<HTMLButtonElement>(`.${SCRIPT_ID}-movie-watch-button`);
     if (!button) {
-      button = document.createElement('button');
-      button.type = 'button';
-      button.className = `${SCRIPT_ID}-movie-watch-button ${SCRIPT_ID}-episode-watch-button`;
-      buttonHost.appendChild(button);
+      const created = document.createElement('button');
+      button = created;
+      created.type = 'button';
+      created.className = `${SCRIPT_ID}-movie-watch-button ${SCRIPT_ID}-episode-watch-button`;
+      buttonHost.appendChild(created);
 
       if (getComputedStyle(buttonHost).position === 'static') {
         buttonHost.style.position = 'relative';
       }
 
-      button.addEventListener('click', (event) => {
+      created.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
 
-        const slug = button.dataset.watchlistSlug;
+        const slug = created.dataset.watchlistSlug;
         if (!slug) {
           return;
         }
@@ -824,13 +901,13 @@ export function ensureMovieCardButtons() {
 
         addMovieToWatchlist({
           slug,
-          title: button.dataset.title || slug,
-          year: button.dataset.year || '',
-          poster: button.dataset.poster || '',
-          href: button.dataset.href || buildMovieViewUrl(slug),
+          title: created.dataset.title || slug,
+          year: created.dataset.year || '',
+          poster: created.dataset.poster || '',
+          href: created.dataset.href || buildMovieViewUrl(slug),
         });
 
-        updateMovieCardButton(button);
+        updateMovieCardButton(created);
       });
     }
 
@@ -844,8 +921,8 @@ export function ensureMovieCardButtons() {
   });
 }
 
-export function ensureMovieViewWatchButton() {
-  if (!document.body || !isMovieViewPage()) {
+export function ensureMovieViewWatchButton(): void {
+  if (!hasBody() || !isMovieViewPage()) {
     return;
   }
 
@@ -869,15 +946,16 @@ export function ensureMovieViewWatchButton() {
     actionHost.appendChild(wrap);
   }
 
-  let button = wrap.querySelector(`.${SCRIPT_ID}-movie-view-watch-button`);
+  let button = wrap.querySelector<HTMLButtonElement>(`.${SCRIPT_ID}-movie-view-watch-button`);
   if (!button) {
-    button = document.createElement('button');
-    button.type = 'button';
-    button.className = `${SCRIPT_ID}-show-view-watch-button ${SCRIPT_ID}-movie-view-watch-button`;
-    wrap.appendChild(button);
+    const created = document.createElement('button');
+    button = created;
+    created.type = 'button';
+    created.className = `${SCRIPT_ID}-show-view-watch-button ${SCRIPT_ID}-movie-view-watch-button`;
+    wrap.appendChild(created);
 
-    button.addEventListener('click', () => {
-      const slug = button.dataset.watchlistSlug;
+    created.addEventListener('click', () => {
+      const slug = created.dataset.watchlistSlug;
       if (!slug) {
         return;
       }
@@ -889,13 +967,13 @@ export function ensureMovieViewWatchButton() {
 
       addMovieToWatchlist({
         slug,
-        title: button.dataset.title || slug,
-        year: button.dataset.year || '',
-        poster: button.dataset.poster || '',
-        href: button.dataset.href || buildMovieViewUrl(slug),
+        title: created.dataset.title || slug,
+        year: created.dataset.year || '',
+        poster: created.dataset.poster || '',
+        href: created.dataset.href || buildMovieViewUrl(slug),
       });
 
-      updateMovieViewWatchButton(button);
+      updateMovieViewWatchButton(created);
     });
   }
 

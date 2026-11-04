@@ -1,57 +1,65 @@
 # tampermonkey-scripts
 
-Monorepo for userscripts. Each site gets its own folder with clean TypeScript source. On every push to `main`, GitHub Actions lints, typechecks, and builds — then commits the compiled `.user.js` files back so they're always available via `raw.githubusercontent.com`.
+Userscripts for a handful of sites, written in TypeScript and bundled with esbuild. Each site has its own folder; shared code lives in `packages/core`.
 
-## Structure
+| Script | What it does |
+| --- | --- |
+| [`lookmovie2.to`](scripts/lookmovie2.to) | Watchlist, playlist, resume points, intro skip, auto-next, ntfy remote |
+| [`aether.ist`](scripts/aether.ist) | Ad blocking, auto skip intro/recap/credits, playback menu tweaks |
+| [`cineby.sc`](scripts/cineby.sc) | Auto-next episode, ntfy remote |
+| [`fmovies.nz`](scripts/fmovies.nz) | Keeps subtitles clear of the player controls |
+| [`datanodes.to`](scripts/datanodes.to) | Queue of datanodes.to downloads, one at a time |
+
+## Installing
+
+Pick **one** of these per script. Installing both runs the script twice.
+
+- **Direct (recommended):** open `scripts/<site>/dist/<site>.user.js` on GitHub, click **Raw**, and let Tampermonkey install it. Each build stamps a new `@version` (`<version>.<YYYYMMDDHHmm>`), and the header has `@updateURL`, so Tampermonkey picks up new builds on its normal update check (or right away from **Check for userscript updates**).
+- **Loader:** install `scripts/<site>/tampermonkey-loader.user.js` instead. It fetches the newest build from GitHub on every page load, so a push is live within about a minute. In exchange, every page load waits on two network requests, it can hit GitHub's anonymous API limit (60 requests an hour), and whatever is on `main` runs right away.
+
+## Layout
 
 ```
-scripts/
-  <site-name>/
-    src/
-      meta.ts        ← @userscript header block (comment only)
-      index.ts       ← entry point
-      utils.ts       ← helpers, split as needed
-    dist/
-      <site-name>.user.js   ← compiled output (committed by CI)
-    tampermonkey-loader.user.js  ← install this in Tampermonkey once
+packages/core/src/      shared helpers, imported as '@userscripts/core'
+  storage.ts            GM storage with a localStorage mirror and migration
+  settings.ts           typed settings store with normalization
+  dom.ts                shared throttled DOM observer, URL-change watcher, visibility helpers
+  video.ts              find the active <video>, basic playback controls
+  ntfy.ts               ntfy.sh remote control: commands, tab ownership, subscription
+scripts/<site>/
+  src/meta.ts           the ==UserScript== header (comment only)
+  src/index.ts          entry point
+  dist/<site>.user.js   built script (committed)
+  tampermonkey-loader.user.js   generated loader (committed)
+templates/script/       starting point for `npm run new`
+tests/                  vitest tests
 ```
 
-## Adding a new script
-
-1. Copy the `example-site` folder:
-   ```bash
-   cp -r scripts/example-site scripts/my-new-site
-   ```
-2. Update `meta.ts` with the correct `@match` URLs and script name.
-3. Write your code in `src/`. Split into as many files as you like — esbuild bundles it all.
-4. Update `tampermonkey-loader.user.js` with the new raw URL.
-5. Install the loader in Tampermonkey. Done.
-
-## Local development
+## Development
 
 ```bash
 npm install
-npm run build          # build all scripts once
-npm run build:watch    # rebuild on save
-npm run lint           # ESLint
-npm run typecheck      # tsc --noEmit
+npm run new -- example.com   # scaffold scripts/example.com from the template
+npm run build                # build every script (only changed ones are rewritten)
+npm run build:watch          # rebuild on save
+npm run check                # typecheck, lint, test, and confirm dist/ is up to date
 ```
 
-The `dist/` files are committed locally too, so you can point the loader at your local dev server or just let CI handle it.
+Build options: `node build.js --script <site>` builds one script; `--watch` rebuilds on save; `--check` fails if a committed build is stale.
 
-## How the loader works
+### Trying changes locally without pushing
 
-The `tampermonkey-loader.user.js` file is the only thing you install in Tampermonkey. It fetches the compiled `dist/*.user.js` from this repo's raw GitHub URL and `eval()`s it at runtime. This means:
+```bash
+node build.js --script <site> --debug --watch
+```
 
-- You never have to touch Tampermonkey again after the initial install
-- Iterate freely in `src/`, commit, CI builds it, the loader picks it up automatically
-- Cache-busting via `?_=<timestamp>` prevents stale CDN responses during active dev
+This writes an unminified build with source maps to `scripts/<site>/dist-debug/` (gitignored), plus `<site>.dev.user.js`. Install that dev script in Tampermonkey once. It `@require`s the local build, so each rebuild shows up on the next page reload. Turn on **Allow access to file URLs** for the Tampermonkey extension in your browser's extension settings, and disable the regular copy of the script while you test.
 
-## CI / GitHub Actions
+### Header
 
-The workflow (`.github/workflows/build.yml`):
+Write the header in `src/meta.ts`. The build copies it into the output and adds `@version` (your version plus a build stamp), `@updateURL` and `@downloadURL`. Bump `@version` in `meta.ts` for real releases. The stamp alone is enough for Tampermonkey to update.
 
-1. Runs on push to `main` when `src/` files change
-2. Lints and typechecks
-3. Builds all scripts
-4. Commits any changed `dist/` files back with `[skip ci]` to prevent loops
+## Checks
+
+- **Pre-commit hook:** typechecks, lints and formats staged files, then builds and stages `dist/` and the loaders.
+- **CI** (`.github/workflows/build.yml`): runs on every push and PR. It typechecks, lints, checks formatting, runs the tests, and fails if the committed `dist/` doesn't match a fresh build. CI never commits.

@@ -1,6 +1,5 @@
 node_modules/
-.tsc-out/
+dist-debug/
+coverage/
 temp/
-# Keep dist files — they're committed so raw.githubusercontent.com serves them
-# Uncomment below if you'd rather regenerate on CI only and not commit locally
-# scripts/*/dist/
+# dist/ and the loaders are committed so raw.githubusercontent.com can serve them.

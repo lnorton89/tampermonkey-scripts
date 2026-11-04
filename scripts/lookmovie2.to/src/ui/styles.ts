@@ -1,5 +1,3 @@
-/* eslint-disable */
-// @ts-nocheck
 import { SCRIPT_ID, UI_ROOT_ID } from '../config/constants';
 
 export function getUiStyleText() {

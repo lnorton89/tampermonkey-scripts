@@ -1,5 +1,5 @@
-/* eslint-disable */
-// @ts-nocheck
+import type { NtfyStatus } from '@userscripts/core';
+import type { Settings } from '../config/constants';
 import {
   loadMovieWatchlist,
   loadPlaylist,
@@ -7,9 +7,46 @@ import {
   loadSettings,
   loadShowsListProgress,
   loadWatchlist,
+  type MovieWatchlistStore,
+  type PlaylistSession,
+  type PlaylistStore,
+  type ShowsListProgress,
+  type WatchlistStore,
 } from './storage';
 
-export const appState = {
+export type WatchlistMessageTone = 'muted' | 'success' | 'danger';
+
+export interface AppState {
+  settings: Settings;
+  watchlistStore: WatchlistStore;
+  movieWatchlistStore: MovieWatchlistStore;
+  playlistStore: PlaylistStore;
+  playlistSession: PlaylistSession;
+  showsListProgress: ShowsListProgress | null;
+  showsListProgressOrder: number;
+  showsListSeenCandidate: ShowsListProgress | null;
+  showsListSeenCandidateOrder: number;
+  showsListSessionTouched: boolean;
+  showsListManualMarkerSet: boolean;
+  showsListObserver: IntersectionObserver | null;
+  showsListMutationObserver: MutationObserver | null;
+  showsListRefreshScheduled: boolean;
+  showsListObservedCards: WeakSet<Element>;
+  domBootstrapped: boolean;
+  uiBootAttempts: number;
+  fullscreenTriggered: boolean;
+  lastKnownUrl: string;
+  watchlistRefreshPromise: Promise<void> | null;
+  watchlistBusy: boolean;
+  watchlistMessage: string;
+  watchlistMessageTone: WatchlistMessageTone;
+  lastTrackedEpisodeSignature: string;
+  ntfyRemoteStatus: NtfyStatus;
+  ntfyRemoteMessage: string;
+  ntfyLastNotificationAt: number;
+}
+
+export const appState: AppState = {
   settings: loadSettings(),
   watchlistStore: loadWatchlist(),
   movieWatchlistStore: loadMovieWatchlist(),
@@ -37,6 +74,4 @@ export const appState = {
   ntfyRemoteStatus: 'disabled',
   ntfyRemoteMessage: '',
   ntfyLastNotificationAt: 0,
-  ntfyRemoteTabId: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
-  ntfyRemoteClaimTimer: 0,
 };

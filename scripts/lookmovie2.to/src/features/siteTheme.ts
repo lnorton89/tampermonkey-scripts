@@ -1,5 +1,4 @@
-/* eslint-disable */
-// @ts-nocheck
+import { ensureStyle } from '@userscripts/core';
 import { SCRIPT_ID, SITE_THEME_STYLE_ID } from '../config/constants';
 import { appState } from '../core/state';
 
@@ -134,21 +133,11 @@ const SITE_THEME_CSS = `
   }
 `;
 
-export function syncSiteTheme() {
-  const existing = document.getElementById(SITE_THEME_STYLE_ID);
+export function syncSiteTheme(): void {
   if (!appState.settings.siteTheme) {
-    if (existing) {
-      existing.remove();
-    }
+    document.getElementById(SITE_THEME_STYLE_ID)?.remove();
     return;
   }
 
-  if (existing || !document.documentElement) {
-    return;
-  }
-
-  const style = document.createElement('style');
-  style.id = SITE_THEME_STYLE_ID;
-  style.textContent = SITE_THEME_CSS;
-  (document.head || document.documentElement).appendChild(style);
+  ensureStyle(SITE_THEME_STYLE_ID, SITE_THEME_CSS);
 }

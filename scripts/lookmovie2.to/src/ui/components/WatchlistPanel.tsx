@@ -1,6 +1,4 @@
-/* eslint-disable */
-// @ts-nocheck
-import { useState } from 'react';
+import { useState, type JSX } from 'react';
 import { SCRIPT_ID, UI_ROOT_ID } from '../../config/constants';
 import { appState } from '../../core/state';
 import { isLatestWatched } from '../../domain/episodes';
@@ -22,7 +20,18 @@ import { PlaylistItem } from './PlaylistItem';
 import { SearchBox } from './SearchBox';
 import { WatchlistItem } from './WatchlistItem';
 
-function GridIcon() {
+export type ViewMode = 'poster' | 'list';
+
+interface FoldButtonProps {
+  id: string;
+  title: string;
+  summary: string;
+  count: number;
+  isOpen: boolean;
+  onClick: () => void;
+}
+
+function GridIcon(): JSX.Element {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z" />
@@ -30,7 +39,7 @@ function GridIcon() {
   );
 }
 
-function ListIcon() {
+function ListIcon(): JSX.Element {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M4 6h3v3H4V6zm5 .5h11v2H9v-2zM4 11h3v3H4v-3zm5 .5h11v2H9v-2zM4 16h3v3H4v-3zm5 .5h11v2H9v-2z" />
@@ -38,7 +47,7 @@ function ListIcon() {
   );
 }
 
-function RefreshIcon() {
+function RefreshIcon(): JSX.Element {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M17.7 6.3A7.9 7.9 0 0 0 12 4a8 8 0 1 0 7.5 10.7l-1.9-.7A6 6 0 1 1 16.3 7.7L13 11h8V3l-3.3 3.3z" />
@@ -46,7 +55,7 @@ function RefreshIcon() {
   );
 }
 
-function PlayIcon() {
+function PlayIcon(): JSX.Element {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M8 5v14l11-7L8 5z" />
@@ -54,7 +63,7 @@ function PlayIcon() {
   );
 }
 
-function StopIcon() {
+function StopIcon(): JSX.Element {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M6 6h12v12H6V6z" />
@@ -62,7 +71,7 @@ function StopIcon() {
   );
 }
 
-function FoldButton({ id, title, summary, count, isOpen, onClick }) {
+function FoldButton({ id, title, summary, count, isOpen, onClick }: FoldButtonProps): JSX.Element {
   return (
     <button
       id={`${UI_ROOT_ID}-${id}-fold-button`}
@@ -82,10 +91,10 @@ function FoldButton({ id, title, summary, count, isOpen, onClick }) {
   );
 }
 
-export function WatchlistPanel() {
-  const [activeFold, setActiveFold] = useState('watchlist');
-  const [activeTab, setActiveTab] = useState('shows');
-  const [viewMode, setViewMode] = useState('poster');
+export function WatchlistPanel(): JSX.Element {
+  const [activeFold, setActiveFold] = useState<'watchlist' | 'playlist'>('watchlist');
+  const [activeTab, setActiveTab] = useState<'shows' | 'movies'>('shows');
+  const [viewMode, setViewMode] = useState<ViewMode>('poster');
   const entries = sortWatchlistEntries(getWatchlistEntries());
   const movieEntries = sortMovieWatchlistEntries(getMovieWatchlistEntries());
   const playlistEntries = sortPlaylistEntries(getPlaylistEntries());
@@ -114,7 +123,9 @@ export function WatchlistPanel() {
           summary={watchlistSummary}
           count={entries.length + movieEntries.length}
           isOpen={isWatchlistOpen}
-          onClick={() => setActiveFold('watchlist')}
+          onClick={() => {
+            setActiveFold('watchlist');
+          }}
         />
         {isWatchlistOpen ? (
           <div
@@ -133,7 +144,9 @@ export function WatchlistPanel() {
                     role="tab"
                     aria-selected={isShowsTab ? 'true' : 'false'}
                     data-active={isShowsTab ? 'true' : 'false'}
-                    onClick={() => setActiveTab('shows')}
+                    onClick={() => {
+                      setActiveTab('shows');
+                    }}
                   >
                     TV Shows
                     {newCount > 0 ? <span>{newCount}</span> : null}
@@ -144,7 +157,9 @@ export function WatchlistPanel() {
                     role="tab"
                     aria-selected={!isShowsTab ? 'true' : 'false'}
                     data-active={!isShowsTab ? 'true' : 'false'}
-                    onClick={() => setActiveTab('movies')}
+                    onClick={() => {
+                      setActiveTab('movies');
+                    }}
                   >
                     Movies
                     {unwatchedMovieCount > 0 ? <span>{unwatchedMovieCount}</span> : null}
@@ -158,7 +173,9 @@ export function WatchlistPanel() {
                   aria-pressed={isListView ? 'true' : 'false'}
                   aria-label={isListView ? 'Switch to poster view' : 'Switch to list view'}
                   title={isListView ? 'Switch to poster view' : 'Switch to list view'}
-                  onClick={() => setViewMode(isListView ? 'poster' : 'list')}
+                  onClick={() => {
+                    setViewMode(isListView ? 'poster' : 'list');
+                  }}
                 >
                   {isListView ? <GridIcon /> : <ListIcon />}
                 </button>
@@ -170,7 +187,9 @@ export function WatchlistPanel() {
                     disabled={appState.watchlistBusy}
                     aria-label="Refresh watchlist"
                     title="Refresh watchlist"
-                    onClick={() => refreshWatchlistEntries({ force: true })}
+                    onClick={() => {
+                      void refreshWatchlistEntries({ force: true });
+                    }}
                   >
                     <RefreshIcon />
                   </button>
@@ -211,7 +230,9 @@ export function WatchlistPanel() {
           summary={playlistSummary}
           count={playlistEntries.length}
           isOpen={isPlaylistOpen}
-          onClick={() => setActiveFold('playlist')}
+          onClick={() => {
+            setActiveFold('playlist');
+          }}
         />
         {isPlaylistOpen ? (
           <div
@@ -246,7 +267,9 @@ export function WatchlistPanel() {
                   aria-pressed={isListView ? 'true' : 'false'}
                   aria-label={isListView ? 'Switch to poster view' : 'Switch to list view'}
                   title={isListView ? 'Switch to poster view' : 'Switch to list view'}
-                  onClick={() => setViewMode(isListView ? 'poster' : 'list')}
+                  onClick={() => {
+                    setViewMode(isListView ? 'poster' : 'list');
+                  }}
                 >
                   {isListView ? <GridIcon /> : <ListIcon />}
                 </button>

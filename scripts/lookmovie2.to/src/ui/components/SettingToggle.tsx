@@ -1,11 +1,17 @@
-/* eslint-disable */
-// @ts-nocheck
-import { SCRIPT_ID } from '../../config/constants';
+import type { JSX, ReactNode } from 'react';
+import { SCRIPT_ID, type BooleanSettingKey } from '../../config/constants';
 import { saveSettings } from '../../core/settings';
 import { appState } from '../../core/state';
 
-export function SettingToggle({ settingKey, title, copy, icon }) {
-  const checked = !!appState.settings[settingKey];
+interface SettingToggleProps {
+  settingKey: BooleanSettingKey;
+  title: string;
+  copy: string;
+  icon?: ReactNode;
+}
+
+export function SettingToggle({ settingKey, title, copy, icon }: SettingToggleProps): JSX.Element {
+  const checked = appState.settings[settingKey];
 
   return (
     <label className={`${SCRIPT_ID}-setting`}>

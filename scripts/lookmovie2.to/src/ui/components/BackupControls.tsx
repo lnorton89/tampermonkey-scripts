@@ -1,6 +1,4 @@
-/* eslint-disable */
-// @ts-nocheck
-import { useRef, useState } from 'react';
+import { useRef, useState, type JSX } from 'react';
 import { SCRIPT_ID } from '../../config/constants';
 import {
   exportBackup,
@@ -9,12 +7,12 @@ import {
   restoreBackupSnapshot,
 } from '../../features/backup';
 
-export function BackupControls() {
-  const fileInput = useRef(null);
+export function BackupControls(): JSX.Element {
+  const fileInput = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState('');
   const snapshots = getBackupSnapshots();
   const [selectedDate, setSelectedDate] = useState('');
-  const activeDate = selectedDate || (snapshots[0] && snapshots[0].date) || '';
+  const activeDate = selectedDate || snapshots[0]?.date || '';
 
   return (
     <div className={`${SCRIPT_ID}-setting ${SCRIPT_ID}-setting-stack`}>
@@ -27,13 +25,21 @@ export function BackupControls() {
         </p>
       </div>
       <div className={`${SCRIPT_ID}-backup-actions`}>
-        <button className={`${SCRIPT_ID}-button`} type="button" onClick={() => exportBackup()}>
+        <button
+          className={`${SCRIPT_ID}-button`}
+          type="button"
+          onClick={() => {
+            exportBackup();
+          }}
+        >
           Export file
         </button>
         <button
           className={`${SCRIPT_ID}-button`}
           type="button"
-          onClick={() => fileInput.current && fileInput.current.click()}
+          onClick={() => {
+            fileInput.current?.click();
+          }}
         >
           Import file
         </button>
@@ -43,11 +49,13 @@ export function BackupControls() {
           type="file"
           accept="application/json,.json"
           hidden
-          onChange={async (event) => {
-            const file = event.currentTarget.files && event.currentTarget.files[0];
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
             event.currentTarget.value = '';
             if (file) {
-              setStatus(await importBackupFile(file));
+              void importBackupFile(file).then((result) => {
+                setStatus(result);
+              });
             }
           }}
         />
@@ -58,7 +66,9 @@ export function BackupControls() {
             <span>Snapshot</span>
             <select
               value={activeDate}
-              onChange={(event) => setSelectedDate(event.currentTarget.value)}
+              onChange={(event) => {
+                setSelectedDate(event.currentTarget.value);
+              }}
             >
               {snapshots.map((snapshot) => (
                 <option key={snapshot.date} value={snapshot.date}>
@@ -70,7 +80,9 @@ export function BackupControls() {
           <button
             className={`${SCRIPT_ID}-button`}
             type="button"
-            onClick={() => setStatus(restoreBackupSnapshot(activeDate))}
+            onClick={() => {
+              setStatus(restoreBackupSnapshot(activeDate));
+            }}
           >
             Restore
           </button>

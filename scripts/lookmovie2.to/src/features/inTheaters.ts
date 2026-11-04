@@ -1,5 +1,3 @@
-/* eslint-disable */
-// @ts-nocheck
 import { IN_THEATERS_VISIBLE_COUNT, SCRIPT_ID } from '../config/constants';
 import { appState } from '../core/state';
 import { normalizeImageUrl } from '../core/utils';
@@ -10,14 +8,23 @@ import { ensureMovieCardButtons, syncMovieCardButtons } from './pages';
 // the site's own card markup so its styles and the enhancer's movie buttons apply.
 const SECTION_CLASS = `${SCRIPT_ID}-in-theaters`;
 
-function readSlides() {
-  const seen = new Set();
+interface InTheatersMovie {
+  href: string;
+  title: string;
+  year: string;
+  rating: string;
+  poster: string;
+  qualityTag: Element | null;
+}
+
+function readSlides(): InTheatersMovie[] {
+  const seen = new Set<string>();
   return Array.from(document.querySelectorAll('.hero-slider .slide-item'))
-    .map((slide) => {
+    .map((slide): InTheatersMovie | null => {
       const link = slide.querySelector('.slide-item__backdrop--wrapper a[href*="/movies/view/"]');
       const image = slide.querySelector('.slide-item__backdrop img');
       const titleNode = slide.querySelector('.slide-item__title');
-      const yearNode = titleNode && titleNode.querySelector('span');
+      const yearNode = titleNode?.querySelector('span');
       const href = link ? link.getAttribute('href') : '';
       if (!href || seen.has(href)) {
         return null;
@@ -33,9 +40,9 @@ function readSlides() {
         : '';
       return {
         href,
-        title: title || (image && image.getAttribute('alt')) || '',
-        year: yearNode ? yearNode.textContent.replace(/[()]/g, '').trim() : '',
-        rating: (slide.querySelector('.slide-item__stat span') || {}).textContent || '',
+        title: title || image?.getAttribute('alt') || '',
+        year: yearNode ? (yearNode.textContent ?? '').replace(/[()]/g, '').trim() : '',
+        rating: slide.querySelector('.slide-item__stat span')?.textContent || '',
         poster: normalizeImageUrl(
           (image &&
             (image.getAttribute('data-src-portrait') ||
@@ -45,10 +52,10 @@ function readSlides() {
         qualityTag: slide.querySelector('.quality-tag'),
       };
     })
-    .filter(Boolean);
+    .filter((movie): movie is InTheatersMovie => !!movie);
 }
 
-function buildCard(movie) {
+function buildCard(movie: InTheatersMovie): HTMLDivElement {
   const card = document.createElement('div');
   card.className = 'movie-item-style-2 movie-item-style-1';
 
@@ -108,14 +115,14 @@ function buildCard(movie) {
   return card;
 }
 
-function findFilterRow() {
+function findFilterRow(): Element | null {
   const heading = Array.from(document.querySelectorAll('.page-single .hero-ct h1')).find(
     (element) => /movies filter/i.test(element.textContent || '')
   );
   return heading ? heading.closest('.row') : null;
 }
 
-export function ensureInTheatersSection() {
+export function ensureInTheatersSection(): void {
   const existing = document.querySelector(`.${SECTION_CLASS}`);
   if (location.pathname !== '/' || !appState.settings.siteTheme) {
     if (existing) {
@@ -141,7 +148,11 @@ export function ensureInTheatersSection() {
     <div class="col-sm-12"><div class="flex-wrap-movielist"></div></div>
   `;
 
-  const grid = section.querySelector('.flex-wrap-movielist');
+  const grid = section.querySelector<HTMLElement>('.flex-wrap-movielist');
+  if (!grid) {
+    return;
+  }
+
   grid.dataset.expanded = 'false';
   movies.forEach((movie, index) => {
     const card = buildCard(movie);
@@ -161,10 +172,10 @@ export function ensureInTheatersSection() {
       grid.dataset.expanded = expanded ? 'true' : 'false';
       toggle.textContent = expanded ? 'Show fewer' : `Show all ${movies.length}`;
     });
-    grid.parentElement.append(toggle);
+    grid.parentElement?.append(toggle);
   }
 
-  filterRow.parentElement.insertBefore(section, filterRow);
+  filterRow.parentElement?.insertBefore(section, filterRow);
   ensureMovieCardButtons();
   syncMovieCardButtons();
 }

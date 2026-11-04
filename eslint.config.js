@@ -1,10 +1,12 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import prettierConfig from 'eslint-config-prettier';
+import globals from 'globals';
 
 export default tseslint.config(
+  { ignores: ['**/dist/**', '**/*.user.js', 'node_modules/**'] },
   eslint.configs.recommended,
-  ...tseslint.configs.strictTypeChecked,
+  ...tseslint.configs.recommendedTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
   prettierConfig,
   {
@@ -15,17 +17,26 @@ export default tseslint.config(
       },
     },
     rules: {
-      // Userscript-friendly relaxations
       'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
       '@typescript-eslint/no-explicit-any': 'error',
-      '@typescript-eslint/explicit-function-return-type': 'warn',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', caughtErrors: 'none' },
+      ],
       '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
+      '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
+      // `a || b` on strings is deliberate in DOM code: an empty attribute should fall through.
+      '@typescript-eslint/prefer-nullish-coalescing': 'off',
     },
   },
   {
-    // Relax rules for the build script itself
-    files: ['build.js'],
+    // Node tooling and tests aren't part of the typed project.
+    files: ['*.js', '*.config.ts', 'tools/**/*.js', 'tests/**/*.ts'],
     ...tseslint.configs.disableTypeChecked,
+  },
+  {
+    files: ['*.js', '*.config.ts', 'tools/**/*.js'],
+    languageOptions: { globals: globals.node },
+    rules: { 'no-console': 'off' },
   }
 );

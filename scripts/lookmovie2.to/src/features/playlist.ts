@@ -1,12 +1,16 @@
-/* eslint-disable */
-// @ts-nocheck
 import { appState } from '../core/state';
-import { normalizePlaylistEntry, persistPlaylist, persistPlaylistSession } from '../core/storage';
-import { formatEpisodeLabel } from '../domain/episodes';
+import {
+  normalizePlaylistEntry,
+  persistPlaylist,
+  persistPlaylistSession,
+  type PlaylistEntry,
+  type WatchlistEntry,
+} from '../core/storage';
+import { formatEpisodeLabel, type EpisodeRecord } from '../domain/episodes';
 import { renderWatchlist, syncLauncherState } from '../ui';
 import { buildShowPlayUrl } from './pages';
 
-export function buildPlaylistKey(slug, episode) {
+export function buildPlaylistKey(slug: string, episode: EpisodeRecord | null | undefined): string {
   if (!slug || !episode) {
     return '';
   }
@@ -14,35 +18,38 @@ export function buildPlaylistKey(slug, episode) {
   return `${slug}:${episode.season}:${episode.episode}:${episode.idEpisode}`;
 }
 
-export function getPlaylistEntries() {
+export function getPlaylistEntries(): PlaylistEntry[] {
   return Object.values(appState.playlistStore.entries);
 }
 
-export function getPlaylistEntry(key) {
+export function getPlaylistEntry(key: string): PlaylistEntry | null {
   return key ? appState.playlistStore.entries[key] || null : null;
 }
 
-export function isEpisodeInPlaylist(slug, episode) {
+export function isEpisodeInPlaylist(
+  slug: string,
+  episode: EpisodeRecord | null | undefined
+): boolean {
   return !!getPlaylistEntry(buildPlaylistKey(slug, episode));
 }
 
-export function sortPlaylistEntries(entries) {
+export function sortPlaylistEntries(entries: PlaylistEntry[]): PlaylistEntry[] {
   return [...entries].sort((left, right) => left.addedAt - right.addedAt);
 }
 
-export function savePlaylist() {
+export function savePlaylist(): void {
   persistPlaylist(appState.playlistStore);
   renderWatchlist();
   syncLauncherState();
 }
 
-export function savePlaylistSession() {
+export function savePlaylistSession(): void {
   persistPlaylistSession(appState.playlistSession);
   renderWatchlist();
 }
 
-export function addLatestEpisodeToPlaylist(entry) {
-  if (!entry || !entry.slug || !entry.latestEpisode) {
+export function addLatestEpisodeToPlaylist(entry: WatchlistEntry | null): void {
+  if (!entry?.slug || !entry.latestEpisode) {
     return;
   }
 
@@ -52,7 +59,7 @@ export function addLatestEpisodeToPlaylist(entry) {
     return;
   }
 
-  appState.playlistStore.entries[key] = normalizePlaylistEntry(key, {
+  const playlistEntry = normalizePlaylistEntry(key, {
     slug: entry.slug,
     idShow: entry.idShow,
     title: entry.title,
@@ -61,11 +68,15 @@ export function addLatestEpisodeToPlaylist(entry) {
     episode: entry.latestEpisode,
     addedAt: Date.now(),
   });
+  // Always normalizes: the key is non-empty and the episode is already a valid record.
+  if (playlistEntry) {
+    appState.playlistStore.entries[key] = playlistEntry;
+  }
 
   savePlaylist();
 }
 
-export function removeFromPlaylist(key) {
+export function removeFromPlaylist(key: string): void {
   if (!getPlaylistEntry(key)) {
     return;
   }
@@ -79,40 +90,44 @@ export function removeFromPlaylist(key) {
   savePlaylist();
 }
 
-export function removeEpisodeFromPlaylist(slug, episode) {
+export function removeEpisodeFromPlaylist(
+  slug: string,
+  episode: EpisodeRecord | null | undefined
+): void {
   removeFromPlaylist(buildPlaylistKey(slug, episode));
 }
 
-export function getPlaylistSummary(entries) {
-  if (!entries.length) {
+export function getPlaylistSummary(entries: PlaylistEntry[]): string {
+  const first = entries[0];
+  if (!first) {
     return 'Add latest show episodes from the watchlist poster or list view.';
   }
 
-  const first = entries[0];
   return `${entries.length} queued ${entries.length === 1 ? 'episode' : 'episodes'} | Next: ${
     first.title
   } ${formatEpisodeLabel(first.episode)}`;
 }
 
-export function getCurrentPlaylistEntry() {
+export function getCurrentPlaylistEntry(): PlaylistEntry | null {
   return getPlaylistEntry(appState.playlistSession.currentKey);
 }
 
-export function getNextPlaylistEntry(afterKey) {
+export function getNextPlaylistEntry(afterKey: string): PlaylistEntry | null {
   const entries = sortPlaylistEntries(getPlaylistEntries());
-  if (!entries.length) {
+  const first = entries[0];
+  if (!first) {
     return null;
   }
 
   if (!afterKey) {
-    return entries[0];
+    return first;
   }
 
   const currentIndex = entries.findIndex((entry) => entry.key === afterKey);
-  return currentIndex >= 0 ? entries[currentIndex + 1] || null : entries[0];
+  return currentIndex >= 0 ? entries[currentIndex + 1] || null : first;
 }
 
-export function navigateToPlaylistEntry(entry) {
+export function navigateToPlaylistEntry(entry: PlaylistEntry | null): boolean {
   if (!entry) {
     return false;
   }
@@ -121,7 +136,7 @@ export function navigateToPlaylistEntry(entry) {
   return true;
 }
 
-export function startPlaylistPlayback(key) {
+export function startPlaylistPlayback(key?: string): boolean {
   const entry = key ? getPlaylistEntry(key) : getNextPlaylistEntry('');
   if (!entry) {
     stopPlaylistPlayback();
@@ -137,7 +152,7 @@ export function startPlaylistPlayback(key) {
   return navigateToPlaylistEntry(entry);
 }
 
-export function stopPlaylistPlayback() {
+export function stopPlaylistPlayback(): void {
   appState.playlistSession = {
     active: false,
     currentKey: '',
@@ -146,7 +161,7 @@ export function stopPlaylistPlayback() {
   savePlaylistSession();
 }
 
-export function completeCurrentPlaylistEntryAndAdvance() {
+export function completeCurrentPlaylistEntryAndAdvance(): boolean {
   if (!appState.playlistSession.active) {
     return false;
   }

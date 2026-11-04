@@ -1,5 +1,3 @@
-/* eslint-disable */
-// @ts-nocheck
 import { ROUTE_POLL_MS, UI_ROOT_ID } from '../config/constants';
 import { appState } from '../core/state';
 import {
@@ -28,7 +26,7 @@ import { refreshMovieWatchlistMetadata } from '../features/movies';
 import { refreshWatchlistEntries } from '../features/watchlist';
 import { ensureUi, renderWatchlist, syncLauncherState } from '../ui';
 
-export function watchNavigation() {
+export function watchNavigation(): void {
   window.setInterval(() => {
     if (location.href === appState.lastKnownUrl) {
       return;
@@ -57,12 +55,12 @@ export function watchNavigation() {
     ensureMovieCardButtons();
     syncMovieViewWatchButton();
     ensureMovieViewWatchButton();
-    refreshMovieWatchlistMetadata();
-    refreshWatchlistEntries();
+    void refreshMovieWatchlistMetadata();
+    void refreshWatchlistEntries();
   }, ROUTE_POLL_MS);
 }
 
-export function bootstrapDomFeatures() {
+export function bootstrapDomFeatures(): void {
   if (appState.domBootstrapped) {
     return;
   }
@@ -74,7 +72,9 @@ export function bootstrapDomFeatures() {
   startNtfyRemote();
   watchNavigation();
   window.addEventListener('scroll', markShowsListSessionTouched, { passive: true });
-  window.addEventListener('pagehide', () => stopShowsListProgressTracking({ persist: true }));
+  window.addEventListener('pagehide', () => {
+    stopShowsListProgressTracking({ persist: true });
+  });
 
   const uiBootstrapper = window.setInterval(() => {
     appState.uiBootAttempts += 1;
@@ -98,6 +98,6 @@ export function bootstrapDomFeatures() {
   syncShowViewWatchButton();
   syncMovieCardButtons();
   syncMovieViewWatchButton();
-  refreshMovieWatchlistMetadata();
-  refreshWatchlistEntries();
+  void refreshMovieWatchlistMetadata();
+  void refreshWatchlistEntries();
 }

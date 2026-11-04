@@ -1,24 +1,23 @@
-/* eslint-disable */
-// @ts-nocheck
-import { SCRIPT_ID, SKIP_SEGMENTS } from '../config/constants';
-import { onDomChange } from '../core/domWatcher';
+import { onDomChange } from '@userscripts/core';
+import { SCRIPT_ID, SKIP_SEGMENTS, type SkipSegmentSetting } from '../config/constants';
 import { saveSettings } from '../core/settings';
 import { appState } from '../core/state';
 
 const SETTING_ROW_ATTR = `data-${SCRIPT_ID}-setting`;
 
 // "Audio Booster" is a hard-coded (untranslated) label that only appears in Aether's playback menu.
-function findPlaybackMenuContent() {
+function findPlaybackMenuContent(): Element | null {
   const label = Array.from(document.querySelectorAll('p.font-medium')).find(
-    (element) => element.textContent.trim() === 'Audio Booster'
+    (element) => (element.textContent ?? '').trim() === 'Audio Booster'
   );
 
   return label ? label.closest('.overflow-y-auto') : null;
 }
 
 // Mirrors the classes Aether's own menu toggles switch between.
-function syncToggle(button, enabled) {
-  const knob = button.querySelector('.bg-white');
+function syncToggle(button: HTMLButtonElement, enabled: boolean): void {
+  // The knob is part of the markup built in createSettingRow, so it is always present.
+  const knob = button.querySelector('.bg-white')!;
 
   button.classList.toggle('bg-buttons-toggle', enabled);
   button.classList.toggle('bg-buttons-toggleDisabled', !enabled);
@@ -28,7 +27,7 @@ function syncToggle(button, enabled) {
   knob.classList.toggle('left-0', !enabled);
 }
 
-function createSettingRow({ settingKey, label }) {
+function createSettingRow({ settingKey, label }: SkipSegmentSetting): HTMLDivElement {
   const row = document.createElement('div');
   row.setAttribute(SETTING_ROW_ATTR, settingKey);
   row.className =
@@ -46,17 +45,18 @@ function createSettingRow({ settingKey, label }) {
       </div>
     </div>
   `;
-  row.querySelector('.text-left').textContent = label;
+  // Both elements come from the markup above.
+  row.querySelector('.text-left')!.textContent = label;
 
-  const button = row.querySelector('button');
-  syncToggle(button, !!appState.settings[settingKey]);
+  const button = row.querySelector('button')!;
+  syncToggle(button, appState.settings[settingKey]);
   button.addEventListener('click', (event) => {
     event.stopPropagation();
     saveSettings({
       ...appState.settings,
       [settingKey]: !appState.settings[settingKey],
     });
-    syncToggle(button, !!appState.settings[settingKey]);
+    syncToggle(button, appState.settings[settingKey]);
   });
 
   return row;
@@ -64,7 +64,7 @@ function createSettingRow({ settingKey, label }) {
 
 // Adds the rows next to Aether's Autoplay / thumbnail toggles, or as a new section when the
 // site hides both of those.
-function ensurePlaybackMenuSettings() {
+function ensurePlaybackMenuSettings(): void {
   const content = findPlaybackMenuContent();
   if (!content || content.querySelector(`[${SETTING_ROW_ATTR}]`)) {
     return;
@@ -83,9 +83,10 @@ function ensurePlaybackMenuSettings() {
     content.appendChild(section);
   }
 
-  SKIP_SEGMENTS.forEach((setting) => toggleList.appendChild(createSettingRow(setting)));
+  const list = toggleList;
+  SKIP_SEGMENTS.forEach((setting) => list.appendChild(createSettingRow(setting)));
 }
 
-export function watchPlaybackMenu() {
+export function watchPlaybackMenu(): void {
   onDomChange(ensurePlaybackMenuSettings);
 }

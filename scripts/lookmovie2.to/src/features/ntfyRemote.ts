@@ -1,13 +1,31 @@
-/* eslint-disable */
-// @ts-nocheck
+import {
+  buildAction,
+  createNtfyRemote,
+  getControlTopic,
+  getDisplayTopic,
+  getPublishUrl,
+  getServerUrl,
+  getTopicConfigurationError,
+  sendJsonRequest,
+  type NtfyConfig,
+  type NtfyStatus,
+  type UnknownRecord,
+} from '@userscripts/core';
 import {
   NTFY_REMOTE_ACTIVE_TAB_KEY,
   NTFY_REMOTE_ACTIVE_TAB_TTL_MS,
-  NTFY_TOPIC_PATTERN,
   SCRIPT_ID,
 } from '../config/constants';
 import { appState } from '../core/state';
-import { decodeInlineJsString, getElementImageUrl, normalizeImageUrl } from '../core/utils';
+import type { WatchlistEntry } from '../core/storage';
+import {
+  decodeInlineJsString,
+  getElementImageUrl,
+  normalizeImageUrl,
+  readWindowRecord,
+  readWindowValue,
+  toText,
+} from '../core/utils';
 import { isMoviePlayPage } from './pages';
 import { notifyUiChanged } from '../ui/events';
 import {
@@ -22,215 +40,114 @@ import {
   toggleActiveVideoPlayback,
 } from './player';
 
-let eventSource = null;
-let lastMessageId = '';
-let reconnectTimer = 0;
-let lastIgnoredFocusMessageAt = 0;
-let claimListenersInstalled = false;
-const showPosterCache = new Map();
+interface NotificationPayload {
+  topic: string;
+  title: string;
+  message: string;
+  tags: string[];
+  priority: number;
+  sequence_id: string;
+  click: string;
+  actions: UnknownRecord[];
+}
 
-function setStatus(status, message = '') {
+const showPosterCache = new Map<string, string>();
+
+function setStatus(status: NtfyStatus, message = ''): void {
   appState.ntfyRemoteStatus = status;
   appState.ntfyRemoteMessage = message;
   notifyUiChanged();
 }
 
-function normalizeTopic(topic) {
-  return String(topic || '')
-    .trim()
-    .replace(/^\/+|\/+$/g, '');
-}
-
-function isValidTopic(topic) {
-  return NTFY_TOPIC_PATTERN.test(normalizeTopic(topic));
-}
-
-function getTopicValidationMessage(topic, label) {
-  const normalizedTopic = normalizeTopic(topic);
-  if (!normalizedTopic) {
-    return `${label} topic is required.`;
-  }
-
-  if (normalizedTopic.length > 64) {
-    return `${label} topic must be 64 characters or fewer.`;
-  }
-
-  return `${label} topic can only use letters, numbers, hyphens, and underscores.`;
-}
-
-function isVisibleDocument() {
-  return document.visibilityState !== 'hidden';
-}
-
-function readActiveTabClaim() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(NTFY_REMOTE_ACTIVE_TAB_KEY) || 'null');
-    return parsed && typeof parsed === 'object' ? parsed : null;
-  } catch (_error) {
-    return null;
-  }
-}
-
-function writeActiveTabClaim() {
-  try {
-    localStorage.setItem(
-      NTFY_REMOTE_ACTIVE_TAB_KEY,
-      JSON.stringify({
-        tabId: appState.ntfyRemoteTabId,
-        href: location.href,
-        title: getPlayerTitle(),
-        updatedAt: Date.now(),
-      })
-    );
-  } catch (error) {
-    console.warn(`[${SCRIPT_ID}] Failed to claim ntfy remote tab.`, error);
-  }
-}
-
-function clearActiveTabClaim() {
-  const claim = readActiveTabClaim();
-  if (!claim || claim.tabId !== appState.ntfyRemoteTabId) {
-    return;
-  }
-
-  localStorage.removeItem(NTFY_REMOTE_ACTIVE_TAB_KEY);
-}
-
-export function isCurrentNtfyRemoteTab() {
-  const claim = readActiveTabClaim();
-  if (!claim || !claim.tabId) {
-    return true;
-  }
-
-  if (claim.tabId === appState.ntfyRemoteTabId) {
-    return true;
-  }
-
-  return Date.now() - Number(claim.updatedAt || 0) > NTFY_REMOTE_ACTIVE_TAB_TTL_MS;
-}
-
-export function claimNtfyRemoteTab(reason = 'activity') {
-  if (!appState.settings.ntfyRemoteEnabled || !isVisibleDocument() || !getActiveVideo()) {
-    return false;
-  }
-
-  writeActiveTabClaim();
-  setStatus('connected', `This tab controls Android remote (${reason}).`);
-  return true;
-}
-
-function refreshNtfyRemoteClaim() {
-  if (
-    appState.settings.ntfyRemoteEnabled &&
-    isCurrentNtfyRemoteTab() &&
-    isVisibleDocument() &&
-    getActiveVideo()
-  ) {
-    writeActiveTabClaim();
-  }
-}
-
-export function releaseNtfyRemoteTab() {
-  clearActiveTabClaim();
-}
-
-function getControlTopic() {
-  const configuredTopic = normalizeTopic(appState.settings.ntfyControlTopic);
-  if (configuredTopic) {
-    return configuredTopic;
-  }
-
-  const displayTopic = normalizeTopic(appState.settings.ntfyTopic);
-  return displayTopic ? `${displayTopic}-controls` : '';
-}
-
-function getTopicConfigurationError() {
-  const displayTopic = getDisplayTopic();
-  const controlTopic = getControlTopic();
-
-  if (!isValidTopic(displayTopic)) {
-    return getTopicValidationMessage(displayTopic, 'Display');
-  }
-
-  if (!isValidTopic(controlTopic)) {
-    return getTopicValidationMessage(controlTopic, 'Control');
-  }
-
-  return '';
-}
-
-function buildSubscribeUrl() {
-  const server = String(appState.settings.ntfyServer || 'https://ntfy.sh').replace(/\/+$/, '');
-  const topic = getControlTopic();
-  if (!server || !topic || !isValidTopic(topic)) {
-    return '';
-  }
-
-  const url = new URL(`${server}/${encodeURIComponent(topic)}/sse`);
-  url.searchParams.set('since', String(Math.floor(Date.now() / 1000)));
-  return url.toString();
-}
-
-function getDisplayTopic() {
-  return normalizeTopic(appState.settings.ntfyTopic);
-}
-
-function getPublishUrl(topic) {
-  const server = String(appState.settings.ntfyServer || 'https://ntfy.sh').replace(/\/+$/, '');
-  return `${server}/${encodeURIComponent(topic)}`;
-}
-
-function getPublishRootUrl() {
-  return String(appState.settings.ntfyServer || 'https://ntfy.sh').replace(/\/+$/, '');
-}
-
-function buildCommandBody(command) {
-  const secret = String(appState.settings.ntfyCommandSecret || '').trim();
-  return secret ? `${secret} ${command}` : command;
-}
-
-function buildAction(label, command) {
-  const controlTopic = getControlTopic();
-
+function getConfig(): NtfyConfig {
+  const { settings } = appState;
   return {
-    action: 'http',
-    label,
-    url: getPublishUrl(controlTopic),
-    method: 'POST',
-    body: buildCommandBody(command),
-    clear: false,
+    enabled: settings.ntfyRemoteEnabled,
+    server: settings.ntfyServer,
+    topic: settings.ntfyTopic,
+    controlTopic: settings.ntfyControlTopic,
+    secret: settings.ntfyCommandSecret,
   };
 }
 
-function isShowPlayPage() {
+// Subscribing, reconnecting, tab ownership and command parsing are shared with other scripts.
+// Handlers are wrapped so the player module can finish loading first (the two import each other).
+const remote = createNtfyRemote({
+  scriptId: SCRIPT_ID,
+  siteName: 'LookMovie',
+  tabClaimKey: NTFY_REMOTE_ACTIVE_TAB_KEY,
+  tabClaimTtlMs: NTFY_REMOTE_ACTIVE_TAB_TTL_MS,
+  getConfig,
+  canClaim: () => !!getActiveVideo(),
+  getTitle: () => getPlayerTitle(),
+  handlers: {
+    play: () => playActiveVideo(),
+    pause: () => pauseActiveVideo(),
+    toggle: () => toggleActiveVideoPlayback(),
+    seekBy: (seconds) => seekActiveVideoBy(seconds),
+    fullscreen: () => toggleActiveVideoFullscreen(),
+    next: () => playNextShowEpisode(),
+    setMuted: (muted) => setActiveVideoMuted(muted),
+    setVolume: (percent) => setActiveVideoVolume(percent),
+  },
+  onStatus: setStatus,
+  onCommandHandled: (command) => {
+    publishPlayerNotification(command.command);
+  },
+});
+
+export function isCurrentNtfyRemoteTab(): boolean {
+  return remote.isCurrentTab();
+}
+
+export function claimNtfyRemoteTab(reason = 'activity'): boolean {
+  return remote.claim(reason);
+}
+
+export function releaseNtfyRemoteTab(): void {
+  remote.release();
+}
+
+function isShowPlayPage(): boolean {
   return location.pathname.startsWith('/shows/play/');
 }
 
-function isMoviePlaybackContext() {
+function getShowStorage(): UnknownRecord {
+  return readWindowRecord('show_storage', 'show');
+}
+
+function getMovieStorage(): UnknownRecord {
+  return readWindowRecord('movie_storage', 'movie');
+}
+
+function isMoviePlaybackContext(): boolean {
   if (isMoviePlayPage()) {
     return true;
   }
 
-  const movieStorage = window.movie_storage || window.movie || {};
+  const movieStorage = getMovieStorage();
   return !isShowPlayPage() && !!(movieStorage.id_movie || movieStorage.title || movieStorage.slug);
 }
 
-function buildPlayerActions() {
-  const actions = [buildAction('Play/Pause', 'toggle'), buildAction('Fullscreen', 'fullscreen')];
+function buildPlayerActions(config: NtfyConfig): UnknownRecord[] {
+  const actions = [
+    buildAction(config, 'Play/Pause', 'toggle'),
+    buildAction(config, 'Fullscreen', 'fullscreen'),
+  ];
 
   if (isShowPlayPage()) {
-    actions.push(buildAction('Next', 'next'));
+    actions.push(buildAction(config, 'Next', 'next'));
   } else if (isMoviePlaybackContext()) {
-    actions.push(buildAction('-30s', 'seek -30'));
+    actions.push(buildAction(config, '-30s', 'seek -30'));
   } else {
-    actions.push(buildAction('+30s', 'seek 30'));
+    actions.push(buildAction(config, '+30s', 'seek 30'));
   }
 
   return actions;
 }
 
-function formatTitleWithYear(title, year) {
-  const normalizedTitle = String(title || '')
+function formatTitleWithYear(title: unknown, year?: unknown): string {
+  const normalizedTitle = toText(title || '')
     .replace(/\s+/g, ' ')
     .trim();
   const normalizedYear =
@@ -244,9 +161,10 @@ function formatTitleWithYear(title, year) {
     return normalizedTitle;
   }
 
-  const compactYearMatch = normalizedTitle.match(/^(.*?)(\d{4})$/);
-  if (compactYearMatch && compactYearMatch[1].trim()) {
-    return `${compactYearMatch[1].trim()} (${compactYearMatch[2]})`;
+  const compactYearMatch = /^(.*?)(\d{4})$/.exec(normalizedTitle);
+  const compactTitle = compactYearMatch?.[1]?.trim() ?? '';
+  if (compactYearMatch && compactTitle) {
+    return `${compactTitle} (${compactYearMatch[2] ?? ''})`;
   }
 
   if (normalizedYear && !normalizedTitle.endsWith(`(${normalizedYear})`)) {
@@ -256,9 +174,9 @@ function formatTitleWithYear(title, year) {
   return normalizedTitle;
 }
 
-function getPlayerTitle() {
-  const showStorage = window.show_storage || window.show || {};
-  const movieStorage = window.movie_storage || window.movie || {};
+function getPlayerTitle(): string {
+  const showStorage = getShowStorage();
+  const movieStorage = getMovieStorage();
   const structuredTitle =
     typeof showStorage.title === 'string' && showStorage.title.trim()
       ? formatTitleWithYear(showStorage.title, showStorage.year)
@@ -279,8 +197,8 @@ function getPlayerTitle() {
   return formatTitleWithYear(heading) || 'LookMovie2';
 }
 
-function getRouteEpisodeLabel() {
-  const match = location.hash.match(/^#S(\d+)-E(\d+)-(\d+)$/i);
+function getRouteEpisodeLabel(): string {
+  const match = /^#S(\d+)-E(\d+)-(\d+)$/i.exec(location.hash);
   if (!match) {
     return '';
   }
@@ -288,10 +206,12 @@ function getRouteEpisodeLabel() {
   return `S${String(match[1]).padStart(2, '0')}E${String(match[2]).padStart(2, '0')}`;
 }
 
-function getCurrentShowWatchlistEntry() {
-  const showStorage = window.show_storage || window.show || {};
-  const idShow = Number(window.id_show || showStorage.id_show || showStorage.idShow || 0);
-  const entries = Object.values(appState.watchlistStore.shows || {});
+function getCurrentShowWatchlistEntry(): WatchlistEntry | null {
+  const showStorage = getShowStorage();
+  const idShow = Number(
+    readWindowValue('id_show') || showStorage.id_show || showStorage.idShow || 0
+  );
+  const entries = Object.values(appState.watchlistStore.shows);
 
   if (idShow) {
     const entry = entries.find((watchlistEntry) => watchlistEntry.idShow === idShow);
@@ -300,27 +220,27 @@ function getCurrentShowWatchlistEntry() {
     }
   }
 
-  const slug = String(showStorage.slug || '').trim();
+  const slug = toText(showStorage.slug || '').trim();
   return slug ? appState.watchlistStore.shows[slug] || null : null;
 }
 
-function getCurrentShowSlug() {
-  const showStorage = window.show_storage || window.show || {};
+function getCurrentShowSlug(): string {
+  const showStorage = getShowStorage();
   const watchlistEntry = getCurrentShowWatchlistEntry();
-  const pathMatch = location.pathname.match(/\/shows\/view\/([^/?#]+)/i);
+  const pathMatch = /\/shows\/view\/([^/?#]+)/i.exec(location.pathname);
   const showLink = document.querySelector('a[href*="/shows/view/"]');
   const linkMatch = showLink?.getAttribute('href')?.match(/\/shows\/view\/([^/?#]+)/i);
 
   return (
-    String(showStorage.slug || '').trim() ||
-    String(showStorage.seo_url || '').trim() ||
+    toText(showStorage.slug || '').trim() ||
+    toText(showStorage.seo_url || '').trim() ||
     String(watchlistEntry?.slug || '').trim() ||
-    (pathMatch ? pathMatch[1] : '') ||
-    (linkMatch ? linkMatch[1] : '')
+    (pathMatch?.[1] ?? '') ||
+    (linkMatch?.[1] ?? '')
   );
 }
 
-function getShowPosterFromViewPage(slug) {
+function getShowPosterFromViewPage(slug: string): Promise<string> {
   if (!slug) {
     return Promise.resolve('');
   }
@@ -338,22 +258,22 @@ function getShowPosterFromViewPage(slug) {
       return response.text();
     })
     .then((html) => {
-      const posterMatch = html.match(/poster_medium:\s*'((?:\\'|[^'])*)'/);
+      const posterMatch = /poster_medium:\s*'((?:\\'|[^'])*)'/.exec(html);
       const posterUrl = normalizeImageUrl(posterMatch ? decodeInlineJsString(posterMatch[1]) : '');
       showPosterCache.set(slug, posterUrl);
       return posterUrl;
     })
-    .catch((error) => {
+    .catch((error: unknown) => {
       console.warn(`[${SCRIPT_ID}] Could not resolve show poster for ntfy attachment.`, error);
       showPosterCache.set(slug, '');
       return '';
     });
 }
 
-function getPlayerPosterUrl() {
+function getPlayerPosterUrl(): string {
   const video = getActiveVideo();
-  const movieStorage = window.movie_storage || window.movie || {};
-  const showStorage = window.show_storage || window.show || {};
+  const movieStorage = getMovieStorage();
+  const showStorage = getShowStorage();
   const showWatchlistEntry = getCurrentShowWatchlistEntry();
   const posterNode = document.querySelector(
     [
@@ -384,7 +304,7 @@ function getPlayerPosterUrl() {
   );
 }
 
-function resolvePlayerPosterUrl() {
+function resolvePlayerPosterUrl(): Promise<string> {
   const posterUrl = getPlayerPosterUrl();
   if (posterUrl || !isShowPlayPage()) {
     return Promise.resolve(posterUrl);
@@ -393,45 +313,12 @@ function resolvePlayerPosterUrl() {
   return getShowPosterFromViewPage(getCurrentShowSlug());
 }
 
-// ntfy.sh allows CORS, so fetch normally works; GM_xmlhttpRequest covers servers that don't.
-function sendJsonRequest(url, body, method = 'POST') {
-  const payload = JSON.stringify(body);
-  const headers = { 'Content-Type': 'application/json' };
-
-  return fetch(url, { method, body: payload, headers })
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error(`ntfy request failed with HTTP ${response.status}`);
-      }
-
-      return response;
-    })
-    .catch((fetchError) => {
-      if (typeof GM_xmlhttpRequest !== 'function') {
-        throw fetchError;
-      }
-
-      return new Promise((resolve, reject) => {
-        GM_xmlhttpRequest({
-          method,
-          url,
-          data: payload,
-          headers,
-          onload(response) {
-            if (response.status >= 200 && response.status < 300) {
-              resolve(response);
-              return;
-            }
-
-            reject(new Error(`ntfy request failed with HTTP ${response.status}`));
-          },
-          onerror: reject,
-        });
-      });
-    });
-}
-
-function sendBinaryRequest(url, body, headers, method = 'POST') {
+function sendBinaryRequest(
+  url: string,
+  body: Blob,
+  headers: Record<string, string>,
+  method = 'POST'
+): Promise<Response> {
   return fetch(url, {
     method,
     body,
@@ -445,7 +332,7 @@ function sendBinaryRequest(url, body, headers, method = 'POST') {
   });
 }
 
-function fetchPosterBlob(url) {
+function fetchPosterBlob(url: string): Promise<Blob | null> {
   if (!url) {
     return Promise.resolve(null);
   }
@@ -462,26 +349,30 @@ function fetchPosterBlob(url) {
       return response.blob();
     })
     .then((blob) => {
-      if (!blob || !blob.size || blob.size > 15 * 1024 * 1024) {
+      if (!blob.size || blob.size > 15 * 1024 * 1024) {
         return null;
       }
 
       return blob;
     })
-    .catch((error) => {
+    .catch((error: unknown) => {
       console.warn(`[${SCRIPT_ID}] Could not fetch poster for ntfy attachment.`, error);
       return null;
     });
 }
 
-function buildNotificationHeaders(payload, filename, contentType) {
-  const headers = {
+function buildNotificationHeaders(
+  payload: NotificationPayload,
+  filename: string,
+  contentType: string
+): Record<string, string> {
+  const headers: Record<string, string> = {
     Title: payload.title,
     Message: payload.message,
     Priority: String(payload.priority),
-    Tags: Array.isArray(payload.tags) ? payload.tags.join(',') : '',
+    Tags: payload.tags.join(','),
     Click: payload.click,
-    Actions: JSON.stringify(payload.actions || []),
+    Actions: JSON.stringify(payload.actions),
     'X-Sequence-ID': payload.sequence_id,
   };
 
@@ -502,21 +393,27 @@ function buildNotificationHeaders(payload, filename, contentType) {
   return headers;
 }
 
-function sendPlayerNotificationPayload(displayTopic, payload, posterUrl) {
-  return fetchPosterBlob(posterUrl).then((posterBlob) => {
+function sendPlayerNotificationPayload(
+  config: NtfyConfig,
+  displayTopic: string,
+  payload: NotificationPayload,
+  posterUrl: string
+): Promise<unknown> {
+  return fetchPosterBlob(posterUrl).then((posterBlob): Promise<unknown> => {
     if (posterBlob) {
       return sendBinaryRequest(
-        getPublishUrl(displayTopic),
+        getPublishUrl(config, displayTopic),
         posterBlob,
         buildNotificationHeaders(payload, 'lookmovie-poster.jpg', posterBlob.type || 'image/jpeg')
       );
     }
 
-    return sendJsonRequest(getPublishRootUrl(), payload);
+    // Publishing JSON to the server root lets the payload name its own topic.
+    return sendJsonRequest(getServerUrl(config), payload);
   });
 }
 
-export function publishPlayerNotification(reason = 'update') {
+export function publishPlayerNotification(reason = 'update'): boolean {
   if (!appState.settings.ntfyRemoteEnabled) {
     return false;
   }
@@ -525,9 +422,10 @@ export function publishPlayerNotification(reason = 'update') {
     return false;
   }
 
-  const displayTopic = getDisplayTopic();
-  const controlTopic = getControlTopic();
-  if (!displayTopic || !controlTopic || getTopicConfigurationError()) {
+  const config = getConfig();
+  const displayTopic = getDisplayTopic(config);
+  const controlTopic = getControlTopic(config);
+  if (!displayTopic || !controlTopic || getTopicConfigurationError(config)) {
     return false;
   }
 
@@ -539,7 +437,7 @@ export function publishPlayerNotification(reason = 'update') {
   const isPaused = video.paused;
   const title = getPlayerTitle();
   const episodeLabel = getRouteEpisodeLabel();
-  const payload = {
+  const payload: NotificationPayload = {
     topic: displayTopic,
     title: isPaused ? 'Paused on LookMovie2' : 'Playing on LookMovie2',
     message: episodeLabel ? `${title} - ${episodeLabel}` : title,
@@ -547,15 +445,17 @@ export function publishPlayerNotification(reason = 'update') {
     priority: 3,
     sequence_id: `${SCRIPT_ID}-player`,
     click: location.href,
-    actions: buildPlayerActions(),
+    actions: buildPlayerActions(config),
   };
 
   appState.ntfyLastNotificationAt = Date.now();
 
   resolvePlayerPosterUrl()
-    .then((posterUrl) => sendPlayerNotificationPayload(displayTopic, payload, posterUrl))
-    .then(() => setStatus('connected', `Updated Android player notification (${reason}).`))
-    .catch((error) => {
+    .then((posterUrl) => sendPlayerNotificationPayload(config, displayTopic, payload, posterUrl))
+    .then(() => {
+      setStatus('connected', `Updated Android player notification (${reason}).`);
+    })
+    .catch((error: unknown) => {
       console.warn(`[${SCRIPT_ID}] Failed to publish ntfy player notification.`, error);
       setStatus('error', 'Could not publish Android player notification.');
     });
@@ -563,230 +463,14 @@ export function publishPlayerNotification(reason = 'update') {
   return true;
 }
 
-function parseCommandFromJson(value) {
-  const secret = String(appState.settings.ntfyCommandSecret || '').trim();
-  if (secret && value.secret !== secret) {
-    return null;
-  }
-
-  const command = String(value.command || value.action || '')
-    .trim()
-    .toLowerCase();
-
-  if (!command) {
-    return null;
-  }
-
-  if (command === 'seek') {
-    const seconds = Number(value.seconds ?? value.by ?? value.value);
-    return Number.isFinite(seconds) ? { command, seconds } : null;
-  }
-
-  if (command === 'volume') {
-    const percent = Number(value.percent ?? value.value);
-    return Number.isFinite(percent) ? { command, percent } : null;
-  }
-
-  return { command };
+export function stopNtfyRemote(): void {
+  remote.stop();
 }
 
-function parseCommand(message) {
-  const text = String(message || '').trim();
-  if (!text) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(text);
-    if (parsed && typeof parsed === 'object') {
-      return parseCommandFromJson(parsed);
-    }
-  } catch (_error) {
-    // Plain-text commands are the common path.
-  }
-
-  const secret = String(appState.settings.ntfyCommandSecret || '').trim();
-  let commandText = text;
-
-  if (secret) {
-    if (commandText !== secret && !commandText.startsWith(`${secret} `)) {
-      return null;
-    }
-
-    commandText = commandText.slice(secret.length).trim();
-  }
-
-  const [command = '', rawValue = ''] = commandText.split(/\s+/, 2);
-  const normalizedCommand = command.toLowerCase();
-
-  if (normalizedCommand === 'seek') {
-    const seconds = Number(rawValue);
-    return Number.isFinite(seconds) ? { command: normalizedCommand, seconds } : null;
-  }
-
-  if (normalizedCommand === 'volume') {
-    const percent = Number(rawValue);
-    return Number.isFinite(percent) ? { command: normalizedCommand, percent } : null;
-  }
-
-  return { command: normalizedCommand };
+export function startNtfyRemote(): boolean {
+  return remote.start();
 }
 
-function runCommand(command) {
-  switch (command.command) {
-    case 'play':
-      return playActiveVideo();
-    case 'pause':
-      return pauseActiveVideo();
-    case 'toggle':
-    case 'playpause':
-    case 'play-pause':
-      return toggleActiveVideoPlayback();
-    case 'seek':
-      return seekActiveVideoBy(command.seconds);
-    case 'fullscreen':
-    case 'fs':
-      return toggleActiveVideoFullscreen();
-    case 'next':
-      return playNextShowEpisode();
-    case 'mute':
-      return setActiveVideoMuted(true);
-    case 'unmute':
-      return setActiveVideoMuted(false);
-    case 'volume':
-      return setActiveVideoVolume(command.percent);
-    default:
-      return false;
-  }
-}
-
-function handleMessage(event) {
-  let payload = null;
-
-  try {
-    payload = JSON.parse(event.data || '{}');
-  } catch (error) {
-    console.warn(`[${SCRIPT_ID}] Failed to parse ntfy event.`, error);
-    return;
-  }
-
-  if (!payload || payload.event !== 'message' || !payload.message) {
-    return;
-  }
-
-  if (payload.id && payload.id === lastMessageId) {
-    return;
-  }
-
-  lastMessageId = payload.id || '';
-
-  if (!isVisibleDocument() || !isCurrentNtfyRemoteTab()) {
-    const now = Date.now();
-    if (now - lastIgnoredFocusMessageAt > 5000) {
-      lastIgnoredFocusMessageAt = now;
-      setStatus('connected', 'Another visible LookMovie tab owns the Android remote.');
-    }
-    return;
-  }
-
-  const command = parseCommand(payload.message);
-
-  if (!command) {
-    setStatus('connected', 'Ignored ntfy message.');
-    return;
-  }
-
-  const handled = runCommand(command);
-  if (handled) {
-    window.setTimeout(() => publishPlayerNotification(command.command), 150);
-  }
-
-  setStatus(
-    'connected',
-    handled ? `Ran remote command: ${command.command}` : `No player handled: ${command.command}`
-  );
-}
-
-export function stopNtfyRemote() {
-  window.clearTimeout(reconnectTimer);
-  reconnectTimer = 0;
-
-  if (eventSource) {
-    eventSource.close();
-    eventSource = null;
-  }
-
-  if (appState.ntfyRemoteClaimTimer) {
-    window.clearInterval(appState.ntfyRemoteClaimTimer);
-    appState.ntfyRemoteClaimTimer = 0;
-  }
-
-  releaseNtfyRemoteTab();
-  setStatus('disabled', '');
-}
-
-export function startNtfyRemote() {
-  window.clearTimeout(reconnectTimer);
-  reconnectTimer = 0;
-
-  if (!appState.settings.ntfyRemoteEnabled) {
-    stopNtfyRemote();
-    return false;
-  }
-
-  const subscribeUrl = buildSubscribeUrl();
-  if (!subscribeUrl) {
-    stopNtfyRemote();
-    setStatus(
-      'disabled',
-      getTopicConfigurationError() || 'Add an ntfy topic to enable remote control.'
-    );
-    return false;
-  }
-
-  if (eventSource) {
-    eventSource.close();
-  }
-
-  if (!appState.ntfyRemoteClaimTimer) {
-    appState.ntfyRemoteClaimTimer = window.setInterval(refreshNtfyRemoteClaim, 5000);
-  }
-
-  if (!claimListenersInstalled) {
-    claimListenersInstalled = true;
-    window.addEventListener('focus', () => claimNtfyRemoteTab('focus'));
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        claimNtfyRemoteTab('visible');
-      } else {
-        releaseNtfyRemoteTab();
-      }
-    });
-    window.addEventListener('pagehide', releaseNtfyRemoteTab);
-  }
-
-  setStatus('connecting', 'Connecting to ntfy.');
-  eventSource = new EventSource(subscribeUrl);
-  eventSource.onopen = () => setStatus('connected', 'Connected to ntfy.');
-  eventSource.onmessage = handleMessage;
-  eventSource.onerror = () => {
-    setStatus('error', 'ntfy connection lost. Reconnecting soon.');
-    if (eventSource) {
-      eventSource.close();
-      eventSource = null;
-    }
-
-    reconnectTimer = window.setTimeout(startNtfyRemote, 5000);
-  };
-
-  return true;
-}
-
-export function restartNtfyRemote() {
-  if (eventSource) {
-    eventSource.close();
-    eventSource = null;
-  }
-
-  return startNtfyRemote();
+export function restartNtfyRemote(): boolean {
+  return remote.restart();
 }

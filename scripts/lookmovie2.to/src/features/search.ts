@@ -1,30 +1,46 @@
-/* eslint-disable */
-// @ts-nocheck
 import { SEARCH_RESULT_LIMIT } from '../config/constants';
-import { fetchJson, normalizeImageUrl } from '../core/utils';
+import type { UnknownRecord } from '@userscripts/core';
+import { fetchJson, normalizeImageUrl, readProp, toPositiveInteger, toText } from '../core/utils';
 
-// type is 'shows' or 'movies', matching the site's /api/v1/{type}/do-search endpoints.
-export async function searchSiteTitles(type, query) {
+export type SearchType = 'shows' | 'movies';
+
+export interface SearchResult {
+  slug: string;
+  idShow: number;
+  idMovie: number;
+  title: string;
+  year: string;
+  rating: string;
+  poster: string;
+}
+
+// type matches the site's /api/v1/{type}/do-search endpoints.
+export async function searchSiteTitles(type: SearchType, query: string): Promise<SearchResult[]> {
   const trimmed = String(query || '').trim();
   if (trimmed.length < 2) {
     return [];
   }
 
   const payload = await fetchJson(`/api/v1/${type}/do-search/?q=${encodeURIComponent(trimmed)}`);
-  const results = payload && Array.isArray(payload.result) ? payload.result : [];
+  const rawResults = readProp(payload, 'result');
+  const results: unknown[] = Array.isArray(rawResults) ? rawResults : [];
 
   return results
-    .filter((result) => result && typeof result.slug === 'string' && result.slug)
+    .filter(
+      (result): result is UnknownRecord & { slug: string } =>
+        !!result && typeof readProp(result, 'slug') === 'string' && !!readProp(result, 'slug')
+    )
     .slice(0, SEARCH_RESULT_LIMIT)
     .map((result) => ({
       slug: result.slug,
-      idShow: result.id_show || 0,
-      idMovie: result.id_movie || 0,
+      // Ids end up in toPositiveInteger when stored, so converting here gives the same result.
+      idShow: toPositiveInteger(result.id_show),
+      idMovie: toPositiveInteger(result.id_movie),
       title: typeof result.title === 'string' ? result.title : result.slug,
-      year: result.year ? String(result.year) : '',
-      rating: result.imdb_rating ? String(result.imdb_rating) : '',
+      year: result.year ? toText(result.year) : '',
+      rating: result.imdb_rating ? toText(result.imdb_rating) : '',
       poster: normalizeImageUrl(
-        (result.poster && (result.poster.w200 || result.poster.w100)) || ''
+        readProp(result.poster, 'w200') || readProp(result.poster, 'w100') || ''
       ),
     }));
 }

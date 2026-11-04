@@ -1,12 +1,19 @@
-/* eslint-disable */
-// @ts-nocheck
+import type { JSX } from 'react';
 import { SCRIPT_ID } from '../../config/constants';
+import type { PlaylistEntry } from '../../core/storage';
 import { formatEpisodeLabel } from '../../domain/episodes';
 import { buildShowPlayUrl } from '../../features/pages';
 import { removeFromPlaylist, startPlaylistPlayback } from '../../features/playlist';
 import { CheckIcon, RemoveIcon } from './icons';
+import type { ViewMode } from './WatchlistPanel';
 
-export function PlaylistItem({ entry, viewMode, isActive }) {
+interface PlaylistItemProps {
+  entry: PlaylistEntry;
+  viewMode: ViewMode;
+  isActive: boolean;
+}
+
+export function PlaylistItem({ entry, viewMode, isActive }: PlaylistItemProps): JSX.Element {
   const openHref = buildShowPlayUrl(entry.slug, entry.episode);
   const episodeCopy = formatEpisodeLabel(entry.episode);
   const addedCopy = entry.addedAt ? `Queued ${new Date(entry.addedAt).toLocaleDateString()}` : '';
@@ -44,7 +51,9 @@ export function PlaylistItem({ entry, viewMode, isActive }) {
           type="button"
           aria-label={`Remove ${entry.title} ${episodeCopy} from playlist`}
           title="Done"
-          onClick={() => removeFromPlaylist(entry.key)}
+          onClick={() => {
+            removeFromPlaylist(entry.key);
+          }}
         >
           <CheckIcon />
         </button>
@@ -53,7 +62,9 @@ export function PlaylistItem({ entry, viewMode, isActive }) {
           type="button"
           aria-label={`Remove ${entry.title}`}
           title="Remove"
-          onClick={() => removeFromPlaylist(entry.key)}
+          onClick={() => {
+            removeFromPlaylist(entry.key);
+          }}
         >
           <RemoveIcon />
         </button>

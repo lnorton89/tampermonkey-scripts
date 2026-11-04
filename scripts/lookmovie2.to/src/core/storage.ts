@@ -1,5 +1,11 @@
-/* eslint-disable */
-// @ts-nocheck
+import {
+  asBoolean,
+  asTrimmedString,
+  createSettingsStore,
+  readStore,
+  writeStore,
+  type UnknownRecord,
+} from '@userscripts/core';
 import {
   BACKUP_SNAPSHOT_LIMIT,
   BACKUP_SNAPSHOTS_KEY,
@@ -14,116 +20,146 @@ import {
   SHOWS_LIST_PROGRESS_KEY,
   STORAGE_KEY,
   WATCHLIST_KEY,
+  type Settings,
 } from '../config/constants';
-import { normalizeEpisodeRecord } from '../domain/episodes';
-import { toPositiveInteger } from './utils';
+import { normalizeEpisodeRecord, type EpisodeRecord } from '../domain/episodes';
+import { isObjectLike, toPositiveInteger } from './utils';
 
-function hasGmStorage() {
-  return typeof GM_getValue === 'function' && typeof GM_setValue === 'function';
+export interface UpcomingEpisodes {
+  afterIdEpisode: number;
+  total: number;
+  episodes: EpisodeRecord[];
 }
 
-// Tampermonkey storage is the source of truth because it survives the site's localStorage
-// being cleared (Chrome wipes the whole localStorage database when it detects corruption).
-// localStorage is kept as a mirror and as the migration source for data saved before this.
-function readStoreSource(key) {
-  if (hasGmStorage()) {
-    const saved = GM_getValue(key, null);
-    if (typeof saved === 'string') {
-      return saved;
-    }
-  }
-
-  const legacy = localStorage.getItem(key);
-  if (legacy !== null && hasGmStorage()) {
-    GM_setValue(key, legacy);
-  }
-
-  return legacy;
+export interface WatchlistEntry {
+  slug: string;
+  idShow: number;
+  title: string;
+  year: string;
+  poster: string;
+  addedAt: number;
+  lastSyncedAt: number;
+  lastSyncError: string;
+  latestEpisode: EpisodeRecord | null;
+  lastWatched: EpisodeRecord | null;
+  upcoming: UpcomingEpisodes | null;
 }
 
-function writeStoreSource(key, value) {
-  if (hasGmStorage()) {
-    GM_setValue(key, value);
-  }
-
-  try {
-    if (value === null) {
-      localStorage.removeItem(key);
-    } else {
-      localStorage.setItem(key, value);
-    }
-  } catch (error) {
-    if (!hasGmStorage()) {
-      throw error;
-    }
-  }
+export interface WatchlistStore {
+  shows: Record<string, WatchlistEntry>;
 }
 
-export function normalizeSettings(settings) {
-  return {
-    autoPlay:
-      typeof settings.autoPlay === 'boolean' ? settings.autoPlay : DEFAULT_SETTINGS.autoPlay,
-    autoFullscreen:
-      typeof settings.autoFullscreen === 'boolean'
-        ? settings.autoFullscreen
-        : DEFAULT_SETTINGS.autoFullscreen,
-    windowedFullscreen:
-      typeof settings.windowedFullscreen === 'boolean'
-        ? settings.windowedFullscreen
-        : DEFAULT_SETTINGS.windowedFullscreen,
-    autoNextEpisode:
-      typeof settings.autoNextEpisode === 'boolean'
-        ? settings.autoNextEpisode
-        : DEFAULT_SETTINGS.autoNextEpisode,
-    autoSkipIntro:
-      typeof settings.autoSkipIntro === 'boolean'
-        ? settings.autoSkipIntro
-        : DEFAULT_SETTINGS.autoSkipIntro,
-    autoSkipCredits:
-      typeof settings.autoSkipCredits === 'boolean'
-        ? settings.autoSkipCredits
-        : DEFAULT_SETTINGS.autoSkipCredits,
+export interface MovieWatchlistEntry {
+  slug: string;
+  title: string;
+  year: string;
+  poster: string;
+  idMovie: number;
+  href: string;
+  addedAt: number;
+  watched: boolean;
+  watchedAt?: number;
+}
+
+export interface MovieWatchlistStore {
+  movies: Record<string, MovieWatchlistEntry>;
+}
+
+export interface PlaylistEntry {
+  key: string;
+  slug: string;
+  idShow: number;
+  title: string;
+  year: string;
+  poster: string;
+  episode: EpisodeRecord;
+  addedAt: number;
+}
+
+export interface PlaylistStore {
+  entries: Record<string, PlaylistEntry>;
+}
+
+export interface PlaylistSession {
+  active: boolean;
+  currentKey: string;
+  startedAt: number;
+}
+
+export interface ShowsListProgress {
+  slug: string;
+  title: string;
+  href: string;
+  episode: EpisodeRecord;
+  seenAt: number;
+  source: 'manual' | 'auto';
+}
+
+/** Times in milliseconds, as the site stores them. */
+export interface ResumePoint {
+  progress: number;
+  duration: number;
+  savedAt: number;
+}
+
+export type ResumePoints = Record<string, ResumePoint>;
+
+export interface IntroTime {
+  start?: number;
+  end?: number;
+  creditsFromEnd?: number;
+  updatedAt: number;
+}
+
+export type IntroTimes = Record<string, IntroTime>;
+
+/** A daily copy of both watchlists. Its contents are kept as stored, without normalizing. */
+export type BackupSnapshot = UnknownRecord & { date: string };
+
+const settingsStore = createSettingsStore<Settings>({
+  scriptId: SCRIPT_ID,
+  storageKey: STORAGE_KEY,
+  defaults: DEFAULT_SETTINGS,
+  normalize: (settings) => ({
+    autoPlay: asBoolean(settings.autoPlay, DEFAULT_SETTINGS.autoPlay),
+    autoFullscreen: asBoolean(settings.autoFullscreen, DEFAULT_SETTINGS.autoFullscreen),
+    windowedFullscreen: asBoolean(settings.windowedFullscreen, DEFAULT_SETTINGS.windowedFullscreen),
+    autoNextEpisode: asBoolean(settings.autoNextEpisode, DEFAULT_SETTINGS.autoNextEpisode),
+    autoSkipIntro: asBoolean(settings.autoSkipIntro, DEFAULT_SETTINGS.autoSkipIntro),
+    autoSkipCredits: asBoolean(settings.autoSkipCredits, DEFAULT_SETTINGS.autoSkipCredits),
     playbackRate: PLAYBACK_RATES.includes(Number(settings.playbackRate))
       ? Number(settings.playbackRate)
       : DEFAULT_SETTINGS.playbackRate,
-    siteTheme:
-      typeof settings.siteTheme === 'boolean' ? settings.siteTheme : DEFAULT_SETTINGS.siteTheme,
-    ntfyRemoteEnabled:
-      typeof settings.ntfyRemoteEnabled === 'boolean'
-        ? settings.ntfyRemoteEnabled
-        : DEFAULT_SETTINGS.ntfyRemoteEnabled,
-    ntfyServer:
-      typeof settings.ntfyServer === 'string' && settings.ntfyServer.trim()
-        ? settings.ntfyServer.trim().replace(/\/+$/, '')
-        : DEFAULT_SETTINGS.ntfyServer,
-    ntfyTopic:
-      typeof settings.ntfyTopic === 'string' && settings.ntfyTopic.trim()
-        ? settings.ntfyTopic.trim()
-        : DEFAULT_SETTINGS.ntfyTopic,
-    ntfyControlTopic:
-      typeof settings.ntfyControlTopic === 'string' && settings.ntfyControlTopic.trim()
-        ? settings.ntfyControlTopic.trim()
-        : DEFAULT_SETTINGS.ntfyControlTopic,
-    ntfyCommandSecret:
-      typeof settings.ntfyCommandSecret === 'string' && settings.ntfyCommandSecret.trim()
-        ? settings.ntfyCommandSecret.trim()
-        : DEFAULT_SETTINGS.ntfyCommandSecret,
-  };
+    siteTheme: asBoolean(settings.siteTheme, DEFAULT_SETTINGS.siteTheme),
+    ntfyRemoteEnabled: asBoolean(settings.ntfyRemoteEnabled, DEFAULT_SETTINGS.ntfyRemoteEnabled),
+    // The default has no trailing slash, so stripping is only meaningful for a saved value.
+    ntfyServer: asTrimmedString(settings.ntfyServer, DEFAULT_SETTINGS.ntfyServer).replace(
+      /\/+$/,
+      ''
+    ),
+    ntfyTopic: asTrimmedString(settings.ntfyTopic, DEFAULT_SETTINGS.ntfyTopic),
+    ntfyControlTopic: asTrimmedString(settings.ntfyControlTopic, DEFAULT_SETTINGS.ntfyControlTopic),
+    ntfyCommandSecret: asTrimmedString(
+      settings.ntfyCommandSecret,
+      DEFAULT_SETTINGS.ntfyCommandSecret
+    ),
+  }),
+});
+
+export function normalizeSettings(settings: unknown): Settings {
+  return settingsStore.normalize(settings);
 }
 
-export function loadSettings() {
-  try {
-    const saved = readStoreSource(STORAGE_KEY);
-    const parsed = JSON.parse(saved || '{}');
-    return normalizeSettings(parsed);
-  } catch (error) {
-    console.warn(`[${SCRIPT_ID}] Failed to load saved settings.`, error);
-    return { ...DEFAULT_SETTINGS };
-  }
+export function loadSettings(): Settings {
+  return settingsStore.load();
 }
 
-export function normalizeWatchlistEntry(slug, entry) {
-  if (!entry || typeof entry !== 'object') {
+function readYear(value: unknown): string {
+  return typeof value === 'string' || typeof value === 'number' ? String(value).trim() : '';
+}
+
+export function normalizeWatchlistEntry(slug: unknown, entry: unknown): WatchlistEntry | null {
+  if (!isObjectLike(entry)) {
     return null;
   }
 
@@ -137,10 +173,7 @@ export function normalizeWatchlistEntry(slug, entry) {
     idShow: toPositiveInteger(entry.idShow || entry.id_show),
     title:
       typeof entry.title === 'string' && entry.title.trim() ? entry.title.trim() : normalizedSlug,
-    year:
-      typeof entry.year === 'string' || typeof entry.year === 'number'
-        ? String(entry.year).trim()
-        : '',
+    year: readYear(entry.year),
     poster: typeof entry.poster === 'string' ? entry.poster : '',
     addedAt: typeof entry.addedAt === 'number' ? entry.addedAt : Date.now(),
     lastSyncedAt: typeof entry.lastSyncedAt === 'number' ? entry.lastSyncedAt : 0,
@@ -153,12 +186,14 @@ export function normalizeWatchlistEntry(slug, entry) {
 
 // Episodes after the one watched through, as of the last refresh. Only the first few are kept so
 // long-running shows stay small in storage and snapshots.
-export function normalizeUpcomingEpisodes(upcoming) {
-  if (!upcoming || typeof upcoming !== 'object' || !Array.isArray(upcoming.episodes)) {
+export function normalizeUpcomingEpisodes(upcoming: unknown): UpcomingEpisodes | null {
+  if (!isObjectLike(upcoming) || !Array.isArray(upcoming.episodes)) {
     return null;
   }
 
-  const episodes = upcoming.episodes.map(normalizeEpisodeRecord).filter(Boolean);
+  const episodes = (upcoming.episodes as unknown[])
+    .map(normalizeEpisodeRecord)
+    .filter((episode): episode is EpisodeRecord => !!episode);
   const total = toPositiveInteger(upcoming.total);
   return {
     afterIdEpisode: toPositiveInteger(upcoming.afterIdEpisode),
@@ -167,16 +202,18 @@ export function normalizeUpcomingEpisodes(upcoming) {
   };
 }
 
-export function loadWatchlist() {
-  try {
-    const parsed = JSON.parse(readStoreSource(WATCHLIST_KEY) || '{}');
-    const sourceShows =
-      parsed && typeof parsed === 'object' && parsed.shows && typeof parsed.shows === 'object'
-        ? parsed.shows
-        : {};
-    const shows = {};
+/** The `field` object of a parsed store, e.g. `{ shows: {...} }`, or `{}`. */
+function readStoreSection(parsed: unknown, field: string): UnknownRecord {
+  const section = isObjectLike(parsed) ? parsed[field] : undefined;
+  return isObjectLike(section) ? section : {};
+}
 
-    Object.entries(sourceShows).forEach(([slug, entry]) => {
+export function loadWatchlist(): WatchlistStore {
+  try {
+    const parsed: unknown = JSON.parse(readStore(WATCHLIST_KEY) || '{}');
+    const shows: Record<string, WatchlistEntry> = {};
+
+    Object.entries(readStoreSection(parsed, 'shows')).forEach(([slug, entry]) => {
       const normalized = normalizeWatchlistEntry(slug, entry);
       if (normalized) {
         shows[slug] = normalized;
@@ -190,8 +227,11 @@ export function loadWatchlist() {
   }
 }
 
-export function normalizeMovieWatchlistEntry(slug, entry) {
-  if (!entry || typeof entry !== 'object') {
+export function normalizeMovieWatchlistEntry(
+  slug: unknown,
+  entry: unknown
+): MovieWatchlistEntry | null {
+  if (!isObjectLike(entry)) {
     return null;
   }
 
@@ -204,10 +244,7 @@ export function normalizeMovieWatchlistEntry(slug, entry) {
     slug: normalizedSlug,
     title:
       typeof entry.title === 'string' && entry.title.trim() ? entry.title.trim() : normalizedSlug,
-    year:
-      typeof entry.year === 'string' || typeof entry.year === 'number'
-        ? String(entry.year).trim()
-        : '',
+    year: readYear(entry.year),
     poster: typeof entry.poster === 'string' ? entry.poster : '',
     idMovie: toPositiveInteger(entry.idMovie || entry.id_movie),
     href: typeof entry.href === 'string' ? entry.href : `/movies/view/${normalizedSlug}`,
@@ -217,16 +254,12 @@ export function normalizeMovieWatchlistEntry(slug, entry) {
   };
 }
 
-export function loadMovieWatchlist() {
+export function loadMovieWatchlist(): MovieWatchlistStore {
   try {
-    const parsed = JSON.parse(readStoreSource(MOVIE_WATCHLIST_KEY) || '{}');
-    const sourceMovies =
-      parsed && typeof parsed === 'object' && parsed.movies && typeof parsed.movies === 'object'
-        ? parsed.movies
-        : {};
-    const movies = {};
+    const parsed: unknown = JSON.parse(readStore(MOVIE_WATCHLIST_KEY) || '{}');
+    const movies: Record<string, MovieWatchlistEntry> = {};
 
-    Object.entries(sourceMovies).forEach(([slug, entry]) => {
+    Object.entries(readStoreSection(parsed, 'movies')).forEach(([slug, entry]) => {
       const normalized = normalizeMovieWatchlistEntry(slug, entry);
       if (normalized) {
         movies[slug] = normalized;
@@ -240,8 +273,8 @@ export function loadMovieWatchlist() {
   }
 }
 
-export function normalizePlaylistEntry(key, entry) {
-  if (!entry || typeof entry !== 'object') {
+export function normalizePlaylistEntry(key: unknown, entry: unknown): PlaylistEntry | null {
+  if (!isObjectLike(entry)) {
     return null;
   }
 
@@ -249,7 +282,7 @@ export function normalizePlaylistEntry(key, entry) {
     typeof entry.slug === 'string' && entry.slug.trim()
       ? entry.slug.trim()
       : typeof key === 'string' && key.trim()
-        ? key.split(':')[0].trim()
+        ? (key.split(':')[0] ?? '').trim()
         : '';
   const episode = normalizeEpisodeRecord(entry.episode || entry.latestEpisode);
   if (!slug || !episode) {
@@ -264,26 +297,19 @@ export function normalizePlaylistEntry(key, entry) {
     slug,
     idShow: toPositiveInteger(entry.idShow || entry.id_show),
     title: typeof entry.title === 'string' && entry.title.trim() ? entry.title.trim() : slug,
-    year:
-      typeof entry.year === 'string' || typeof entry.year === 'number'
-        ? String(entry.year).trim()
-        : '',
+    year: readYear(entry.year),
     poster: typeof entry.poster === 'string' ? entry.poster : '',
     episode,
     addedAt: typeof entry.addedAt === 'number' ? entry.addedAt : Date.now(),
   };
 }
 
-export function loadPlaylist() {
+export function loadPlaylist(): PlaylistStore {
   try {
-    const parsed = JSON.parse(readStoreSource(PLAYLIST_KEY) || '{}');
-    const sourceEntries =
-      parsed && typeof parsed === 'object' && parsed.entries && typeof parsed.entries === 'object'
-        ? parsed.entries
-        : {};
-    const entries = {};
+    const parsed: unknown = JSON.parse(readStore(PLAYLIST_KEY) || '{}');
+    const entries: Record<string, PlaylistEntry> = {};
 
-    Object.entries(sourceEntries).forEach(([key, entry]) => {
+    Object.entries(readStoreSection(parsed, 'entries')).forEach(([key, entry]) => {
       const normalized = normalizePlaylistEntry(key, entry);
       if (normalized) {
         entries[normalized.key] = normalized;
@@ -297,8 +323,8 @@ export function loadPlaylist() {
   }
 }
 
-export function normalizePlaylistSession(session) {
-  if (!session || typeof session !== 'object') {
+export function normalizePlaylistSession(session: unknown): PlaylistSession {
+  if (!isObjectLike(session)) {
     return { active: false, currentKey: '', startedAt: 0 };
   }
 
@@ -309,17 +335,17 @@ export function normalizePlaylistSession(session) {
   };
 }
 
-export function loadPlaylistSession() {
+export function loadPlaylistSession(): PlaylistSession {
   try {
-    return normalizePlaylistSession(JSON.parse(readStoreSource(PLAYLIST_SESSION_KEY) || '{}'));
+    return normalizePlaylistSession(JSON.parse(readStore(PLAYLIST_SESSION_KEY) || '{}'));
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to load playlist session.`, error);
     return { active: false, currentKey: '', startedAt: 0 };
   }
 }
 
-export function normalizeShowsListProgress(progress) {
-  if (!progress || typeof progress !== 'object') {
+export function normalizeShowsListProgress(progress: unknown): ShowsListProgress | null {
+  if (!isObjectLike(progress)) {
     return null;
   }
 
@@ -340,100 +366,101 @@ export function normalizeShowsListProgress(progress) {
   };
 }
 
-export function loadShowsListProgress() {
+export function loadShowsListProgress(): ShowsListProgress | null {
   try {
-    return normalizeShowsListProgress(
-      JSON.parse(readStoreSource(SHOWS_LIST_PROGRESS_KEY) || 'null')
-    );
+    return normalizeShowsListProgress(JSON.parse(readStore(SHOWS_LIST_PROGRESS_KEY) || 'null'));
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to load shows list progress.`, error);
     return null;
   }
 }
 
-export function persistSettings(settings) {
-  try {
-    writeStoreSource(STORAGE_KEY, JSON.stringify(settings));
-  } catch (error) {
-    console.warn(`[${SCRIPT_ID}] Failed to save settings.`, error);
-  }
+export function persistSettings(settings: Settings): void {
+  settingsStore.persist(settings);
 }
 
-export function persistWatchlist(watchlistStore) {
+export function persistWatchlist(watchlistStore: WatchlistStore): void {
   try {
-    writeStoreSource(WATCHLIST_KEY, JSON.stringify(watchlistStore));
+    writeStore(WATCHLIST_KEY, JSON.stringify(watchlistStore));
     recordBackupSnapshot({ watchlist: watchlistStore });
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to save watchlist.`, error);
   }
 }
 
-export function persistMovieWatchlist(movieWatchlistStore) {
+export function persistMovieWatchlist(movieWatchlistStore: MovieWatchlistStore): void {
   try {
-    writeStoreSource(MOVIE_WATCHLIST_KEY, JSON.stringify(movieWatchlistStore));
+    writeStore(MOVIE_WATCHLIST_KEY, JSON.stringify(movieWatchlistStore));
     recordBackupSnapshot({ movieWatchlist: movieWatchlistStore });
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to save movie watchlist.`, error);
   }
 }
 
-export function persistPlaylist(playlistStore) {
+export function persistPlaylist(playlistStore: PlaylistStore): void {
   try {
-    writeStoreSource(PLAYLIST_KEY, JSON.stringify(playlistStore));
+    writeStore(PLAYLIST_KEY, JSON.stringify(playlistStore));
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to save playlist.`, error);
   }
 }
 
-export function persistPlaylistSession(session) {
+export function persistPlaylistSession(session: PlaylistSession): void {
   try {
     const normalized = normalizePlaylistSession(session);
     if (!normalized.active) {
-      writeStoreSource(PLAYLIST_SESSION_KEY, null);
+      writeStore(PLAYLIST_SESSION_KEY, null);
       return;
     }
 
-    writeStoreSource(PLAYLIST_SESSION_KEY, JSON.stringify(normalized));
+    writeStore(PLAYLIST_SESSION_KEY, JSON.stringify(normalized));
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to save playlist session.`, error);
   }
 }
 
-export function persistShowsListProgress(progress) {
+export function persistShowsListProgress(progress: ShowsListProgress | null): void {
   try {
     const normalized = normalizeShowsListProgress(progress);
     if (!normalized) {
-      writeStoreSource(SHOWS_LIST_PROGRESS_KEY, null);
+      writeStore(SHOWS_LIST_PROGRESS_KEY, null);
       return;
     }
 
-    writeStoreSource(SHOWS_LIST_PROGRESS_KEY, JSON.stringify(normalized));
+    writeStore(SHOWS_LIST_PROGRESS_KEY, JSON.stringify(normalized));
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to save shows list progress.`, error);
   }
 }
 
-function countStoreEntries(store, field) {
-  return store && store[field] && typeof store[field] === 'object'
-    ? Object.keys(store[field]).length
-    : 0;
+function countStoreEntries(store: object | undefined, field: string): number {
+  const section = store ? (store as UnknownRecord)[field] : undefined;
+  return section && typeof section === 'object' ? Object.keys(section).length : 0;
 }
 
-function getLocalDateKey(date = new Date()) {
+function getLocalDateKey(date = new Date()): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
-export function loadBackupSnapshots() {
+function hasGmStorage(): boolean {
+  return typeof GM_getValue === 'function' && typeof GM_setValue === 'function';
+}
+
+export function loadBackupSnapshots(): BackupSnapshot[] {
   if (!hasGmStorage()) {
     return [];
   }
 
   try {
-    const parsed = JSON.parse(GM_getValue(BACKUP_SNAPSHOTS_KEY, null) || '[]');
+    const saved = GM_getValue<unknown>(BACKUP_SNAPSHOTS_KEY, null);
+    const parsed: unknown = JSON.parse(typeof saved === 'string' && saved ? saved : '[]');
     return Array.isArray(parsed)
-      ? parsed.filter((snapshot) => snapshot && typeof snapshot.date === 'string')
+      ? (parsed as unknown[]).filter(
+          (snapshot): snapshot is BackupSnapshot =>
+            isObjectLike(snapshot) && typeof snapshot.date === 'string'
+        )
       : [];
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to load backup snapshots.`, error);
@@ -443,7 +470,10 @@ export function loadBackupSnapshots() {
 
 // Keeps one snapshot per day of both watchlists. An empty store never replaces a snapshot,
 // so a wipe can't overwrite the last good copy.
-function recordBackupSnapshot(partial) {
+function recordBackupSnapshot(partial: {
+  watchlist?: WatchlistStore;
+  movieWatchlist?: MovieWatchlistStore;
+}): void {
   if (!hasGmStorage()) {
     return;
   }
@@ -458,8 +488,9 @@ function recordBackupSnapshot(partial) {
 
     const date = getLocalDateKey();
     const snapshots = loadBackupSnapshots();
-    const base = snapshots.find((snapshot) => snapshot.date === date) || snapshots[0] || {};
-    const nextSnapshot = {
+    const base: UnknownRecord =
+      snapshots.find((snapshot) => snapshot.date === date) || snapshots[0] || {};
+    const nextSnapshot: BackupSnapshot = {
       watchlist: base.watchlist || { shows: {} },
       movieWatchlist: base.movieWatchlist || { movies: {} },
       ...partial,
@@ -476,26 +507,26 @@ function recordBackupSnapshot(partial) {
   }
 }
 
-function readJsonStore(key, fallback) {
+function readJsonStore(key: string, fallback: UnknownRecord): UnknownRecord {
   try {
-    const parsed = JSON.parse(readStoreSource(key) || 'null');
-    return parsed && typeof parsed === 'object' ? parsed : fallback;
+    const parsed: unknown = JSON.parse(readStore(key) || 'null');
+    return isObjectLike(parsed) ? parsed : fallback;
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to load ${key}.`, error);
     return fallback;
   }
 }
 
-function writeJsonStore(key, value) {
+function writeJsonStore(key: string, value: unknown): void {
   try {
-    writeStoreSource(key, JSON.stringify(value));
+    writeStore(key, JSON.stringify(value));
   } catch (error) {
     console.warn(`[${SCRIPT_ID}] Failed to save ${key}.`, error);
   }
 }
 
-export function normalizeResumePoint(point) {
-  if (!point || typeof point !== 'object') {
+export function normalizeResumePoint(point: unknown): ResumePoint | null {
+  if (!isObjectLike(point)) {
     return null;
   }
 
@@ -512,8 +543,8 @@ export function normalizeResumePoint(point) {
   };
 }
 
-export function loadResumePoints() {
-  const points = {};
+export function loadResumePoints(): ResumePoints {
+  const points: ResumePoints = {};
   Object.entries(readJsonStore(RESUME_POINTS_KEY, {})).forEach(([key, point]) => {
     const normalized = normalizeResumePoint(point);
     if (normalized) {
@@ -523,12 +554,12 @@ export function loadResumePoints() {
   return points;
 }
 
-export function persistResumePoints(points) {
+export function persistResumePoints(points: ResumePoints): void {
   writeJsonStore(RESUME_POINTS_KEY, points);
 }
 
-export function normalizeIntroTime(introTime) {
-  if (!introTime || typeof introTime !== 'object') {
+export function normalizeIntroTime(introTime: unknown): IntroTime | null {
+  if (!isObjectLike(introTime)) {
     return null;
   }
 
@@ -550,8 +581,8 @@ export function normalizeIntroTime(introTime) {
   };
 }
 
-export function loadIntroTimes() {
-  const introTimes = {};
+export function loadIntroTimes(): IntroTimes {
+  const introTimes: IntroTimes = {};
   Object.entries(readJsonStore(INTRO_TIMES_KEY, {})).forEach(([showKey, introTime]) => {
     const normalized = normalizeIntroTime(introTime);
     if (normalized) {
@@ -561,6 +592,6 @@ export function loadIntroTimes() {
   return introTimes;
 }
 
-export function persistIntroTimes(introTimes) {
+export function persistIntroTimes(introTimes: IntroTimes): void {
   writeJsonStore(INTRO_TIMES_KEY, introTimes);
 }

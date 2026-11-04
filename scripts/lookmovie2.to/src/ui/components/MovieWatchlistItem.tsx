@@ -1,15 +1,21 @@
-/* eslint-disable */
-// @ts-nocheck
+import type { JSX } from 'react';
 import { SCRIPT_ID } from '../../config/constants';
+import type { MovieWatchlistEntry } from '../../core/storage';
 import { removeMovieFromWatchlist, toggleMovieWatched } from '../../features/movies';
 import { buildMovieViewUrl } from '../../features/pages';
 import { formatTimeLeft, getPartialResumePoint, movieResumeKey } from '../../features/resumePoints';
+import type { ViewMode } from './WatchlistPanel';
 
-export function MovieWatchlistItem({ entry, viewMode }) {
+interface MovieWatchlistItemProps {
+  entry: MovieWatchlistEntry;
+  viewMode: ViewMode;
+}
+
+export function MovieWatchlistItem({ entry, viewMode }: MovieWatchlistItemProps): JSX.Element {
   const state = entry.watched ? 'watched' : 'new';
   const openHref = entry.href || buildMovieViewUrl(entry.slug);
   const addedCopy = entry.addedAt ? `Added ${new Date(entry.addedAt).toLocaleDateString()}` : '';
-  const summaryPieces = [];
+  const summaryPieces: string[] = [];
   const inProgress = entry.idMovie ? getPartialResumePoint(movieResumeKey(entry.idMovie)) : null;
   const playHref = `/movies/play/${entry.slug}`;
 
@@ -38,7 +44,9 @@ export function MovieWatchlistItem({ entry, viewMode }) {
             entry.watched ? `Mark ${entry.title} unwatched` : `Mark ${entry.title} watched`
           }
           title={entry.watched ? 'Mark unwatched' : 'Mark watched'}
-          onClick={() => toggleMovieWatched(entry.slug)}
+          onClick={() => {
+            toggleMovieWatched(entry.slug);
+          }}
         >
           ✓
         </button>
@@ -47,7 +55,9 @@ export function MovieWatchlistItem({ entry, viewMode }) {
           type="button"
           aria-label={`Remove ${entry.title}`}
           title="Remove"
-          onClick={() => removeMovieFromWatchlist(entry.slug)}
+          onClick={() => {
+            removeMovieFromWatchlist(entry.slug);
+          }}
         >
           ×
         </button>

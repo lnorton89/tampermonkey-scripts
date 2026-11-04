@@ -1,14 +1,16 @@
-/* eslint-disable */
-// @ts-nocheck
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type JSX } from 'react';
 import { SCRIPT_ID, SEARCH_DEBOUNCE_MS } from '../../config/constants';
 import { addMovieToWatchlist, getMovieWatchlistEntry } from '../../features/movies';
-import { searchSiteTitles } from '../../features/search';
+import { searchSiteTitles, type SearchResult, type SearchType } from '../../features/search';
 import { addShowToWatchlist, getWatchlistEntry } from '../../features/watchlist';
 
-export function SearchBox({ type }) {
+interface SearchBoxProps {
+  type: SearchType;
+}
+
+export function SearchBox({ type }: SearchBoxProps): JSX.Element {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [status, setStatus] = useState('');
   const requestId = useRef(0);
   const isShows = type === 'shows';
@@ -22,7 +24,7 @@ export function SearchBox({ type }) {
     }
 
     const currentRequest = ++requestId.current;
-    const timer = window.setTimeout(async () => {
+    const runSearch = async (): Promise<void> => {
       setStatus('Searching...');
       try {
         const found = await searchSiteTitles(type, trimmed);
@@ -30,19 +32,24 @@ export function SearchBox({ type }) {
           setResults(found);
           setStatus(found.length ? '' : 'No matches.');
         }
-      } catch (_error) {
+      } catch {
         if (currentRequest === requestId.current) {
           setStatus('Search failed. Try again.');
         }
       }
+    };
+    const timer = window.setTimeout(() => {
+      void runSearch();
     }, SEARCH_DEBOUNCE_MS);
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [query, type]);
 
-  function addResult(result) {
+  function addResult(result: SearchResult): void {
     if (isShows) {
-      addShowToWatchlist({ ...result });
+      void addShowToWatchlist({ ...result });
     } else {
       addMovieToWatchlist({ ...result, href: `/movies/view/${result.slug}` });
     }
@@ -55,7 +62,9 @@ export function SearchBox({ type }) {
         value={query}
         placeholder={isShows ? 'Search TV shows to add' : 'Search movies to add'}
         aria-label={isShows ? 'Search TV shows to add' : 'Search movies to add'}
-        onChange={(event) => setQuery(event.currentTarget.value)}
+        onChange={(event) => {
+          setQuery(event.currentTarget.value);
+        }}
         onKeyDown={(event) => {
           if (event.key === 'Escape') {
             event.stopPropagation();
@@ -85,7 +94,9 @@ export function SearchBox({ type }) {
                   className={`${SCRIPT_ID}-button`}
                   type="button"
                   disabled={added}
-                  onClick={() => addResult(result)}
+                  onClick={() => {
+                    addResult(result);
+                  }}
                 >
                   {added ? 'Added' : 'Add'}
                 </button>

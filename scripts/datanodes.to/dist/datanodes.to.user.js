@@ -1,7 +1,7 @@
-/* ==UserScript==
+// ==UserScript==
 // @name         Datanodes.to Auto Downloader
+// @version      1.1.0.202611032309
 // @namespace    https://github.com/lnorton89/tampermonkey-scripts
-// @version      1.1.0
 // @description  Auto-downloads a queue of datanodes.to URLs one by one.
 // @author       Lawrence
 // @match        https://datanodes.to/*
@@ -9,8 +9,9 @@
 // @grant        GM_setValue
 // @grant        GM_notification
 // @run-at       document-end
-// ==/UserScript== */
-
+// @updateURL    https://raw.githubusercontent.com/lnorton89/tampermonkey-scripts/main/scripts/datanodes.to/dist/datanodes.to.user.js
+// @downloadURL  https://raw.githubusercontent.com/lnorton89/tampermonkey-scripts/main/scripts/datanodes.to/dist/datanodes.to.user.js
+// ==/UserScript==
 
 "use strict";(()=>{var D="dn_queue",A="dn_active",S="dn_log",L="dn-auto-dl",B="[DN-AutoDL]";function C(t,e){let n=GM_getValue(t,JSON.stringify(e));if(typeof n!="string")return e;try{return JSON.parse(n)}catch{return e}}function y(){return C(D,[])}function E(t){GM_setValue(D,JSON.stringify(t))}function g(){return GM_getValue(A,"")}function p(t){GM_setValue(A,t)}function I(){return C(S,[])}function o(t){let e=I();for(e.push(`[${new Date().toLocaleTimeString()}] ${t}`);e.length>100;)e.shift();GM_setValue(S,JSON.stringify(e)),console.info(B,t)}function v(){let t=y();if(t.length===0)return null;let e=t.shift();return E(t),e??null}function k(t){let e=document.createElement("div");return e.textContent=t,e.innerHTML}function b(t,e=22){return(t.split("/").pop()??t).substring(0,e)}function h(t){return[`background:${t}`,"color:#fff","border:none","border-radius:4px","padding:4px 8px","cursor:pointer","font-size:11px","flex:1"].join(";")}var H=["position:fixed","top:10px","right:10px","z-index:999999","background:#1a1a2e","color:#e0e0e0","border:1px solid #444","border-radius:8px","padding:12px","width:320px","font-family:monospace","font-size:12px","box-shadow:0 4px 20px rgba(0,0,0,.5)"].join(";");function W(t){return t.trim().split(`
 `).map(e=>e.trim()).filter(e=>e.startsWith("https://datanodes.to/"))}function l(t,e){let n=t.querySelector(e);if(!n)throw new Error(`Missing expected element: ${e}`);return n}function u(){let t=document.getElementById(L);if(!t)return;l(t,"#dn-count").textContent=String(y().length);let e=g();l(t,"#dn-active-lbl").textContent=e?b(e):"-",l(t,"#dn-log").innerHTML=I().slice(-30).reverse().map(n=>`<div>${k(n)}</div>`).join("")}function $(){if(document.getElementById(L))return;let t=document.createElement("div");t.id=L,t.style.cssText=H,t.innerHTML=`

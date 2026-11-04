@@ -1,9 +1,15 @@
-/* eslint-disable */
-// @ts-nocheck
-import { toPositiveInteger } from '../core/utils';
+import { isObjectLike, toPositiveInteger } from '../core/utils';
 
-export function normalizeEpisodeRecord(record) {
-  if (!record || typeof record !== 'object') {
+export interface EpisodeRecord {
+  season: number;
+  episode: number;
+  idEpisode: number;
+  watchedAt?: number;
+  updatedAt?: number;
+}
+
+export function normalizeEpisodeRecord(record: unknown): EpisodeRecord | null {
+  if (!isObjectLike(record)) {
     return null;
   }
 
@@ -24,7 +30,7 @@ export function normalizeEpisodeRecord(record) {
   };
 }
 
-export function formatEpisodeLabel(record) {
+export function formatEpisodeLabel(record: EpisodeRecord | null | undefined): string {
   if (!record) {
     return 'Unknown episode';
   }
@@ -32,7 +38,10 @@ export function formatEpisodeLabel(record) {
   return `S${String(record.season).padStart(2, '0')}E${String(record.episode).padStart(2, '0')}`;
 }
 
-export function compareEpisodes(left, right) {
+export function compareEpisodes(
+  left: EpisodeRecord | null | undefined,
+  right: EpisodeRecord | null | undefined
+): number {
   if (!left && !right) {
     return 0;
   }
@@ -56,7 +65,10 @@ export function compareEpisodes(left, right) {
   return left.idEpisode - right.idEpisode;
 }
 
-export function sameEpisode(left, right) {
+export function sameEpisode(
+  left: EpisodeRecord | null | undefined,
+  right: EpisodeRecord | null | undefined
+): boolean {
   if (!left || !right) {
     return false;
   }
@@ -68,6 +80,8 @@ export function sameEpisode(left, right) {
   );
 }
 
-export function isLatestWatched(entry) {
+export function isLatestWatched(
+  entry: { latestEpisode: EpisodeRecord | null; lastWatched: EpisodeRecord | null } | null
+): boolean {
   return !!entry && sameEpisode(entry.latestEpisode, entry.lastWatched);
 }

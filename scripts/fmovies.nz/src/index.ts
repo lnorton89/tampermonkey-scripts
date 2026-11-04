@@ -1,8 +1,8 @@
 import './meta';
+import { ensureStyle, onDomChange, onUrlChange, waitForBody } from '@userscripts/core';
 
 const SCRIPT_ID = 'fmovies-subtitle-position-fix';
 const STYLE_ID = `${SCRIPT_ID}-styles`;
-const ROUTE_SCAN_MS = 750;
 const SUBTITLE_SCAN_MS = 250;
 const SUBTITLE_BOTTOM_REM = 6.5;
 
@@ -23,20 +23,6 @@ const STYLES = `
   }
 `;
 
-let lastHref = location.href;
-let routeTimer = 0;
-let subtitleTimer = 0;
-let observer: MutationObserver | null = null;
-
-function installStyles(): void {
-  if (document.getElementById(STYLE_ID)) return;
-
-  const style = document.createElement('style');
-  style.id = STYLE_ID;
-  style.textContent = STYLES;
-  document.head.appendChild(style);
-}
-
 function fixFmoviesSubtitles(): void {
   document.querySelectorAll<HTMLElement>('.cineby-cue').forEach((cue) => {
     const container = cue.parentElement;
@@ -49,33 +35,15 @@ function fixFmoviesSubtitles(): void {
   });
 }
 
-function startObservers(): void {
-  window.clearInterval(subtitleTimer);
-  subtitleTimer = window.setInterval(fixFmoviesSubtitles, SUBTITLE_SCAN_MS);
-
-  window.clearInterval(routeTimer);
-  routeTimer = window.setInterval(() => {
-    if (location.href === lastHref) return;
-
-    lastHref = location.href;
-    installStyles();
-    fixFmoviesSubtitles();
-  }, ROUTE_SCAN_MS);
-
-  observer?.disconnect();
-
-  observer = new MutationObserver(fixFmoviesSubtitles);
-  observer.observe(document.documentElement, { childList: true, subtree: true });
-}
-
 function bootstrap(): void {
-  installStyles();
-  fixFmoviesSubtitles();
-  startObservers();
+  ensureStyle(STYLE_ID, STYLES);
+  // Childlist changes catch new cues; the interval catches the player rewriting inline styles.
+  onDomChange(fixFmoviesSubtitles);
+  window.setInterval(fixFmoviesSubtitles, SUBTITLE_SCAN_MS);
+  onUrlChange(() => {
+    ensureStyle(STYLE_ID, STYLES);
+    fixFmoviesSubtitles();
+  });
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', bootstrap, { once: true });
-} else {
-  bootstrap();
-}
+waitForBody(bootstrap);

@@ -1,0 +1,5 @@
+dist/
+dist-debug/
+*.user.js
+package-lock.json
+*.md

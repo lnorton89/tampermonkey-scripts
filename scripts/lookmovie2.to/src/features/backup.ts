@@ -1,5 +1,4 @@
-/* eslint-disable */
-// @ts-nocheck
+import type { UnknownRecord } from '@userscripts/core';
 import { SCRIPT_ID } from '../config/constants';
 import { appState } from '../core/state';
 import {
@@ -8,13 +7,20 @@ import {
   normalizePlaylistEntry,
   normalizeWatchlistEntry,
 } from '../core/storage';
+import { isObjectLike, readProp } from '../core/utils';
 import { refreshMovieWatchlistMetadata, saveMovieWatchlist } from './movies';
 import { savePlaylist } from './playlist';
 import { refreshWatchlistEntries, saveWatchlist, setWatchlistMessage } from './watchlist';
 
 export const BACKUP_FORMAT_VERSION = 1;
 
-export function buildBackupPayload() {
+export interface BackupSnapshotSummary {
+  date: string;
+  showCount: number;
+  movieCount: number;
+}
+
+export function buildBackupPayload(): UnknownRecord {
   return {
     app: SCRIPT_ID,
     version: BACKUP_FORMAT_VERSION,
@@ -25,7 +31,7 @@ export function buildBackupPayload() {
   };
 }
 
-export function exportBackup() {
+export function exportBackup(): void {
   const payload = JSON.stringify(buildBackupPayload(), null, 2);
   const url = URL.createObjectURL(new Blob([payload], { type: 'application/json' }));
   const link = document.createElement('a');
@@ -34,31 +40,30 @@ export function exportBackup() {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  window.setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 1000);
 }
 
-function pickSection(payload, wrapperKey, field) {
-  if (!payload || typeof payload !== 'object') {
+function pickSection(payload: unknown, wrapperKey: string, field: string): UnknownRecord {
+  if (!isObjectLike(payload)) {
     return {};
   }
 
   const wrapped = payload[wrapperKey];
-  if (
-    wrapped &&
-    typeof wrapped === 'object' &&
-    wrapped[field] &&
-    typeof wrapped[field] === 'object'
-  ) {
-    return wrapped[field];
+  const wrappedSection = isObjectLike(wrapped) ? wrapped[field] : undefined;
+  if (isObjectLike(wrappedSection)) {
+    return wrappedSection;
   }
 
   // Also accept a raw store, e.g. a copy of the old localStorage value.
-  return payload[field] && typeof payload[field] === 'object' ? payload[field] : {};
+  const rawSection = payload[field];
+  return isObjectLike(rawSection) ? rawSection : {};
 }
 
 // Adds entries that are missing locally; entries already present are kept as they are.
-export function mergeBackupPayload(payload) {
-  const addedShows = [];
+export function mergeBackupPayload(payload: unknown): string {
+  const addedShows: string[] = [];
   let addedMovies = 0;
   let addedPlaylist = 0;
 
@@ -96,12 +101,12 @@ export function mergeBackupPayload(payload) {
 
   if (addedShows.length) {
     saveWatchlist();
-    refreshWatchlistEntries({ force: true, slugs: addedShows });
+    void refreshWatchlistEntries({ force: true, slugs: addedShows });
   }
 
   if (addedMovies) {
     saveMovieWatchlist();
-    refreshMovieWatchlistMetadata();
+    void refreshMovieWatchlistMetadata();
   }
 
   if (addedPlaylist) {
@@ -116,7 +121,7 @@ export function mergeBackupPayload(payload) {
   return summary;
 }
 
-export async function importBackupFile(file) {
+export async function importBackupFile(file: File): Promise<string> {
   try {
     return mergeBackupPayload(JSON.parse(await file.text()));
   } catch (error) {
@@ -126,16 +131,19 @@ export async function importBackupFile(file) {
   }
 }
 
-export function getBackupSnapshots() {
+function countKeys(value: unknown): number {
+  return Object.keys(value || {}).length;
+}
+
+export function getBackupSnapshots(): BackupSnapshotSummary[] {
   return loadBackupSnapshots().map((snapshot) => ({
     date: snapshot.date,
-    showCount: Object.keys((snapshot.watchlist && snapshot.watchlist.shows) || {}).length,
-    movieCount: Object.keys((snapshot.movieWatchlist && snapshot.movieWatchlist.movies) || {})
-      .length,
+    showCount: countKeys(readProp(snapshot.watchlist, 'shows')),
+    movieCount: countKeys(readProp(snapshot.movieWatchlist, 'movies')),
   }));
 }
 
-export function restoreBackupSnapshot(date) {
+export function restoreBackupSnapshot(date: string): string {
   const snapshot = loadBackupSnapshots().find((candidate) => candidate.date === date);
   return snapshot ? mergeBackupPayload(snapshot) : '';
 }

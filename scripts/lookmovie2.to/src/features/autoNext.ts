@@ -1,17 +1,15 @@
-/* eslint-disable */
-// @ts-nocheck
 import { AUTO_NEXT_COUNTDOWN_SECONDS, SCRIPT_ID } from '../config/constants';
 import { appState } from '../core/state';
-import { formatEpisodeLabel } from '../domain/episodes';
+import { formatEpisodeLabel, type EpisodeRecord } from '../domain/episodes';
 import { playNextShowEpisode } from './player';
 import { findNextShowEpisode } from './watchlist';
 
 const OVERLAY_CLASS = `${SCRIPT_ID}-autonext`;
 
 let countdownTimer = 0;
-let overlay = null;
+let overlay: HTMLDivElement | null = null;
 
-export function cancelAutoNextCountdown() {
+export function cancelAutoNextCountdown(): void {
   window.clearInterval(countdownTimer);
   countdownTimer = 0;
   if (overlay) {
@@ -20,12 +18,12 @@ export function cancelAutoNextCountdown() {
   }
 }
 
-function playNextNow(nextEpisode) {
+function playNextNow(nextEpisode: EpisodeRecord): void {
   cancelAutoNextCountdown();
   playNextShowEpisode(nextEpisode);
 }
 
-function buildOverlay(nextEpisode) {
+function buildOverlay(nextEpisode: EpisodeRecord): HTMLDivElement {
   const element = document.createElement('div');
   element.className = OVERLAY_CLASS;
   element.setAttribute('role', 'status');
@@ -62,8 +60,8 @@ function buildOverlay(nextEpisode) {
 
 // Shown inside the player so it also appears in fullscreen. Only used outside playlist mode.
 // force: started by reaching marked credits, which has its own setting.
-export async function startAutoNextCountdown(options) {
-  const force = !!(options && options.force);
+export async function startAutoNextCountdown(options?: { force?: boolean }): Promise<boolean> {
+  const force = !!options?.force;
   if (
     (!force && !appState.settings.autoNextEpisode) ||
     !location.pathname.startsWith('/shows/play/')
@@ -72,7 +70,7 @@ export async function startAutoNextCountdown(options) {
   }
 
   const startedOnHash = location.hash;
-  let nextEpisode = null;
+  let nextEpisode: EpisodeRecord | null = null;
   try {
     nextEpisode = await findNextShowEpisode();
   } catch (error) {
@@ -84,19 +82,24 @@ export async function startAutoNextCountdown(options) {
     return false;
   }
 
+  const episode = nextEpisode;
   cancelAutoNextCountdown();
-  overlay = buildOverlay(nextEpisode);
+  overlay = buildOverlay(episode);
   playerContainer.appendChild(overlay);
 
   let remaining = AUTO_NEXT_COUNTDOWN_SECONDS;
   const secondsNode = overlay.querySelector(`.${OVERLAY_CLASS}-seconds`);
+  if (!secondsNode) {
+    return false;
+  }
+
   secondsNode.textContent = String(remaining);
   countdownTimer = window.setInterval(() => {
     remaining -= 1;
     if (location.hash !== startedOnHash) {
       cancelAutoNextCountdown();
     } else if (remaining <= 0) {
-      playNextNow(nextEpisode);
+      playNextNow(episode);
     } else {
       secondsNode.textContent = String(remaining);
     }

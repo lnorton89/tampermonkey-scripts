@@ -1,12 +1,16 @@
-/* eslint-disable */
-// @ts-nocheck
-const uiListeners = new Set();
+type UiListener = () => void;
 
-export function subscribeUi(listener) {
+const uiListeners = new Set<UiListener>();
+
+export function subscribeUi(listener: UiListener): () => void {
   uiListeners.add(listener);
-  return () => uiListeners.delete(listener);
+  return () => {
+    uiListeners.delete(listener);
+  };
 }
 
-export function notifyUiChanged() {
-  uiListeners.forEach((listener) => listener());
+export function notifyUiChanged(): void {
+  uiListeners.forEach((listener) => {
+    listener();
+  });
 }

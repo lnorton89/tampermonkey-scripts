@@ -1,28 +1,63 @@
-/* eslint-disable */
-// @ts-nocheck
 import { SCRIPT_ID, UPCOMING_EPISODE_LIMIT, WATCHLIST_REFRESH_MS } from '../config/constants';
-import { appState } from '../core/state';
+import { errorMessage } from '@userscripts/core';
+import { appState, type WatchlistMessageTone } from '../core/state';
 import {
   normalizeEpisodeRecord,
   formatEpisodeLabel,
   compareEpisodes,
-  sameEpisode,
   isLatestWatched,
+  type EpisodeRecord,
 } from '../domain/episodes';
-import { normalizeWatchlistEntry, persistWatchlist } from '../core/storage';
-import { decodeInlineJsString, fetchJson, fetchText, toPositiveInteger } from '../core/utils';
-import { buildShowViewUrl, syncEpisodeCardButtons, syncShowViewWatchButton } from './pages';
+import {
+  normalizeWatchlistEntry,
+  persistWatchlist,
+  type UpcomingEpisodes,
+  type WatchlistEntry,
+} from '../core/storage';
+import {
+  decodeInlineJsString,
+  entriesOf,
+  fetchJson,
+  fetchText,
+  readProp,
+  readWindowValue,
+  toPositiveInteger,
+} from '../core/utils';
+import { syncEpisodeCardButtons, syncShowViewWatchButton } from './pages';
 import { renderWatchlist, syncLauncherState } from '../ui';
 
-export function getWatchlistEntries() {
+export interface ShowDetails {
+  slug: string;
+  title?: string;
+  year?: string;
+  poster?: string;
+  episode?: EpisodeRecord | null;
+}
+
+export interface ShowRecord {
+  slug: string;
+  idShow: number;
+  title: string;
+  year: string;
+  poster: string;
+}
+
+export interface PlayPageEpisodeContext {
+  idShow: number;
+  season: number;
+  episode: number;
+  idEpisode: number;
+}
+
+export function getWatchlistEntries(): WatchlistEntry[] {
   return Object.values(appState.watchlistStore.shows);
 }
 
-export function getWatchlistEntry(slug) {
+export function getWatchlistEntry(slug: string | null | undefined): WatchlistEntry | null {
   return slug ? appState.watchlistStore.shows[slug] || null : null;
 }
 
-export function findWatchlistEntryByIdShow(idShow) {
+export function findWatchlistEntryByIdShow(idShow: number): WatchlistEntry | null {
   if (!idShow) {
     return null;
   }
@@ -30,12 +65,12 @@ export function findWatchlistEntryByIdShow(idShow) {
   return getWatchlistEntries().find((entry) => entry.idShow === idShow) || null;
 }
 
-export function countUnwatchedLatestEpisodes() {
+export function countUnwatchedLatestEpisodes(): number {
   return getWatchlistEntries().filter((entry) => entry.latestEpisode && !isLatestWatched(entry))
     .length;
 }
 
-export function sortWatchlistEntries(entries) {
+export function sortWatchlistEntries(entries: WatchlistEntry[]): WatchlistEntry[] {
   return [...entries].sort((left, right) => {
     const leftWeight = left.latestEpisode ? (isLatestWatched(left) ? 1 : 0) : 2;
     const rightWeight = right.latestEpisode ? (isLatestWatched(right) ? 1 : 0) : 2;
@@ -48,7 +83,7 @@ export function sortWatchlistEntries(entries) {
   });
 }
 
-export function shouldRefreshEntry(entry, now) {
+export function shouldRefreshEntry(entry: WatchlistEntry | null, now: number): boolean {
   if (!entry) {
     return false;
   }
@@ -60,7 +95,7 @@ export function shouldRefreshEntry(entry, now) {
   return !entry.lastSyncedAt || now - entry.lastSyncedAt >= WATCHLIST_REFRESH_MS;
 }
 
-export function saveWatchlist() {
+export function saveWatchlist(): void {
   persistWatchlist(appState.watchlistStore);
   renderWatchlist();
   syncLauncherState();
@@ -68,51 +103,57 @@ export function saveWatchlist() {
   syncShowViewWatchButton();
 }
 
-export function setWatchlistMessage(message, tone) {
+export function setWatchlistMessage(message: string, tone?: WatchlistMessageTone): void {
   appState.watchlistMessage = message || '';
   appState.watchlistMessageTone = tone || 'muted';
   renderWatchlist();
 }
 
-export async function resolveShowRecordBySlug(slug, fallback) {
+export async function resolveShowRecordBySlug(
+  slug: string,
+  fallback?: Partial<ShowRecord> | null
+): Promise<ShowRecord> {
   const html = await fetchText(`/shows/view/${slug}`);
-  const idMatch = html.match(/id_show:\s*(\d+)/);
-  const titleMatch = html.match(/title:\s*'((?:\\'|[^'])*)'/);
-  const yearMatch = html.match(/year:\s*'((?:\\'|[^'])*)'/);
-  const posterMatch = html.match(/poster_medium:\s*'((?:\\'|[^'])*)'/);
+  const idMatch = /id_show:\s*(\d+)/.exec(html);
+  const titleMatch = /title:\s*'((?:\\'|[^'])*)'/.exec(html);
+  const yearMatch = /year:\s*'((?:\\'|[^'])*)'/.exec(html);
+  const posterMatch = /poster_medium:\s*'((?:\\'|[^'])*)'/.exec(html);
 
   return {
     slug,
     idShow: idMatch ? toPositiveInteger(idMatch[1]) : 0,
     title: titleMatch
       ? decodeInlineJsString(titleMatch[1]).trim()
-      : fallback && fallback.title
+      : fallback?.title
         ? fallback.title
         : slug,
     year: yearMatch
       ? decodeInlineJsString(yearMatch[1]).trim()
-      : fallback && fallback.year
+      : fallback?.year
         ? fallback.year
         : '',
     poster: posterMatch
       ? decodeInlineJsString(posterMatch[1]).trim()
-      : fallback && fallback.poster
+      : fallback?.poster
         ? fallback.poster
         : '',
   };
 }
 
 // Every regular-season episode in airing order, plus the site's latest episode.
-export async function fetchEpisodeListByIdShow(idShow) {
+export async function fetchEpisodeListByIdShow(
+  idShow: number
+): Promise<{ latestEpisode: EpisodeRecord | null; episodes: EpisodeRecord[] }> {
   const payload = await fetchJson(`/api/v2/download/episode/list?id=${idShow}`);
-  const episodes = [];
+  const episodes: EpisodeRecord[] = [];
 
-  Object.entries((payload && payload.list) || {}).forEach(([season, seasonEpisodes]) => {
-    Object.entries(seasonEpisodes || {}).forEach(([episode, record]) => {
+  // Seasons and episodes can arrive as objects or arrays, keyed by number either way.
+  entriesOf(readProp(payload, 'list')).forEach(([season, seasonEpisodes]) => {
+    entriesOf(seasonEpisodes).forEach(([episode, record]) => {
       const normalized = normalizeEpisodeRecord({
         season,
         episode,
-        idEpisode: record && record.id_episode,
+        idEpisode: readProp(record, 'id_episode'),
       });
       if (normalized) {
         episodes.push(normalized);
@@ -121,11 +162,11 @@ export async function fetchEpisodeListByIdShow(idShow) {
   });
 
   episodes.sort(compareEpisodes);
-  const latest = payload && payload.latest ? payload.latest : null;
+  const latest = readProp(payload, 'latest') || null;
   const latestEpisode = normalizeEpisodeRecord({
-    season: latest && latest.season,
-    episode: latest && latest.episode,
-    idEpisode: latest && latest.id_episode,
+    season: readProp(latest, 'season'),
+    episode: readProp(latest, 'episode'),
+    idEpisode: readProp(latest, 'id_episode'),
   });
 
   if (latestEpisode) {
@@ -135,7 +176,10 @@ export async function fetchEpisodeListByIdShow(idShow) {
   return { latestEpisode, episodes };
 }
 
-export function buildUpcomingEpisodes(episodes, lastWatched) {
+export function buildUpcomingEpisodes(
+  episodes: EpisodeRecord[],
+  lastWatched: EpisodeRecord | null
+): UpcomingEpisodes {
   const startIndex = lastWatched
     ? episodes.findIndex((episode) => compareEpisodes(episode, lastWatched) > 0)
     : 0;
@@ -152,24 +196,23 @@ export function buildUpcomingEpisodes(episodes, lastWatched) {
 
 // Unwatched episodes for the current "watched through" position, or null when the stored list
 // can't answer that (e.g. watched-through moved backwards) and a refresh is needed.
-export function getUpcomingEpisodes(entry) {
-  const upcoming = entry && entry.upcoming;
-  if (!upcoming) {
+export function getUpcomingEpisodes(entry: WatchlistEntry | null): UpcomingEpisodes | null {
+  const upcoming = entry?.upcoming;
+  if (!entry || !upcoming) {
     return null;
   }
 
-  const watchedId = entry.lastWatched ? entry.lastWatched.idEpisode : 0;
+  const { lastWatched } = entry;
+  const watchedId = lastWatched ? lastWatched.idEpisode : 0;
   if (upcoming.afterIdEpisode === watchedId) {
     return upcoming;
   }
 
-  if (!entry.lastWatched) {
+  if (!lastWatched) {
     return null;
   }
 
-  const index = upcoming.episodes.findIndex(
-    (episode) => compareEpisodes(episode, entry.lastWatched) > 0
-  );
+  const index = upcoming.episodes.findIndex((episode) => compareEpisodes(episode, lastWatched) > 0);
   if (index < 0) {
     return upcoming.episodes.length === upcoming.total
       ? { afterIdEpisode: watchedId, total: 0, episodes: [] }
@@ -188,14 +231,14 @@ export function getUpcomingEpisodes(entry) {
   };
 }
 
-function refreshIfUpcomingUnknown(entry) {
+function refreshIfUpcomingUnknown(entry: WatchlistEntry): void {
   if (entry.upcoming && !getUpcomingEpisodes(entry)) {
-    refreshWatchlistEntries({ force: true, slugs: [entry.slug] });
+    void refreshWatchlistEntries({ force: true, slugs: [entry.slug] });
   }
 }
 
-export async function addShowToWatchlist(showDetails) {
-  if (!showDetails || !showDetails.slug) {
+export async function addShowToWatchlist(showDetails: ShowDetails | null): Promise<void> {
+  if (!showDetails?.slug) {
     return;
   }
 
@@ -208,7 +251,7 @@ export async function addShowToWatchlist(showDetails) {
 
   setWatchlistMessage(`Adding ${showDetails.title || showDetails.slug}...`, 'muted');
 
-  let resolved = {
+  let resolved: ShowRecord = {
     slug: showDetails.slug,
     idShow: 0,
     title: showDetails.title || showDetails.slug,
@@ -222,7 +265,7 @@ export async function addShowToWatchlist(showDetails) {
     console.warn(`[${SCRIPT_ID}] Failed to resolve show metadata for ${showDetails.slug}.`, error);
   }
 
-  appState.watchlistStore.shows[showDetails.slug] = normalizeWatchlistEntry(showDetails.slug, {
+  const entry = normalizeWatchlistEntry(showDetails.slug, {
     slug: showDetails.slug,
     idShow: resolved.idShow,
     title: resolved.title || showDetails.title || showDetails.slug,
@@ -232,6 +275,10 @@ export async function addShowToWatchlist(showDetails) {
     latestEpisode: showDetails.episode || null,
     lastSyncedAt: 0,
   });
+  // Only a whitespace-only slug fails to normalize; storing null would break every reader.
+  if (entry) {
+    appState.watchlistStore.shows[showDetails.slug] = entry;
+  }
 
   saveWatchlist();
   setWatchlistMessage(
@@ -242,7 +289,7 @@ export async function addShowToWatchlist(showDetails) {
   await refreshWatchlistEntries({ force: true, slugs: [showDetails.slug] });
 }
 
-export function removeShowFromWatchlist(slug) {
+export function removeShowFromWatchlist(slug: string): void {
   const entry = getWatchlistEntry(slug);
   if (!entry) {
     return;
@@ -253,9 +300,9 @@ export function removeShowFromWatchlist(slug) {
   setWatchlistMessage(`${entry.title} removed from your watchlist.`, 'muted');
 }
 
-export function toggleLatestEpisodeWatched(slug) {
+export function toggleLatestEpisodeWatched(slug: string): void {
   const entry = getWatchlistEntry(slug);
-  if (!entry || !entry.latestEpisode) {
+  if (!entry?.latestEpisode) {
     return;
   }
 
@@ -277,8 +324,11 @@ export function toggleLatestEpisodeWatched(slug) {
   refreshIfUpcomingUnknown(entry);
 }
 
-export async function refreshWatchlistEntries(options) {
-  const force = !!(options && options.force);
+export async function refreshWatchlistEntries(options?: {
+  force?: boolean;
+  slugs?: string[];
+}): Promise<void> {
+  const force = !!options?.force;
   const slugSet = options && Array.isArray(options.slugs) ? new Set(options.slugs) : null;
 
   if (appState.watchlistRefreshPromise) {
@@ -297,7 +347,7 @@ export async function refreshWatchlistEntries(options) {
   if (!entries.length) {
     renderWatchlist();
     syncEpisodeCardButtons();
-    return Promise.resolve();
+    return;
   }
 
   appState.watchlistBusy = true;
@@ -327,7 +377,7 @@ export async function refreshWatchlistEntries(options) {
         entry.lastSyncError = '';
         entry.lastSyncedAt = Date.now();
       } catch (error) {
-        entry.lastSyncError = error instanceof Error ? error.message : String(error);
+        entry.lastSyncError = errorMessage(error);
         entry.lastSyncedAt = Date.now();
         console.warn(`[${SCRIPT_ID}] Failed to refresh ${entry.slug}.`, error);
       }
@@ -336,7 +386,7 @@ export async function refreshWatchlistEntries(options) {
     saveWatchlist();
     setWatchlistMessage('Watchlist refreshed.', 'success');
   })()
-    .catch((error) => {
+    .catch((error: unknown) => {
       console.warn(`[${SCRIPT_ID}] Watchlist refresh failed.`, error);
       setWatchlistMessage('Watchlist refresh failed.', 'danger');
     })
@@ -352,8 +402,8 @@ export async function refreshWatchlistEntries(options) {
 
 // window.id_show is a page global; the inline page data is the fallback when it isn't visible
 // from the userscript sandbox.
-export function getPlayPageIdShow() {
-  const fromGlobal = toPositiveInteger(window.id_show);
+export function getPlayPageIdShow(): number {
+  const fromGlobal = toPositiveInteger(readWindowValue('id_show'));
   if (fromGlobal) {
     return fromGlobal;
   }
@@ -361,16 +411,16 @@ export function getPlayPageIdShow() {
   const script = Array.from(document.scripts).find((element) =>
     /id_show:\s*\d+/.test(element.textContent || '')
   );
-  const match = script ? script.textContent.match(/id_show:\s*(\d+)/) : null;
+  const match = script ? /id_show:\s*(\d+)/.exec(script.textContent) : null;
   return match ? toPositiveInteger(match[1]) : 0;
 }
 
-export function readPlayPageEpisodeContext() {
+export function readPlayPageEpisodeContext(): PlayPageEpisodeContext | null {
   if (!location.pathname.startsWith('/shows/play/')) {
     return null;
   }
 
-  const hashMatch = location.hash.match(/^#S(\d+)-E(\d+)-(\d+)$/i);
+  const hashMatch = /^#S(\d+)-E(\d+)-(\d+)$/i.exec(location.hash);
   if (!hashMatch) {
     return null;
   }
@@ -392,7 +442,7 @@ export function readPlayPageEpisodeContext() {
   };
 }
 
-export function maybeTrackWatchedEpisodeFromPlayer() {
+export function maybeTrackWatchedEpisodeFromPlayer(): void {
   const context = readPlayPageEpisodeContext();
   if (!context) {
     return;
@@ -433,15 +483,15 @@ export function maybeTrackWatchedEpisodeFromPlayer() {
   );
 }
 
-function readCurrentEpisodeFromHash() {
-  const match = location.hash.match(/^#S(\d+)-E(\d+)-(\d+)$/i);
+function readCurrentEpisodeFromHash(): EpisodeRecord | null {
+  const match = /^#S(\d+)-E(\d+)-(\d+)$/i.exec(location.hash);
   return match
     ? { season: Number(match[1]), episode: Number(match[2]), idEpisode: Number(match[3]) }
     : null;
 }
 
 // The episode after the one in the play page URL, from the site's episode list.
-export async function findNextShowEpisode() {
+export async function findNextShowEpisode(): Promise<EpisodeRecord | null> {
   const idShow = getPlayPageIdShow();
   const current = readCurrentEpisodeFromHash();
   if (!idShow || !current) {

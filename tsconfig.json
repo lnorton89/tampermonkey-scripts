@@ -4,16 +4,19 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
-    "lib": ["ES2020", "DOM"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["tampermonkey"],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
-    "exactOptionalPropertyTypes": true,
     "noFallthroughCasesInSwitch": true,
+    "isolatedModules": true,
     "skipLibCheck": true,
-    "outDir": ".tsc-out",
-    "rootDir": "."
+    "noEmit": true,
+    "paths": {
+      "@userscripts/core": ["./packages/core/src/index.ts"]
+    }
   },
-  "include": ["scripts/**/src/**/*.ts", "scripts/**/src/**/*.tsx", "build.js"],
+  "include": ["scripts/*/src/**/*", "packages/*/src/**/*", "templates/*/src/**/*", "tests/**/*"],
   "exclude": ["node_modules"]
 }

@@ -1,8 +1,12 @@
-/* eslint-disable */
-// @ts-nocheck
+import type { UnknownRecord } from '@userscripts/core';
 import { SCRIPT_ID } from '../config/constants';
 import { appState } from '../core/state';
-import { loadIntroTimes, persistIntroTimes } from '../core/storage';
+import {
+  loadIntroTimes,
+  persistIntroTimes,
+  type IntroTime,
+  type IntroTimes,
+} from '../core/storage';
 import { startAutoNextCountdown } from './autoNext';
 
 const INTRO_CLASS = `${SCRIPT_ID}-intro`;
@@ -10,14 +14,17 @@ const INTRO_CLASS = `${SCRIPT_ID}-intro`;
 const SKIP_END_MARGIN_SECONDS = 1;
 const MIN_INTRO_SECONDS = 5;
 
-let introTimes = null;
-let markingStart = null;
+/** Saved times with an intro range. `start` and `end` are always saved together. */
+type SavedIntro = IntroTime & { start: number; end: number };
+
+let introTimes: IntroTimes | null = null;
+let markingStart: number | null = null;
 let skippedOnHash = '';
 let creditsTriggeredOnHash = '';
-let controls = null;
+let controls: HTMLDivElement | null = null;
 let toastTimer = 0;
 
-function getIntroTimes() {
+function getIntroTimes(): IntroTimes {
   if (!introTimes) {
     introTimes = loadIntroTimes();
   }
@@ -26,27 +33,31 @@ function getIntroTimes() {
 }
 
 // Play and view pages use different numeric prefixes for the same show, so the name is the key.
-function getShowKey() {
-  const match = location.pathname.match(/^\/shows\/play\/(?:\d+-)?([^/?#]+)/i);
-  return match ? match[1].toLowerCase() : '';
+function getShowKey(): string {
+  const match = /^\/shows\/play\/(?:\d+-)?([^/?#]+)/i.exec(location.pathname);
+  return match ? (match[1] ?? '').toLowerCase() : '';
 }
 
-function getSavedTimes() {
+function getSavedTimes(): IntroTime | null {
   const showKey = getShowKey();
   return showKey ? getIntroTimes()[showKey] || null : null;
 }
 
-function getSavedIntro() {
+function getSavedIntro(): SavedIntro | null {
   const saved = getSavedTimes();
-  return saved && Number.isFinite(saved.start) ? saved : null;
+  return saved && Number.isFinite(saved.start) ? (saved as SavedIntro) : null;
 }
 
-function updateSavedTimes(changes) {
+function updateSavedTimes(changes: Partial<IntroTime>): void {
   const showKey = getShowKey();
-  const next = { ...(getSavedTimes() || {}), ...changes, updatedAt: Date.now() };
-  Object.keys(next).forEach((key) => next[key] === undefined && delete next[key]);
+  const next: UnknownRecord = { ...(getSavedTimes() || {}), ...changes, updatedAt: Date.now() };
+  Object.keys(next).forEach((key) => {
+    if (next[key] === undefined) {
+      delete next[key];
+    }
+  });
   if (Number.isFinite(next.start) || Number.isFinite(next.creditsFromEnd)) {
-    getIntroTimes()[showKey] = next;
+    getIntroTimes()[showKey] = next as unknown as IntroTime;
   } else {
     delete getIntroTimes()[showKey];
   }
@@ -54,25 +65,30 @@ function updateSavedTimes(changes) {
   persistIntroTimes(getIntroTimes());
 }
 
-export function formatClock(seconds) {
+export function formatClock(seconds: number): string {
   const total = Math.max(0, Math.round(seconds));
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 
-function getVideo() {
+function getVideo(): HTMLVideoElement | null {
   return document.querySelector('#video_player video');
 }
 
-function isInIntro(saved, time) {
-  return saved && time >= saved.start && time < saved.end - SKIP_END_MARGIN_SECONDS;
+function isInIntro(saved: SavedIntro | null, time: number): saved is SavedIntro {
+  return !!saved && time >= saved.start && time < saved.end - SKIP_END_MARGIN_SECONDS;
 }
 
-export function showPlayerToast(message) {
-  if (!ensureControls()) {
+export function showPlayerToast(message: string): void {
+  const container = ensureControls();
+  if (!container) {
     return;
   }
 
-  const toast = controls.querySelector(`.${INTRO_CLASS}-toast`);
+  const toast = container.querySelector<HTMLElement>(`.${INTRO_CLASS}-toast`);
+  if (!toast) {
+    return;
+  }
+
   toast.textContent = message;
   toast.hidden = false;
   window.clearTimeout(toastTimer);
@@ -82,7 +98,7 @@ export function showPlayerToast(message) {
 }
 
 // Jumps past the saved intro if playback is inside it. Used by the S shortcut.
-export function skipIntroNow() {
+export function skipIntroNow(): boolean {
   const video = getVideo();
   const saved = getSavedIntro();
   if (!video || !isInIntro(saved, video.currentTime)) {
@@ -95,7 +111,7 @@ export function skipIntroNow() {
   return true;
 }
 
-function makeButton(label, className, onClick) {
+function makeButton(label: string, className: string, onClick: () => void): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = className;
@@ -107,7 +123,7 @@ function makeButton(label, className, onClick) {
   return button;
 }
 
-function buildIntroRow(buttonClass, onChange) {
+function buildIntroRow(buttonClass: string, onChange: () => void): HTMLDivElement {
   const row = document.createElement('div');
   row.className = `${SCRIPT_ID}-player-menu-row`;
   const label = document.createElement('span');
@@ -116,19 +132,20 @@ function buildIntroRow(buttonClass, onChange) {
   const saved = getSavedIntro();
 
   if (markingStart !== null) {
+    const start = markingStart;
     row.append(
-      makeButton(`Mark end (from ${formatClock(markingStart)})`, buttonClass, () => {
+      makeButton(`Mark end (from ${formatClock(start)})`, buttonClass, () => {
         const video = getVideo();
         const end = video ? video.currentTime : 0;
-        if (end - markingStart < MIN_INTRO_SECONDS) {
+        if (end - start < MIN_INTRO_SECONDS) {
           showPlayerToast(`Play past the intro first (at least ${MIN_INTRO_SECONDS}s).`);
           return;
         }
 
-        updateSavedTimes({ start: markingStart, end });
+        updateSavedTimes({ start, end });
         markingStart = null;
         skippedOnHash = location.hash;
-        showPlayerToast(`Intro saved: ${formatClock(getSavedIntro().start)}–${formatClock(end)}`);
+        showPlayerToast(`Intro saved: ${formatClock(start)}–${formatClock(end)}`);
         onChange();
       }),
       makeButton('Cancel', buttonClass, () => {
@@ -162,7 +179,7 @@ function buildIntroRow(buttonClass, onChange) {
   return row;
 }
 
-function buildCreditsRow(buttonClass, onChange) {
+function buildCreditsRow(buttonClass: string, onChange: () => void): HTMLDivElement {
   const row = document.createElement('div');
   row.className = `${SCRIPT_ID}-player-menu-row`;
   const label = document.createElement('span');
@@ -170,7 +187,7 @@ function buildCreditsRow(buttonClass, onChange) {
   row.append(label);
   const saved = getSavedTimes();
 
-  if (saved && Number.isFinite(saved.creditsFromEnd)) {
+  if (saved?.creditsFromEnd !== undefined && Number.isFinite(saved.creditsFromEnd)) {
     const offset = document.createElement('em');
     offset.textContent = `last ${formatClock(saved.creditsFromEnd)}`;
     row.append(
@@ -202,7 +219,10 @@ function buildCreditsRow(buttonClass, onChange) {
 }
 
 // The intro/credits part of the player settings menu; onChange re-renders the menu.
-export function buildIntroMenuSection(buttonClass, onChange) {
+export function buildIntroMenuSection(
+  buttonClass: string,
+  onChange: () => void
+): HTMLDivElement | null {
   if (!getShowKey()) {
     return null;
   }
@@ -220,24 +240,28 @@ export function buildIntroMenuSection(buttonClass, onChange) {
   return section;
 }
 
-function updateSkipButton(video) {
+function updateSkipButton(video: HTMLVideoElement | null): void {
   if (!controls) {
     return;
   }
 
-  const skip = controls.querySelector(`.${INTRO_CLASS}-skip`);
+  const skip = controls.querySelector<HTMLElement>(`.${INTRO_CLASS}-skip`);
+  if (!skip) {
+    return;
+  }
+
   skip.hidden = !(
     !appState.settings.autoSkipIntro && isInIntro(getSavedIntro(), video ? video.currentTime : -1)
   );
 }
 
-function ensureControls() {
+function ensureControls(): HTMLDivElement | null {
   const playerContainer = document.getElementById('video_player');
   if (!playerContainer) {
     return null;
   }
 
-  if (controls && controls.parentElement === playerContainer) {
+  if (controls?.parentElement === playerContainer) {
     return controls;
   }
 
@@ -256,7 +280,7 @@ function ensureControls() {
   return controls;
 }
 
-export function handleIntroTimeUpdate(video) {
+export function handleIntroTimeUpdate(video: HTMLVideoElement): void {
   if (!getShowKey() || !ensureControls()) {
     return;
   }
@@ -274,7 +298,7 @@ export function handleIntroTimeUpdate(video) {
 
   // Reaching the credits starts the next-episode countdown instead of waiting for the end.
   if (
-    saved &&
+    saved?.creditsFromEnd !== undefined &&
     Number.isFinite(saved.creditsFromEnd) &&
     appState.settings.autoSkipCredits &&
     creditsTriggeredOnHash !== location.hash &&
@@ -283,7 +307,7 @@ export function handleIntroTimeUpdate(video) {
     video.duration - time <= saved.creditsFromEnd
   ) {
     creditsTriggeredOnHash = location.hash;
-    startAutoNextCountdown({ force: true });
+    void startAutoNextCountdown({ force: true });
   }
 
   updateSkipButton(video);

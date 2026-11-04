@@ -1,14 +1,12 @@
-/* eslint-disable */
-// @ts-nocheck
-import { createRoot } from 'react-dom/client';
+import { createRoot, type Root } from 'react-dom/client';
 import { UI_ROOT_ID, UI_STYLE_ID } from '../config/constants';
 import { notifyUiChanged } from './events';
 import { getUiStyleText } from './styles';
 import { LookMovieToolsApp } from './App';
 
-let reactRoot = null;
+let reactRoot: Root | null = null;
 
-export function ensureUiStyle() {
+export function ensureUiStyle(): void {
   if (!document.head || document.getElementById(UI_STYLE_ID)) {
     return;
   }
@@ -20,7 +18,7 @@ export function ensureUiStyle() {
   document.head.appendChild(style);
 }
 
-export function ensureUi() {
+export function ensureUi(): void {
   ensureUiStyle();
 
   if (!document.body) {
@@ -40,14 +38,14 @@ export function ensureUi() {
   }
 }
 
-export function syncLauncherState() {
+export function syncLauncherState(): void {
   notifyUiChanged();
 }
 
-export function renderWatchlist() {
+export function renderWatchlist(): void {
   notifyUiChanged();
 }
 
-export function syncModalState() {
+export function syncModalState(): void {
   notifyUiChanged();
 }

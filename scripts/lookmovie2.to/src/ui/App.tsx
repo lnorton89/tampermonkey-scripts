@@ -1,19 +1,23 @@
-/* eslint-disable */
-// @ts-nocheck
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type JSX } from 'react';
 import { createPortal } from 'react-dom';
+import { getControlText, hasLayoutBox } from '@userscripts/core';
 import { appState } from '../core/state';
 import { saveSettings } from '../core/settings';
-import { SCRIPT_ID, UI_ROOT_ID } from '../config/constants';
-import { getControlText, isVisibleElement } from '../core/utils';
+import { SCRIPT_ID, UI_ROOT_ID, type BooleanSettingKey, type Settings } from '../config/constants';
 import { BackupControls } from './components/BackupControls';
 import { SettingToggle } from './components/SettingToggle';
 import { WatchlistPanel } from './components/WatchlistPanel';
 import { subscribeUi } from './events';
 
-function findVisibleControl(pattern) {
+interface LauncherHostTarget {
+  parent: Element | null;
+  before: ChildNode | null;
+  sourceItem: HTMLLIElement | null;
+}
+
+function findVisibleControl(pattern: RegExp): Element | undefined {
   return Array.from(document.querySelectorAll('a, button')).find((control) => {
-    if (!isVisibleElement(control)) {
+    if (!hasLayoutBox(control)) {
       return false;
     }
 
@@ -21,13 +25,13 @@ function findVisibleControl(pattern) {
   });
 }
 
-function findTopBarHostTarget() {
+function findTopBarHostTarget(): LauncherHostTarget | null {
   const signupControl = findVisibleControl(/\bsign\s*up\b|\bsignup\b|\bregister\b/i);
 
   if (signupControl) {
     const signupItem = signupControl.closest('li');
 
-    if (signupItem && signupItem.parentElement) {
+    if (signupItem?.parentElement) {
       return {
         parent: signupItem.parentElement,
         before: signupItem.nextSibling,
@@ -46,8 +50,12 @@ function findTopBarHostTarget() {
   return header ? { parent: header, before: null, sourceItem: null } : null;
 }
 
-function usesPinnedPosition(element) {
-  for (let node = element; node && node !== document.body; node = node.parentElement) {
+function usesPinnedPosition(element: Element): boolean {
+  for (
+    let node: Element | null = element;
+    node && node !== document.body;
+    node = node.parentElement
+  ) {
     const position = getComputedStyle(node).position;
     if (position === 'fixed' || position === 'sticky') {
       return true;
@@ -57,14 +65,15 @@ function usesPinnedPosition(element) {
   return false;
 }
 
-function ensureLauncherHost() {
+function ensureLauncherHost(): HTMLElement | null {
   const target = findTopBarHostTarget();
 
-  if (!target || !target.parent) {
+  const parent = target?.parent;
+  if (!target || !parent) {
     return null;
   }
 
-  if (usesPinnedPosition(target.parent)) {
+  if (usesPinnedPosition(parent)) {
     return null;
   }
 
@@ -86,15 +95,15 @@ function ensureLauncherHost() {
 
   if (
     target.before !== host &&
-    (host.parentElement !== target.parent || host.nextSibling !== target.before)
+    (host.parentElement !== parent || host.nextSibling !== target.before)
   ) {
-    target.parent.insertBefore(host, target.before);
+    parent.insertBefore(host, target.before);
   }
 
   return host;
 }
 
-function AutoplayIcon() {
+function AutoplayIcon(): JSX.Element {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M8 6.5v11l8.5-5.5L8 6.5z" />
@@ -104,7 +113,7 @@ function AutoplayIcon() {
   );
 }
 
-function FullscreenIcon() {
+function FullscreenIcon(): JSX.Element {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M5 10V5h5v2H7v3H5zm9-5h5v5h-2V7h-3V5zM7 14v3h3v2H5v-5h2zm10 0h2v5h-5v-2h3v-3z" />
@@ -112,7 +121,7 @@ function FullscreenIcon() {
   );
 }
 
-function WindowedFullscreenIcon() {
+function WindowedFullscreenIcon(): JSX.Element {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M3 5h18v14H3V5zm2 2v10h14V7H5zm2 2h4v2H9v2H7V9zm10 6h-4v-2h2v-2h2v4z" />
@@ -120,7 +129,7 @@ function WindowedFullscreenIcon() {
   );
 }
 
-function SiteThemeIcon() {
+function SiteThemeIcon(): JSX.Element {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M4 4h7v7H4V4zm9 0h7v4h-7V4zm0 6h7v10h-7V10zM4 13h7v7H4v-7z" />
@@ -128,7 +137,7 @@ function SiteThemeIcon() {
   );
 }
 
-function NextEpisodeIcon() {
+function NextEpisodeIcon(): JSX.Element {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M5 6v12l8.5-6L5 6zm9 0v12h2V6h-2zm3 0v12h2V6h-2z" />
@@ -136,7 +145,7 @@ function NextEpisodeIcon() {
   );
 }
 
-function SkipIntroIcon() {
+function SkipIntroIcon(): JSX.Element {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M4 6v12l7-6-7-6zm7 0v12l7-6-7-6zm8 0h2v12h-2V6z" />
@@ -144,7 +153,7 @@ function SkipIntroIcon() {
   );
 }
 
-function RemoteIcon() {
+function RemoteIcon(): JSX.Element {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M7.1 14.9a7 7 0 0 1 9.8 0l-1.4 1.4a5 5 0 0 0-7 0l-1.4-1.4zm-3.5-3.5a12 12 0 0 1 16.8 0L19 12.8a10 10 0 0 0-14 0l-1.4-1.4zm7 7a2 2 0 0 1 2.8 0L12 19.8l-1.4-1.4zM8 4h8v2H8V4z" />
@@ -152,7 +161,7 @@ function RemoteIcon() {
   );
 }
 
-function EnhancerIcon() {
+function EnhancerIcon(): JSX.Element {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path d="M12 2.8 14.3 8l5.7.6-4.3 3.8 1.2 5.6-4.9-2.9L7.1 18l1.2-5.6L4 8.6 9.7 8 12 2.8z" />
@@ -160,30 +169,38 @@ function EnhancerIcon() {
   );
 }
 
-export function LookMovieToolsApp() {
+export function LookMovieToolsApp(): JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
-  const [launcherHost, setLauncherHost] = useState(null);
+  const [launcherHost, setLauncherHost] = useState<HTMLElement | null>(null);
   const [isPageScrolled, setIsPageScrolled] = useState(() => window.scrollY > 120);
   const [isQuickSettingsOpen, setIsQuickSettingsOpen] = useState(false);
   const closeQuickSettingsTimer = useRef(0);
   const [, setRevision] = useState(0);
 
-  useEffect(() => subscribeUi(() => setRevision((revision) => revision + 1)), []);
+  useEffect(
+    () =>
+      subscribeUi(() => {
+        setRevision((revision) => revision + 1);
+      }),
+    []
+  );
 
   useEffect(() => {
-    function closeOnEscape(event) {
+    function closeOnEscape(event: KeyboardEvent): void {
       if (event.key === 'Escape') {
         setIsOpen(false);
       }
     }
 
     window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
+    return () => {
+      window.removeEventListener('keydown', closeOnEscape);
+    };
   }, []);
 
   useEffect(() => {
     let attempts = 0;
-    function syncHost() {
+    function syncHost(): void {
       const nextHost = ensureLauncherHost();
       setLauncherHost((currentHost) => (currentHost === nextHost ? currentHost : nextHost));
 
@@ -195,17 +212,21 @@ export function LookMovieToolsApp() {
 
     const intervalId = window.setInterval(syncHost, 500);
     syncHost();
-    return () => window.clearInterval(intervalId);
+    return () => {
+      window.clearInterval(intervalId);
+    };
   }, []);
 
   useEffect(() => {
-    function syncScrollState() {
+    function syncScrollState(): void {
       setIsPageScrolled(window.scrollY > 120);
     }
 
     syncScrollState();
     window.addEventListener('scroll', syncScrollState, { passive: true });
-    return () => window.removeEventListener('scroll', syncScrollState);
+    return () => {
+      window.removeEventListener('scroll', syncScrollState);
+    };
   }, []);
 
   useEffect(
@@ -215,30 +236,30 @@ export function LookMovieToolsApp() {
     []
   );
 
-  function openModal() {
+  function openModal(): void {
     setIsOpen(true);
   }
 
-  function openQuickSettings() {
+  function openQuickSettings(): void {
     window.clearTimeout(closeQuickSettingsTimer.current);
     setIsQuickSettingsOpen(true);
   }
 
-  function closeQuickSettingsSoon() {
+  function closeQuickSettingsSoon(): void {
     window.clearTimeout(closeQuickSettingsTimer.current);
     closeQuickSettingsTimer.current = window.setTimeout(() => {
       setIsQuickSettingsOpen(false);
     }, 240);
   }
 
-  function toggleSetting(settingKey) {
+  function toggleSetting(settingKey: BooleanSettingKey): void {
     saveSettings({
       ...appState.settings,
       [settingKey]: !appState.settings[settingKey],
     });
   }
 
-  function updateSetting(settingKey, value) {
+  function updateSetting<K extends keyof Settings>(settingKey: K, value: Settings[K]): void {
     saveSettings({
       ...appState.settings,
       [settingKey]: value,
@@ -268,7 +289,13 @@ export function LookMovieToolsApp() {
         aria-haspopup="dialog"
         aria-expanded={isOpen ? 'true' : 'false'}
         title="Open enhancer"
-        onClick={() => (isOpen ? setIsOpen(false) : openModal())}
+        onClick={() => {
+          if (isOpen) {
+            setIsOpen(false);
+          } else {
+            openModal();
+          }
+        }}
       >
         <span id={`${UI_ROOT_ID}-button-icon`}>
           <EnhancerIcon />
@@ -349,7 +376,9 @@ export function LookMovieToolsApp() {
               id={`${UI_ROOT_ID}-close`}
               type="button"
               aria-label="Close settings"
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                setIsOpen(false);
+              }}
             >
               &times;
             </button>
@@ -414,7 +443,9 @@ export function LookMovieToolsApp() {
                       type="url"
                       value={appState.settings.ntfyServer}
                       placeholder="https://ntfy.sh"
-                      onChange={(event) => updateSetting('ntfyServer', event.currentTarget.value)}
+                      onChange={(event) => {
+                        updateSetting('ntfyServer', event.currentTarget.value);
+                      }}
                     />
                   </label>
                   <label className={`${SCRIPT_ID}-field`}>
@@ -425,7 +456,9 @@ export function LookMovieToolsApp() {
                       maxLength={64}
                       pattern="[A-Za-z0-9_-]{1,64}"
                       placeholder="random-private-topic"
-                      onChange={(event) => updateSetting('ntfyTopic', event.currentTarget.value)}
+                      onChange={(event) => {
+                        updateSetting('ntfyTopic', event.currentTarget.value);
+                      }}
                     />
                   </label>
                   <label className={`${SCRIPT_ID}-field`}>
@@ -436,9 +469,9 @@ export function LookMovieToolsApp() {
                       maxLength={64}
                       pattern="[A-Za-z0-9_-]{1,64}"
                       placeholder="display-topic-controls"
-                      onChange={(event) =>
-                        updateSetting('ntfyControlTopic', event.currentTarget.value)
-                      }
+                      onChange={(event) => {
+                        updateSetting('ntfyControlTopic', event.currentTarget.value);
+                      }}
                     />
                   </label>
                   <label className={`${SCRIPT_ID}-field`}>
@@ -447,9 +480,9 @@ export function LookMovieToolsApp() {
                       type="password"
                       value={appState.settings.ntfyCommandSecret}
                       placeholder="optional shared command prefix"
-                      onChange={(event) =>
-                        updateSetting('ntfyCommandSecret', event.currentTarget.value)
-                      }
+                      onChange={(event) => {
+                        updateSetting('ntfyCommandSecret', event.currentTarget.value);
+                      }}
                     />
                   </label>
                   <p className={`${SCRIPT_ID}-ntfy-status`} data-status={appState.ntfyRemoteStatus}>

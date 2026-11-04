@@ -1,103 +1,33 @@
 #!/usr/bin/env node
-// build.js — discovers every script under scripts/*/src/index.ts and builds it
+// Builds every script under scripts/*/src/index.ts.
+//
+//   node build.js                    build all scripts into scripts/<name>/dist/
+//   node build.js --script <name>    build one script
+//   node build.js --watch            rebuild on save
+//   node build.js --debug            unminified build with source maps into dist-debug/, plus a
+//                                    dev loader that @requires it from disk
+//   node build.js --check            fail if any committed dist/ or loader file is out of date
+//
+// A dist file is only rewritten when its code or header changed. When it is, its @version gets a
+// build stamp (`<meta version>.<YYYYMMDDHHmm>`) so Tampermonkey sees a newer version and updates
+// scripts installed straight from dist/.
 
 import * as esbuild from 'esbuild';
-import { glob } from 'glob';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
-const isWatch = process.argv.includes('--watch');
-const isDebug = process.argv.includes('--debug');
-const scriptFilterIndex = process.argv.indexOf('--script');
-const scriptFilter = scriptFilterIndex >= 0 ? process.argv[scriptFilterIndex + 1] : '';
+const args = process.argv.slice(2);
+const isWatch = args.includes('--watch');
+const isDebug = args.includes('--debug');
+const isCheck = args.includes('--check');
+const scriptFilter = args.includes('--script') ? args[args.indexOf('--script') + 1] : '';
+
 const repoRoot = path.dirname(fileURLToPath(import.meta.url));
-
 const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-
-// Default feature flags (can be overridden per-script via .build-flags.json)
-const DEFAULT_FLAGS = {
-  __ENABLE_AD_BYPASS__: 'true',
-  __ENABLE_AUTO_FULLSCREEN__: 'true',
-  __ENABLE_AUTO_PLAY__: 'true',
-  __ENABLE_WATCHLIST__: 'true',
-  __ENABLE_UI_OVERLAY__: 'true',
-  __ENABLE_PAGE_HELPERS__: 'true',
-  __ENABLE_VIDEO_OBSERVER__: 'true',
-};
-
-function readScriptFlags(scriptDir) {
-  const flagsFile = isDebug ? '.build-flags-debug.json' : '.build-flags.json';
-  const flagsPath = path.join(scriptDir, flagsFile);
-  if (!fs.existsSync(flagsPath)) return { ...DEFAULT_FLAGS };
-
-  try {
-    const customFlags = JSON.parse(fs.readFileSync(flagsPath, 'utf8'));
-    const flags = {
-      __ENABLE_AD_BYPASS__: customFlags.adBypass ? 'true' : 'false',
-      __ENABLE_AUTO_FULLSCREEN__: customFlags.autoFullscreen ? 'true' : 'false',
-      __ENABLE_AUTO_PLAY__: customFlags.autoPlay ? 'true' : 'false',
-      __ENABLE_WATCHLIST__: customFlags.watchlist ? 'true' : 'false',
-      __ENABLE_UI_OVERLAY__: customFlags.uiOverlay ? 'true' : 'false',
-      __ENABLE_PAGE_HELPERS__: customFlags.pageHelpers ? 'true' : 'false',
-      __ENABLE_VIDEO_OBSERVER__: customFlags.videoObserver ? 'true' : 'false',
-    };
-    console.log(`[build] Loaded flags from ${flagsPath}:`, flags);
-    return flags;
-  } catch (e) {
-    console.warn(`[build] Failed to read flags from ${flagsPath}, using defaults`);
-    return { ...DEFAULT_FLAGS };
-  }
-}
-const repoUrl =
-  pkg.repository?.url?.replace('git+', '').replace('.git', '') ||
-  'https://github.com/unknown/tampermonkey-scripts';
+const repoUrl = (pkg.repository?.url ?? '').replace(/^git\+/, '').replace(/\.git$/, '');
 const rawUrl = repoUrl.replace('github.com', 'raw.githubusercontent.com');
 const branch = 'main';
-
-function readMetaBanner(scriptDir) {
-  const metaPath = path.join(scriptDir, 'src', 'meta.ts');
-  if (!fs.existsSync(metaPath)) return '';
-  const content = fs.readFileSync(metaPath, 'utf8');
-  const match = content.match(/\/\*[\s\S]*?\*\//);
-  return match ? match[0] + '\n\n' : '';
-}
-
-function readVersion(scriptDir) {
-  const metaPath = path.join(scriptDir, 'src', 'meta.ts');
-  if (!fs.existsSync(metaPath)) return '0.0.0';
-  const content = fs.readFileSync(metaPath, 'utf8');
-  const match = content.match(/@version\s+(\S+)/);
-  return match ? match[1] : '0.0.0';
-}
-
-function readMetaMatches(scriptDir) {
-  const metaPath = path.join(scriptDir, 'src', 'meta.ts');
-  if (!fs.existsSync(metaPath)) return ['*://*.example.com/*'];
-
-  const content = fs.readFileSync(metaPath, 'utf8');
-  const matches = [...content.matchAll(/@match\s+(.+)/g)].map((match) => match[1].trim());
-  return matches.length ? matches : ['*://*.example.com/*'];
-}
-
-function readMetaRunAt(scriptDir) {
-  const metaPath = path.join(scriptDir, 'src', 'meta.ts');
-  if (!fs.existsSync(metaPath)) return 'document-start';
-
-  const content = fs.readFileSync(metaPath, 'utf8');
-  const match = content.match(/@run-at\s+(\S+)/);
-  return match ? match[1].trim() : 'document-start';
-}
-
-function readMetaValues(scriptDir, key) {
-  const metaPath = path.join(scriptDir, 'src', 'meta.ts');
-  if (!fs.existsSync(metaPath)) return [];
-
-  const content = fs.readFileSync(metaPath, 'utf8');
-  return [...content.matchAll(new RegExp(`@${key}\\s+(.+)`, 'g'))]
-    .map((match) => match[1].trim())
-    .filter((value) => value && value !== 'none');
-}
 
 // Bump when the loader template changes so Tampermonkey offers the update via @updateURL.
 const LOADER_VERSION = '1.2.0';
@@ -105,17 +35,143 @@ const LOADER_VERSION = '1.2.0';
 // API calls are limited to 60 an hour per IP, shared by every loader.
 const LOADER_SHA_CACHE_MS = 60 * 1000;
 
-function generateLoader(scriptDir, scriptName) {
-  const loaderPath = path.join(scriptDir, 'tampermonkey-loader.user.js');
+const staleFiles = [];
+
+// --- Metadata --------------------------------------------------------------------------------
+
+function readMeta(scriptDir) {
+  const metaPath = path.join(scriptDir, 'src', 'meta.ts');
+  const content = fs.existsSync(metaPath) ? fs.readFileSync(metaPath, 'utf8') : '';
+  const block = content.match(/\/\*\s*(==UserScript==[\s\S]*?==\/UserScript==)\s*\*\//);
+  if (!block) {
+    throw new Error(`${metaPath} needs a /* ==UserScript== ... ==/UserScript== */ block`);
+  }
+
+  // Normalize every line to `// @key value` so the header is a valid userscript block.
+  const lines = block[1]
+    .split(/\r?\n/)
+    .map((line) => line.trim().replace(/^\/\/\s?/, ''))
+    .filter(Boolean)
+    .map((line) => `// ${line}`);
+
+  const values = (key) =>
+    lines
+      .map((line) => line.match(new RegExp(`^// @${key}\\s+(.+)$`))?.[1].trim())
+      .filter((value) => value && value !== 'none');
+
+  return {
+    lines,
+    version: values('version')[0] ?? '0.0.0',
+    matches: values('match'),
+    runAt: values('run-at')[0] ?? 'document-start',
+    grants: values('grant'),
+    connects: values('connect'),
+  };
+}
+
+function distHeader(meta, scriptName, version) {
+  const distUrl = `${rawUrl}/${branch}/scripts/${scriptName}/dist/${scriptName}.user.js`;
+  const lines = meta.lines
+    .filter((line) => !/^\/\/ @(version|updateURL|downloadURL)\s/.test(line))
+    .filter((line) => line !== '// ==/UserScript==');
+  const nameIndex = lines.findIndex((line) => line.startsWith('// @name '));
+  lines.splice(nameIndex + 1, 0, `// @version      ${version}`);
+  lines.push(`// @updateURL    ${distUrl}`, `// @downloadURL  ${distUrl}`, '// ==/UserScript==');
+  return lines.join('\n') + '\n\n';
+}
+
+function buildStamp(date = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return (
+    String(date.getUTCFullYear()) +
+    pad(date.getUTCMonth() + 1) +
+    pad(date.getUTCDate()) +
+    pad(date.getUTCHours()) +
+    pad(date.getUTCMinutes())
+  );
+}
+
+// --- Output ----------------------------------------------------------------------------------
+
+const normalizeEol = (text) => text.replace(/\r\n/g, '\n');
+const withoutVersion = (text) => normalizeEol(text).replace(/^\/\/ @version .*$/m, '');
+
+function readIfExists(file) {
+  return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
+}
+
+/** Writes `content` unless the file already has it (ignoring line endings). */
+function emit(file, content) {
+  const existing = readIfExists(file);
+  if (existing !== null && normalizeEol(existing) === normalizeEol(content)) {
+    return false;
+  }
+
+  if (isCheck) {
+    staleFiles.push(path.relative(repoRoot, file));
+    return false;
+  }
+
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, content);
+  return true;
+}
+
+function writeDist(scriptDir, scriptName, meta, code) {
+  const outFile = path.join(scriptDir, 'dist', `${scriptName}.user.js`);
+  const candidate = (version) => distHeader(meta, scriptName, version) + code;
+
+  // Keep the committed build stamp when nothing but the stamp would change.
+  const existing = readIfExists(outFile);
+  const existingVersion = existing?.match(/^\/\/ @version\s+(\S+)/m)?.[1] ?? '';
+  const upToDate =
+    existing !== null &&
+    existingVersion.startsWith(`${meta.version}.`) &&
+    withoutVersion(existing) === withoutVersion(candidate(existingVersion));
+
+  if (upToDate) {
+    return false;
+  }
+
+  if (isCheck) {
+    staleFiles.push(path.relative(repoRoot, outFile));
+    return false;
+  }
+
+  fs.mkdirSync(path.dirname(outFile), { recursive: true });
+  fs.writeFileSync(outFile, candidate(`${meta.version}.${buildStamp()}`));
+  return true;
+}
+
+function writeDebug(scriptDir, scriptName, meta, code) {
+  const outFile = path.join(scriptDir, 'dist-debug', `${scriptName}.debug.user.js`);
+  fs.mkdirSync(path.dirname(outFile), { recursive: true });
+  fs.writeFileSync(outFile, code);
+
+  // Install this once; Tampermonkey re-reads file:// @requires on every page load. Needs
+  // "Allow access to file URLs" enabled for the Tampermonkey extension.
+  const devLoader = [
+    ...meta.lines
+      .filter((line) => !/^\/\/ @(version|updateURL|downloadURL|name)\s/.test(line))
+      .filter((line) => line !== '// ==/UserScript=='),
+    `// @name         ${scriptName} (dev)`,
+    `// @version      0.0.0-dev`,
+    `// @require      ${pathToFileURL(outFile).href}`,
+    '// ==/UserScript==',
+    '',
+  ].join('\n');
+  fs.writeFileSync(path.join(scriptDir, 'dist-debug', `${scriptName}.dev.user.js`), devLoader);
+}
+
+// --- Loader ----------------------------------------------------------------------------------
+
+function loaderSource(scriptName, meta) {
   const distPath = `scripts/${scriptName}/dist/${scriptName}.user.js`;
   const scriptUrl = `${rawUrl}/${branch}/${distPath}`;
   const loaderUrl = `${rawUrl}/${branch}/scripts/${scriptName}/tampermonkey-loader.user.js`;
   const latestCommitUrl = `${repoUrl.replace('github.com', 'api.github.com/repos')}/commits/${branch}`;
-  const matchLines = readMetaMatches(scriptDir)
-    .map((match) => `// @match        ${match}`)
-    .join('\n');
-  const runAt = readMetaRunAt(scriptDir);
-  const grants = [...new Set(['GM_xmlhttpRequest', ...readMetaValues(scriptDir, 'grant')])];
+  const matchLines = meta.matches.map((match) => `// @match        ${match}`).join('\n');
+  const grants = [...new Set(['GM_xmlhttpRequest', ...meta.grants])];
   // The loader itself also needs storage to cache the latest commit SHA.
   const grantLines = [...new Set([...grants, 'GM_getValue', 'GM_setValue'])]
     .map((grant) => `// @grant        ${grant}`)
@@ -128,25 +184,20 @@ function generateLoader(scriptDir, scriptName) {
     .map((name) => `typeof ${name} === 'undefined' ? undefined : ${name}`)
     .join(',\n          ');
   const connectLines = [
-    ...new Set([
-      'github.com',
-      'api.github.com',
-      'raw.githubusercontent.com',
-      ...readMetaValues(scriptDir, 'connect'),
-    ]),
+    ...new Set(['github.com', 'api.github.com', 'raw.githubusercontent.com', ...meta.connects]),
   ]
     .map((connect) => `// @connect      ${connect}`)
     .join('\n');
 
-  const template = `// ==UserScript==
+  return `// ==UserScript==
 // @name         ${scriptName} (loader)
-// @namespace    ${pkg.repository?.url?.replace('git+', '').replace('.git', '') || 'http://tampermonkey.net/'}
+// @namespace    ${repoUrl || 'http://tampermonkey.net/'}
 // @version      ${LOADER_VERSION}
 // @description  Loader — fetches the latest build from GitHub
 // @updateURL    ${loaderUrl}
 // @downloadURL  ${loaderUrl}
 ${matchLines}
-// @run-at       ${runAt}
+// @run-at       ${meta.runAt}
 ${grantLines}
 ${connectLines}
 // ==/UserScript==
@@ -226,73 +277,93 @@ ${connectLines}
     });
 })();
 `;
-
-  fs.writeFileSync(loaderPath, template);
-  console.log(`[loader] ${scriptName} → ${loaderPath}`);
 }
 
-async function buildScript(entryPoint) {
-  const scriptDir = path.dirname(path.dirname(entryPoint));
+// --- Build -----------------------------------------------------------------------------------
+
+function finish(scriptDir, scriptName, outputFiles) {
+  const meta = readMeta(scriptDir);
+  const code = outputFiles.find((file) => file.path.endsWith('.js'))?.text ?? '';
+
+  if (isDebug) {
+    writeDebug(scriptDir, scriptName, meta, code);
+    console.log(`[debug] ${scriptName} → dist-debug/`);
+    return;
+  }
+
+  const distChanged = writeDist(scriptDir, scriptName, meta, code);
+  const loaderPath = path.join(scriptDir, 'tampermonkey-loader.user.js');
+  const loaderChanged = emit(loaderPath, loaderSource(scriptName, meta));
+
+  if (!isCheck) {
+    const status = distChanged || loaderChanged ? 'updated' : 'unchanged';
+    console.log(`[built] ${scriptName} (${status})`);
+  }
+}
+
+async function buildScript(scriptDir) {
   const scriptName = path.basename(scriptDir);
-  const outDir = path.join(scriptDir, isDebug ? 'dist-debug' : 'dist');
-  const outFile = path.join(outDir, `${scriptName}${isDebug ? '.debug' : ''}.user.js`);
-
-  fs.mkdirSync(outDir, { recursive: true });
-
-  const banner = readMetaBanner(scriptDir);
-  const version = readVersion(scriptDir);
-  const buildDate = new Date().toISOString();
-  const scriptFlags = readScriptFlags(scriptDir);
-
-  const buildOptions = {
-    entryPoints: [entryPoint],
+  const options = {
+    entryPoints: [path.join(scriptDir, 'src', 'index.ts')],
+    outfile: path.join(scriptDir, 'dist', `${scriptName}.user.js`),
     bundle: true,
-    outfile: outFile,
+    write: false,
     format: 'iife',
     platform: 'browser',
     target: 'es2020',
-    sourcemap: false,
-    minify: true,
-    banner: {
-      js: banner,
-    },
-    define: {
-      'process.env.NODE_ENV': '"production"',
-      __VERSION__: JSON.stringify(version),
-      __BUILD_DATE__: JSON.stringify(buildDate),
-      __SCRIPT_NAME__: JSON.stringify(scriptName),
-      ...scriptFlags,
-    },
-    logLevel: 'info',
+    minify: !isDebug,
+    sourcemap: isDebug ? 'inline' : false,
+    define: { 'process.env.NODE_ENV': isDebug ? '"development"' : '"production"' },
+    logLevel: 'warning',
   };
 
   if (isWatch) {
-    const ctx = await esbuild.context(buildOptions);
+    const ctx = await esbuild.context({
+      ...options,
+      plugins: [
+        {
+          name: 'finish',
+          setup(build) {
+            build.onEnd((result) => {
+              if (result.errors.length === 0) {
+                finish(scriptDir, scriptName, result.outputFiles ?? []);
+              }
+            });
+          },
+        },
+      ],
+    });
     await ctx.watch();
-    console.log(`[watch${isDebug ? ' DEBUG' : ''}] ${scriptName}`);
-  } else {
-    await esbuild.build(buildOptions);
-    console.log(`[built${isDebug ? ' DEBUG' : ''}] ${scriptName} → ${outFile}`);
+    return;
   }
 
-  generateLoader(scriptDir, scriptName);
+  const result = await esbuild.build(options);
+  finish(scriptDir, scriptName, result.outputFiles);
 }
 
 async function main() {
-  const pattern = scriptFilter
-    ? `scripts/${scriptFilter}/src/index.ts`
-    : 'scripts/*/src/index.ts';
-  const entries = await glob(pattern, { cwd: repoRoot });
+  const scriptsDir = path.join(repoRoot, 'scripts');
+  const scriptDirs = fs
+    .readdirSync(scriptsDir)
+    .filter((name) => !scriptFilter || name === scriptFilter)
+    .map((name) => path.join(scriptsDir, name))
+    .filter((dir) => fs.existsSync(path.join(dir, 'src', 'index.ts')));
 
-  if (entries.length === 0) {
-    console.warn('No scripts found. Expected scripts/*/src/index.ts');
-    process.exit(0);
+  if (scriptDirs.length === 0) {
+    console.error(scriptFilter ? `No script named "${scriptFilter}"` : 'No scripts found');
+    process.exit(1);
   }
 
-  await Promise.all(entries.map((entry) => buildScript(path.join(repoRoot, entry))));
+  await Promise.all(scriptDirs.map(buildScript));
 
-  if (!isWatch) {
-    console.log(`\nBuilt ${entries.length} script(s).`);
+  if (isWatch) {
+    console.log(`Watching ${scriptDirs.length} script(s)…`);
+  } else if (isCheck && staleFiles.length) {
+    console.error('These built files are out of date. Run `npm run build` and commit them:');
+    staleFiles.forEach((file) => console.error(`  ${file}`));
+    process.exit(1);
+  } else if (isCheck) {
+    console.log(`All ${scriptDirs.length} build(s) are up to date.`);
   }
 }
 

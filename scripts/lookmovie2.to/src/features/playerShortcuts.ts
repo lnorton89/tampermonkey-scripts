@@ -1,23 +1,23 @@
-/* eslint-disable */
-// @ts-nocheck
 import { skipIntroNow } from './introSkip';
 import { playNextShowEpisode } from './player';
 import { stepPlaybackRate, togglePictureInPicture } from './playerMenu';
 
-function isShowPlayPage() {
+function isShowPlayPage(): boolean {
   return location.pathname.startsWith('/shows/play/');
 }
 
-function isTypingTarget(target) {
+function isTypingTarget(target: EventTarget | null): boolean {
+  // The target can also be the document, which has neither property.
+  const element = target as Partial<HTMLElement> | null;
   return (
-    !!target &&
-    (target.isContentEditable || /^(input|textarea|select)$/i.test(target.tagName || ''))
+    !!element &&
+    (!!element.isContentEditable || /^(input|textarea|select)$/i.test(element.tagName || ''))
   );
 }
 
 // N next episode, S skip intro, Shift+> / Shift+< speed, P picture-in-picture. The site's own
 // hotkeys (space, arrows, F, M) are left alone.
-function handleKeydown(event) {
+function handleKeydown(event: KeyboardEvent): void {
   if (
     !document.getElementById('video_player') ||
     event.ctrlKey ||
@@ -48,7 +48,7 @@ function handleKeydown(event) {
       break;
     case 'p':
     case 'P':
-      togglePictureInPicture();
+      void togglePictureInPicture();
       handled = true;
       break;
     default:
@@ -63,9 +63,12 @@ function handleKeydown(event) {
 
 // The control bar's Next Episode button relies on the same stale index as the site's
 // switch-next-episode event, so it goes through the exact next episode instead.
-function handleNextEpisodeButton(event) {
-  const target = event.target;
-  const button = target && target.closest ? target.closest('.vjs-next-episode-button') : null;
+function handleNextEpisodeButton(event: MouseEvent): void {
+  const target = event.target as Partial<Element> | null;
+  const button =
+    target && typeof target.closest === 'function'
+      ? target.closest('.vjs-next-episode-button')
+      : null;
   if (!button || !isShowPlayPage()) {
     return;
   }
@@ -75,7 +78,7 @@ function handleNextEpisodeButton(event) {
   playNextShowEpisode();
 }
 
-export function installPlayerShortcuts() {
+export function installPlayerShortcuts(): void {
   document.addEventListener('keydown', handleKeydown, true);
   document.addEventListener('click', handleNextEpisodeButton, true);
 }

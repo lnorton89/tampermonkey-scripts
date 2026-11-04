@@ -1,6 +1,6 @@
-/* eslint-disable */
-// @ts-nocheck
+import type { JSX } from 'react';
 import { SCRIPT_ID } from '../../config/constants';
+import type { UpcomingEpisodes, WatchlistEntry } from '../../core/storage';
 import { formatEpisodeLabel, isLatestWatched } from '../../domain/episodes';
 import { buildShowPlayUrl, buildShowViewUrl } from '../../features/pages';
 import { addLatestEpisodeToPlaylist, isEpisodeInPlaylist } from '../../features/playlist';
@@ -14,20 +14,37 @@ import {
   removeShowFromWatchlist,
   toggleLatestEpisodeWatched,
 } from '../../features/watchlist';
+import type { ViewMode } from './WatchlistPanel';
+
+interface PrimaryAction {
+  href: string;
+  label: string;
+  detail: string;
+}
+
+interface WatchlistItemProps {
+  entry: WatchlistEntry;
+  viewMode: ViewMode;
+}
 
 // Continue the episode in progress, otherwise play the first unwatched one.
-function getPrimaryAction(entry, upcoming) {
-  const inProgress =
-    entry.lastWatched && getPartialResumePoint(episodeResumeKey(entry.lastWatched.idEpisode));
-  if (inProgress) {
+function getPrimaryAction(
+  entry: WatchlistEntry,
+  upcoming: UpcomingEpisodes | null
+): PrimaryAction | null {
+  const { lastWatched } = entry;
+  const inProgress = lastWatched
+    ? getPartialResumePoint(episodeResumeKey(lastWatched.idEpisode))
+    : null;
+  if (lastWatched && inProgress) {
     return {
-      href: buildShowPlayUrl(entry.slug, entry.lastWatched),
-      label: `Continue ${formatEpisodeLabel(entry.lastWatched)}`,
+      href: buildShowPlayUrl(entry.slug, lastWatched),
+      label: `Continue ${formatEpisodeLabel(lastWatched)}`,
       detail: formatTimeLeft(inProgress),
     };
   }
 
-  const next = upcoming && upcoming.episodes[0];
+  const next = upcoming?.episodes[0];
   return next
     ? {
         href: buildShowPlayUrl(entry.slug, next),
@@ -37,7 +54,7 @@ function getPrimaryAction(entry, upcoming) {
     : null;
 }
 
-export function WatchlistItem({ entry, viewMode }) {
+export function WatchlistItem({ entry, viewMode }: WatchlistItemProps): JSX.Element {
   const upcoming = getUpcomingEpisodes(entry);
   const unwatchedCount = upcoming ? upcoming.total : null;
   const action = getPrimaryAction(entry, upcoming);
@@ -98,7 +115,9 @@ export function WatchlistItem({ entry, viewMode }) {
           disabled={!entry.latestEpisode}
           aria-label={toggleLabel}
           title={toggleLabel}
-          onClick={() => toggleLatestEpisodeWatched(entry.slug)}
+          onClick={() => {
+            toggleLatestEpisodeWatched(entry.slug);
+          }}
         >
           ✓
         </button>
@@ -108,7 +127,9 @@ export function WatchlistItem({ entry, viewMode }) {
           disabled={!entry.latestEpisode || inPlaylist}
           aria-label={playlistLabel}
           title={playlistLabel}
-          onClick={() => addLatestEpisodeToPlaylist(entry)}
+          onClick={() => {
+            addLatestEpisodeToPlaylist(entry);
+          }}
         >
           +
         </button>
@@ -117,7 +138,9 @@ export function WatchlistItem({ entry, viewMode }) {
           type="button"
           aria-label={`Remove ${entry.title}`}
           title="Remove"
-          onClick={() => removeShowFromWatchlist(entry.slug)}
+          onClick={() => {
+            removeShowFromWatchlist(entry.slug);
+          }}
         >
           ×
         </button>

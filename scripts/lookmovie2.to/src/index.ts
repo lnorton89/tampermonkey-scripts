@@ -1,5 +1,3 @@
-/* eslint-disable */
-// @ts-nocheck
 import './meta';
 import { bootstrapDomFeatures } from './app/bootstrap';
 import { installAdTimerBypass } from './features/adTimerBypass';
