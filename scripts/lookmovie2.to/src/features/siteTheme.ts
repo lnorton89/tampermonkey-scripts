@@ -80,8 +80,14 @@ const SITE_THEME_CSS = `
 
   .tv-episodes-list {
     display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
     gap: 20px;
+  }
+
+  @media (min-width: 1400px) {
+    .tv-episodes-list {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
   }
 
   .tv-episodes-list > .episode-item {
