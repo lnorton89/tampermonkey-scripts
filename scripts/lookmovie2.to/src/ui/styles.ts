@@ -724,9 +724,9 @@ export function getUiStyleText() {
         #${UI_ROOT_ID}-watchlist-list,
         #${UI_ROOT_ID}-playlist-list {
             display: grid;
-            grid-template-columns: repeat(6, 1fr);
+            grid-template-columns: repeat(6, minmax(0, 1fr));
             grid-auto-rows: max-content;
-            align-items: start;
+            align-items: stretch;
             align-content: start;
             gap: 14px;
             flex: 1;
@@ -862,6 +862,20 @@ export function getUiStyleText() {
             min-height: 82px;
         }
 
+        /* Grid cards reserve two lines each for the title and the summary so every card in a
+           row (and across rows) lines up, with the action button pinned to the bottom. */
+        .${SCRIPT_ID}-watch-item:not([data-view="list"]) .${SCRIPT_ID}-watch-item-body {
+            min-height: 132px;
+        }
+
+        .${SCRIPT_ID}-watch-item:not([data-view="list"]) .${SCRIPT_ID}-watch-item-title {
+            min-height: calc(2em * 1.3);
+        }
+
+        .${SCRIPT_ID}-watch-item:not([data-view="list"]) .${SCRIPT_ID}-watch-item-copy {
+            min-height: calc(2em * 1.4);
+        }
+
         .${SCRIPT_ID}-watch-item[data-view="list"] .${SCRIPT_ID}-watch-item-body {
             min-height: 0;
             padding: 10px 12px;
@@ -905,6 +919,17 @@ export function getUiStyleText() {
             overflow: hidden;
             text-overflow: ellipsis;
             transition: filter 0.15s ease, transform 0.15s ease;
+        }
+
+        .${SCRIPT_ID}-watch-action-label {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .${SCRIPT_ID}-watch-action > span[aria-hidden="true"],
+        .${SCRIPT_ID}-watch-action small {
+            flex: 0 0 auto;
         }
 
         .${SCRIPT_ID}-watch-action:hover {

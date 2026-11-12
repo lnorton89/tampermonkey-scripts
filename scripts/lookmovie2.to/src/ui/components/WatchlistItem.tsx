@@ -157,11 +157,14 @@ export function WatchlistItem({ entry, viewMode }: WatchlistItemProps): JSX.Elem
             {entry.title}
             {entry.year ? ` (${entry.year})` : ''}
           </a>
-          <p className={`${SCRIPT_ID}-watch-item-copy`}>{summaryPieces.join(' | ')}</p>
+          <p className={`${SCRIPT_ID}-watch-item-copy`} title={summaryPieces.join(' | ')}>
+            {summaryPieces.join(' | ')}
+          </p>
         </div>
         {action ? (
-          <a className={`${SCRIPT_ID}-watch-action`} href={action.href}>
-            <span aria-hidden="true">▶</span> {action.label}
+          <a className={`${SCRIPT_ID}-watch-action`} href={action.href} title={action.label}>
+            <span aria-hidden="true">▶</span>
+            <span className={`${SCRIPT_ID}-watch-action-label`}>{action.label}</span>
             {action.detail ? <small>{action.detail}</small> : null}
           </a>
         ) : null}
