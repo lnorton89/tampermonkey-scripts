@@ -98,6 +98,8 @@ export function bootstrapDomFeatures(): void {
   }, 100);
 
   captureCurrentPageEpisodeTitles();
+  // Card extras go in now, before the first paint, instead of on the first boot tick.
+  ensureEpisodeCardButtons();
   renderWatchlist();
   syncLauncherState();
   syncEpisodeCardButtons();

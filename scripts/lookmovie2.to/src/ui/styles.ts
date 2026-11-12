@@ -1405,7 +1405,11 @@ export function getUiStyleText() {
         }
 
         .${SCRIPT_ID}-episode-card-title {
+            min-height: 1.35em;
             margin: 2px 0 6px !important;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
             color: #e2e8f0 !important;
             font: 700 14px/1.35 Arial, sans-serif !important;
         }

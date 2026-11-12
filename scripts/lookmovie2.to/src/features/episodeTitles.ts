@@ -16,8 +16,24 @@ import { formatEpisodeLabel, type EpisodeRecord } from '../domain/episodes';
 let titles: Record<string, string> | null = null;
 const showFetches = new Map<string, Promise<boolean>>();
 let lastCapturedSignature = '';
-// Play page fetches run one after another so a page full of shows doesn't burst the site.
-let fetchQueue: Promise<unknown> = Promise.resolve();
+// A few play page fetches at a time: quick for a page full of shows without bursting the site.
+const MAX_CONCURRENT_FETCHES = 4;
+let activeFetches = 0;
+const waitingFetches: (() => void)[] = [];
+
+async function withFetchSlot<T>(task: () => Promise<T>): Promise<T> {
+  if (activeFetches >= MAX_CONCURRENT_FETCHES) {
+    await new Promise<void>((resolve) => waitingFetches.push(resolve));
+  }
+
+  activeFetches += 1;
+  try {
+    return await task();
+  } finally {
+    activeFetches -= 1;
+    waitingFetches.shift()?.();
+  }
+}
 
 function loadTitles(): Record<string, string> {
   if (titles) {
@@ -148,15 +164,13 @@ export function ensureShowEpisodeTitles(
 
   let pending = showFetches.get(slug);
   if (!pending) {
-    pending = fetchQueue
-      .then(() => fetchText(`/shows/play/${encodeURIComponent(slug)}`))
+    pending = withFetchSlot(() => fetchText(`/shows/play/${encodeURIComponent(slug)}`))
       .then((html) => rememberEpisodeTitles(parseEpisodeTitles(html)))
       .catch((error: unknown) => {
         console.warn(`[${SCRIPT_ID}] Could not load episode titles for ${slug}.`, error);
         return false;
       });
     showFetches.set(slug, pending);
-    fetchQueue = pending;
   }
 
   return pending;

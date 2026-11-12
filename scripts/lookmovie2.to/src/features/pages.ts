@@ -687,40 +687,46 @@ export function markShowsListSessionTouched(): void {
   }
 }
 
-function setEpisodeCardTitle(cardElement: Element, episode: EpisodeRecord): void {
-  const title = getEpisodeTitle(episode.idEpisode);
+function getEpisodeCardTitleNode(cardElement: Element): Element | null {
+  const existing = cardElement.querySelector(`.${SCRIPT_ID}-episode-card-title`);
   const heading = cardElement.querySelector('.mv-item-infor h5');
-  if (!title || !heading) {
-    return;
+  if (existing || !heading) {
+    return existing;
   }
 
-  let node = cardElement.querySelector(`.${SCRIPT_ID}-episode-card-title`);
-  if (!node) {
-    node = document.createElement('p');
-    node.className = `${SCRIPT_ID}-episode-card-title`;
-    heading.after(node);
-  }
+  const node = document.createElement('p');
+  node.className = `${SCRIPT_ID}-episode-card-title`;
+  heading.after(node);
+  return node;
+}
 
-  if (node.textContent !== title) {
+function setEpisodeCardTitle(cardElement: Element, episode: EpisodeRecord): void {
+  const node = getEpisodeCardTitleNode(cardElement);
+  const title = getEpisodeTitle(episode.idEpisode);
+  if (node && node.textContent !== title) {
     node.textContent = title;
+    node.setAttribute('title', title);
   }
 }
 
 // The latest-episodes cards only say "Season 1, Episode 1"; add the episode's title under that.
+// The line is added straight away, empty until the title loads, so the text below doesn't jump.
 function applyEpisodeCardTitle(cardElement: Element, card: ShowCard): void {
   const { episode } = card;
   if (!episode) {
     return;
   }
 
+  setEpisodeCardTitle(cardElement, episode);
   if (getEpisodeTitle(episode.idEpisode)) {
-    setEpisodeCardTitle(cardElement, episode);
     return;
   }
 
-  void ensureShowEpisodeTitles(card.slug, [episode]).then((changed) => {
-    if (changed) {
+  void ensureShowEpisodeTitles(card.slug, [episode]).then(() => {
+    if (getEpisodeTitle(episode.idEpisode)) {
       setEpisodeCardTitle(cardElement, episode);
+    } else {
+      cardElement.querySelector(`.${SCRIPT_ID}-episode-card-title`)?.remove();
     }
   });
 }

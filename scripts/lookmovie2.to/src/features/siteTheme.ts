@@ -101,6 +101,23 @@ const SITE_THEME_CSS = `
     line-height: 1.5 !important;
   }
 
+  /* The poster alone sets each card's height. contain: size stops the text column from adding
+     to it, so episode titles and buttons added after load can't resize cards (or their rows). */
+  .tv-episodes-list .episode-item .mv-item-infor {
+    contain: size;
+    align-self: stretch !important;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .tv-episodes-list .episode-item .mv-item-infor p.describe {
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    max-height: none !important;
+    overflow: hidden !important;
+  }
+
   .tv-episodes-list .episode-item {
     border-radius: 12px;
     overflow: hidden;
