@@ -8,6 +8,7 @@ import { createVideoControls, findActiveVideo, waitForBody } from '@userscripts/
 import { appState } from '../core/state';
 import type { EpisodeRecord } from '../domain/episodes';
 import { cancelAutoNextCountdown, startAutoNextCountdown } from './autoNext';
+import { attachBufferingIndicator } from './bufferingIndicator';
 import { handleIntroTimeUpdate, showPlayerToast } from './introSkip';
 import { publishPlayerNotification } from './ntfyRemote';
 import { applyPlaybackRate, ensurePlayerMenu } from './playerMenu';
@@ -389,8 +390,14 @@ export function attachAutoplayLogic(videoElement: TrackedVideo | null): void {
   }
 
   videoElement._lookmovieEnhancerAttached = true;
+  attachBufferingIndicator(videoElement);
   videoElement.addEventListener('play', handleVideoPlay);
+  videoElement.addEventListener('loadstart', () => {
+    // The video may only be moved into the site's player after it was first seen.
+    attachBufferingIndicator(videoElement);
+  });
   videoElement.addEventListener('loadedmetadata', () => {
+    attachBufferingIndicator(videoElement);
     if (videoElement.closest('#video_player')) {
       ensurePlayerMenu();
       applyPlaybackRate(videoElement);

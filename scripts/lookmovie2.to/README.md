@@ -23,6 +23,9 @@ helpers for show tracking and playback quality of life.
   - Updates watched progress when playback is opened for a tracked show.
   - Shows episode titles (read from each show's play page and cached) on `/shows` cards, the
     watchlist and playlist, the up-next countdown, and ntfy notifications.
+- Player buffering indicator: a centered spinner while playback waits, labelled `Buffering`
+  (nothing buffered ahead, i.e. network) or `Stalled` (data buffered but the player is stuck), so
+  either can be told apart from frame lag.
 - React overlay:
   - Floating launcher with a badge for shows with unwatched latest episodes.
   - Settings panel for playback options.

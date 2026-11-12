@@ -1030,6 +1030,64 @@ export function getUiStyleText() {
             font: 11px/1.4 Arial, sans-serif;
         }
 
+        .${SCRIPT_ID}-stats {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            z-index: 1000002;
+            margin: 0;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.75);
+            color: #e2e8f0;
+            font: 12px/1.45 Consolas, 'Courier New', monospace;
+            white-space: pre;
+            pointer-events: none;
+        }
+
+        .${SCRIPT_ID}-buffering {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            z-index: 1000001;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 16px 20px;
+            border-radius: 16px;
+            background: rgba(2, 6, 23, 0.72);
+            color: #f8fafc;
+            font: 14px/1.2 Arial, sans-serif;
+            text-align: center;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+        }
+
+        .${SCRIPT_ID}-buffering-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(248, 250, 252, 0.22);
+            border-top-color: #38bdf8;
+            border-radius: 50%;
+            animation: ${SCRIPT_ID}-buffering-spin 0.8s linear infinite;
+        }
+
+        .${SCRIPT_ID}-buffering[data-kind="stalled"] .${SCRIPT_ID}-buffering-spinner {
+            border-top-color: #f59e0b;
+        }
+
+        .${SCRIPT_ID}-buffering small {
+            color: #cbd5e1;
+            font-size: 12px;
+        }
+
+        @keyframes ${SCRIPT_ID}-buffering-spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
         .${SCRIPT_ID}-autonext {
             position: absolute;
             right: 24px;

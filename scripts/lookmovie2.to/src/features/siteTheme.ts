@@ -17,8 +17,9 @@ const SITE_THEME_CSS = `
   header.ht-header {
     position: sticky !important;
     top: 0;
-    background: rgba(2, 13, 24, 0.86) !important;
-    backdrop-filter: blur(12px);
+    /* Solid rather than backdrop-filter: a blur over playing video is redone every frame and
+       can keep Chrome from using its fast video overlay path, which lagged fullscreen playback. */
+    background: rgba(2, 13, 24, 0.96) !important;
     border-bottom: 1px solid rgba(148, 163, 184, 0.12);
   }
 

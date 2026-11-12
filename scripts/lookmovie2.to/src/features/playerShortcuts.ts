@@ -1,5 +1,6 @@
 import { skipIntroNow } from './introSkip';
 import { playNextShowEpisode } from './player';
+import { togglePlaybackStats } from './playbackStats';
 import { stepPlaybackRate, togglePictureInPicture } from './playerMenu';
 
 function isShowPlayPage(): boolean {
@@ -15,7 +16,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
   );
 }
 
-// N next episode, S skip intro, Shift+> / Shift+< speed, P picture-in-picture. The site's own
+// N next episode, S skip intro, Shift+> / Shift+< speed, P picture-in-picture, D playback stats. The site's own
 // hotkeys (space, arrows, F, M) are left alone.
 function handleKeydown(event: KeyboardEvent): void {
   if (
@@ -50,6 +51,10 @@ function handleKeydown(event: KeyboardEvent): void {
     case 'P':
       void togglePictureInPicture();
       handled = true;
+      break;
+    case 'd':
+    case 'D':
+      handled = togglePlaybackStats();
       break;
     default:
       break;
