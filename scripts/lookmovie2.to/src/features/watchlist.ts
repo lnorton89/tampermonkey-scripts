@@ -3,7 +3,6 @@ import { errorMessage } from '@userscripts/core';
 import { appState, type WatchlistMessageTone } from '../core/state';
 import {
   normalizeEpisodeRecord,
-  formatEpisodeLabel,
   compareEpisodes,
   isLatestWatched,
   type EpisodeRecord,
@@ -23,6 +22,7 @@ import {
   readWindowValue,
   toPositiveInteger,
 } from '../core/utils';
+import { ensureShowEpisodeTitles, formatEpisodeWithTitle } from './episodeTitles';
 import { syncEpisodeCardButtons, syncShowViewWatchButton } from './pages';
 import { renderWatchlist, syncLauncherState } from '../ui';
 
@@ -315,7 +315,7 @@ export function toggleLatestEpisodeWatched(slug: string): void {
       watchedAt: Date.now(),
     };
     setWatchlistMessage(
-      `${entry.title} marked watched through ${formatEpisodeLabel(entry.latestEpisode)}.`,
+      `${entry.title} marked watched through ${formatEpisodeWithTitle(entry.latestEpisode)}.`,
       'success'
     );
   }
@@ -385,6 +385,7 @@ export async function refreshWatchlistEntries(options?: {
 
     saveWatchlist();
     setWatchlistMessage('Watchlist refreshed.', 'success');
+    void fillEpisodeTitles();
   })()
     .catch((error: unknown) => {
       console.warn(`[${SCRIPT_ID}] Watchlist refresh failed.`, error);
@@ -478,9 +479,42 @@ export function maybeTrackWatchedEpisodeFromPlayer(): void {
   saveWatchlist();
   refreshIfUpcomingUnknown(entry);
   setWatchlistMessage(
-    `${entry.title} updated to watched through ${formatEpisodeLabel(entry.lastWatched)}.`,
+    `${entry.title} updated to watched through ${formatEpisodeWithTitle(entry.lastWatched)}.`,
     'success'
   );
+}
+
+let episodeTitlesFill: Promise<void> | null = null;
+
+// Caches the titles of the episodes the overlay shows, one show at a time, and re-renders as they
+// arrive. Shows whose titles are already cached are skipped without a request.
+export function fillEpisodeTitles(): Promise<void> {
+  if (episodeTitlesFill) {
+    return episodeTitlesFill;
+  }
+
+  const wanted = new Map<string, (EpisodeRecord | null | undefined)[]>();
+  const want = (slug: string, ...episodes: (EpisodeRecord | null | undefined)[]): void => {
+    wanted.set(slug, [...(wanted.get(slug) || []), ...episodes]);
+  };
+  Object.values(appState.watchlistStore.shows).forEach((entry) => {
+    want(entry.slug, entry.latestEpisode, entry.lastWatched, entry.upcoming?.episodes[0]);
+  });
+  Object.values(appState.playlistStore.entries).forEach((entry) => {
+    want(entry.slug, entry.episode);
+  });
+
+  episodeTitlesFill = (async () => {
+    for (const [slug, episodes] of wanted) {
+      if (await ensureShowEpisodeTitles(slug, episodes)) {
+        renderWatchlist();
+      }
+    }
+  })().finally(() => {
+    episodeTitlesFill = null;
+  });
+
+  return episodeTitlesFill;
 }
 
 function readCurrentEpisodeFromHash(): EpisodeRecord | null {

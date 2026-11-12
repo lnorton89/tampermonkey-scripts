@@ -23,7 +23,8 @@ import {
   stopShowsListProgressTracking,
 } from '../features/pages';
 import { refreshMovieWatchlistMetadata } from '../features/movies';
-import { refreshWatchlistEntries } from '../features/watchlist';
+import { captureCurrentPageEpisodeTitles } from '../features/episodeTitles';
+import { fillEpisodeTitles, refreshWatchlistEntries } from '../features/watchlist';
 import { ensureUi, renderWatchlist, syncLauncherState } from '../ui';
 
 export function watchNavigation(): void {
@@ -44,6 +45,7 @@ export function watchNavigation(): void {
     appState.lastTrackedEpisodeSignature = '';
     removeWindowedFullscreenFallback();
     findAndAttachToVideos();
+    captureCurrentPageEpisodeTitles();
     ensureUi();
     renderWatchlist();
     syncEpisodeCardButtons();
@@ -78,6 +80,10 @@ export function bootstrapDomFeatures(): void {
 
   const uiBootstrapper = window.setInterval(() => {
     appState.uiBootAttempts += 1;
+    // show_storage can appear after the script starts, so keep looking while booting.
+    if (captureCurrentPageEpisodeTitles()) {
+      renderWatchlist();
+    }
     ensureUi();
     ensureEpisodeCardButtons();
     ensureShowsListProgressTracking();
@@ -91,6 +97,7 @@ export function bootstrapDomFeatures(): void {
     }
   }, 100);
 
+  captureCurrentPageEpisodeTitles();
   renderWatchlist();
   syncLauncherState();
   syncEpisodeCardButtons();
@@ -100,4 +107,5 @@ export function bootstrapDomFeatures(): void {
   syncMovieViewWatchButton();
   void refreshMovieWatchlistMetadata();
   void refreshWatchlistEntries();
+  void fillEpisodeTitles();
 }

@@ -1,7 +1,8 @@
 import type { JSX } from 'react';
 import { SCRIPT_ID } from '../../config/constants';
 import type { UpcomingEpisodes, WatchlistEntry } from '../../core/storage';
-import { formatEpisodeLabel, isLatestWatched } from '../../domain/episodes';
+import { isLatestWatched } from '../../domain/episodes';
+import { formatEpisodeWithTitle } from '../../features/episodeTitles';
 import { buildShowPlayUrl, buildShowViewUrl } from '../../features/pages';
 import { addLatestEpisodeToPlaylist, isEpisodeInPlaylist } from '../../features/playlist';
 import {
@@ -39,7 +40,7 @@ function getPrimaryAction(
   if (lastWatched && inProgress) {
     return {
       href: buildShowPlayUrl(entry.slug, lastWatched),
-      label: `Continue ${formatEpisodeLabel(lastWatched)}`,
+      label: `Continue ${formatEpisodeWithTitle(lastWatched)}`,
       detail: formatTimeLeft(inProgress),
     };
   }
@@ -48,7 +49,7 @@ function getPrimaryAction(
   return next
     ? {
         href: buildShowPlayUrl(entry.slug, next),
-        label: `Play ${formatEpisodeLabel(next)}`,
+        label: `Play ${formatEpisodeWithTitle(next)}`,
         detail: '',
       }
     : null;
@@ -69,10 +70,10 @@ export function WatchlistItem({ entry, viewMode }: WatchlistItemProps): JSX.Elem
           : 'new'
         : 'pending';
   const latestCopy = entry.latestEpisode
-    ? `Latest ${formatEpisodeLabel(entry.latestEpisode)}`
+    ? `Latest ${formatEpisodeWithTitle(entry.latestEpisode)}`
     : 'Latest episode not synced yet';
   const watchedCopy = entry.lastWatched
-    ? `Watched through ${formatEpisodeLabel(entry.lastWatched)}`
+    ? `Watched through ${formatEpisodeWithTitle(entry.lastWatched)}`
     : 'Nothing marked watched yet';
   const errorCopy = entry.lastSyncError ? `Sync issue: ${entry.lastSyncError}` : '';
   const statusLabel =

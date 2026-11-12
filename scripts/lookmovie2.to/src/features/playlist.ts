@@ -6,7 +6,8 @@ import {
   type PlaylistEntry,
   type WatchlistEntry,
 } from '../core/storage';
-import { formatEpisodeLabel, type EpisodeRecord } from '../domain/episodes';
+import type { EpisodeRecord } from '../domain/episodes';
+import { formatEpisodeWithTitle } from './episodeTitles';
 import { renderWatchlist, syncLauncherState } from '../ui';
 import { buildShowPlayUrl } from './pages';
 
@@ -105,7 +106,7 @@ export function getPlaylistSummary(entries: PlaylistEntry[]): string {
 
   return `${entries.length} queued ${entries.length === 1 ? 'episode' : 'episodes'} | Next: ${
     first.title
-  } ${formatEpisodeLabel(first.episode)}`;
+  } ${formatEpisodeWithTitle(first.episode)}`;
 }
 
 export function getCurrentPlaylistEntry(): PlaylistEntry | null {

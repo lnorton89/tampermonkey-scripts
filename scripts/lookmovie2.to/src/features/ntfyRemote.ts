@@ -26,6 +26,7 @@ import {
   readWindowValue,
   toText,
 } from '../core/utils';
+import { formatEpisodeWithTitle } from './episodeTitles';
 import { isMoviePlayPage } from './pages';
 import { notifyUiChanged } from '../ui/events';
 import {
@@ -203,7 +204,11 @@ function getRouteEpisodeLabel(): string {
     return '';
   }
 
-  return `S${String(match[1]).padStart(2, '0')}E${String(match[2]).padStart(2, '0')}`;
+  return formatEpisodeWithTitle({
+    season: Number(match[1]),
+    episode: Number(match[2]),
+    idEpisode: Number(match[3]),
+  });
 }
 
 function getCurrentShowWatchlistEntry(): WatchlistEntry | null {

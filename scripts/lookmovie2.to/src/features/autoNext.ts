@@ -1,6 +1,7 @@
 import { AUTO_NEXT_COUNTDOWN_SECONDS, SCRIPT_ID } from '../config/constants';
 import { appState } from '../core/state';
-import { formatEpisodeLabel, type EpisodeRecord } from '../domain/episodes';
+import type { EpisodeRecord } from '../domain/episodes';
+import { formatEpisodeWithTitle } from './episodeTitles';
 import { playNextShowEpisode } from './player';
 import { findNextShowEpisode } from './watchlist';
 
@@ -31,7 +32,7 @@ function buildOverlay(nextEpisode: EpisodeRecord): HTMLDivElement {
   const label = document.createElement('p');
   label.append('Up next: ');
   const episodeLabel = document.createElement('strong');
-  episodeLabel.textContent = formatEpisodeLabel(nextEpisode);
+  episodeLabel.textContent = formatEpisodeWithTitle(nextEpisode);
   label.append(episodeLabel, ' in ');
   const seconds = document.createElement('span');
   seconds.className = `${OVERLAY_CLASS}-seconds`;

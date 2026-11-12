@@ -1404,6 +1404,12 @@ export function getUiStyleText() {
             overflow-wrap: anywhere;
         }
 
+        .${SCRIPT_ID}-episode-card-title {
+            margin: 2px 0 6px !important;
+            color: #e2e8f0 !important;
+            font: 700 14px/1.35 Arial, sans-serif !important;
+        }
+
         .${SCRIPT_ID}-episode-watch-button {
             position: absolute;
             top: 12px;

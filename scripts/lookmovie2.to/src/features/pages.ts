@@ -17,6 +17,7 @@ import {
   readWindowRecord,
   toPositiveInteger,
 } from '../core/utils';
+import { ensureShowEpisodeTitles, getEpisodeTitle } from './episodeTitles';
 import { addShowToWatchlist, getWatchlistEntry, removeShowFromWatchlist } from './watchlist';
 import { addMovieToWatchlist, getMovieWatchlistEntry, removeMovieFromWatchlist } from './movies';
 
@@ -686,6 +687,44 @@ export function markShowsListSessionTouched(): void {
   }
 }
 
+function setEpisodeCardTitle(cardElement: Element, episode: EpisodeRecord): void {
+  const title = getEpisodeTitle(episode.idEpisode);
+  const heading = cardElement.querySelector('.mv-item-infor h5');
+  if (!title || !heading) {
+    return;
+  }
+
+  let node = cardElement.querySelector(`.${SCRIPT_ID}-episode-card-title`);
+  if (!node) {
+    node = document.createElement('p');
+    node.className = `${SCRIPT_ID}-episode-card-title`;
+    heading.after(node);
+  }
+
+  if (node.textContent !== title) {
+    node.textContent = title;
+  }
+}
+
+// The latest-episodes cards only say "Season 1, Episode 1"; add the episode's title under that.
+function applyEpisodeCardTitle(cardElement: Element, card: ShowCard): void {
+  const { episode } = card;
+  if (!episode) {
+    return;
+  }
+
+  if (getEpisodeTitle(episode.idEpisode)) {
+    setEpisodeCardTitle(cardElement, episode);
+    return;
+  }
+
+  void ensureShowEpisodeTitles(card.slug, [episode]).then((changed) => {
+    if (changed) {
+      setEpisodeCardTitle(cardElement, episode);
+    }
+  });
+}
+
 export function ensureEpisodeCardButtons(): void {
   if (!hasBody() || !isLatestShowsPage()) {
     return;
@@ -749,6 +788,7 @@ export function ensureEpisodeCardButtons(): void {
     }
 
     updateEpisodeCardButton(button);
+    applyEpisodeCardTitle(cardElement, card);
 
     let markerButton = cardElement.querySelector<HTMLButtonElement>(
       `.${SCRIPT_ID}-shows-list-marker-button`

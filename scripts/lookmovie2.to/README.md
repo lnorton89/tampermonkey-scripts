@@ -21,6 +21,8 @@ helpers for show tracking and playback quality of life.
   - Tracks whether the latest episode is watched or new.
   - Tracks movie watched/unwatched state separately from TV progress.
   - Updates watched progress when playback is opened for a tracked show.
+  - Shows episode titles (read from each show's play page and cached) on `/shows` cards, the
+    watchlist and playlist, the up-next countdown, and ntfy notifications.
 - React overlay:
   - Floating launcher with a badge for shows with unwatched latest episodes.
   - Settings panel for playback options.

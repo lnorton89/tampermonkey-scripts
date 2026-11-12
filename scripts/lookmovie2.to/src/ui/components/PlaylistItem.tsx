@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import { SCRIPT_ID } from '../../config/constants';
 import type { PlaylistEntry } from '../../core/storage';
-import { formatEpisodeLabel } from '../../domain/episodes';
+import { formatEpisodeWithTitle } from '../../features/episodeTitles';
 import { buildShowPlayUrl } from '../../features/pages';
 import { removeFromPlaylist, startPlaylistPlayback } from '../../features/playlist';
 import { CheckIcon, RemoveIcon } from './icons';
@@ -15,7 +15,7 @@ interface PlaylistItemProps {
 
 export function PlaylistItem({ entry, viewMode, isActive }: PlaylistItemProps): JSX.Element {
   const openHref = buildShowPlayUrl(entry.slug, entry.episode);
-  const episodeCopy = formatEpisodeLabel(entry.episode);
+  const episodeCopy = formatEpisodeWithTitle(entry.episode);
   const addedCopy = entry.addedAt ? `Queued ${new Date(entry.addedAt).toLocaleDateString()}` : '';
   const summaryPieces = [episodeCopy];
 
