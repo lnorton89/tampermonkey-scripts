@@ -41,9 +41,12 @@ const SITE_THEME_CSS = `
     margin: 0 !important;
   }
 
+  /* The site sizes this box with height: 0 + padding-bottom: 150%; drop that padding so the
+     aspect-ratio box has a real height, and pin the image to it. */
   .movie-item-style-2 .image__placeholder {
     width: 100% !important;
     height: auto !important;
+    padding: 0 !important;
     aspect-ratio: 2 / 3;
     overflow: hidden;
     border-radius: 12px;
@@ -52,6 +55,9 @@ const SITE_THEME_CSS = `
   }
 
   .movie-item-style-2 .image__placeholder img {
+    position: absolute;
+    inset: 0;
+    margin: 0 !important;
     width: 100% !important;
     height: 100% !important;
     object-fit: cover;

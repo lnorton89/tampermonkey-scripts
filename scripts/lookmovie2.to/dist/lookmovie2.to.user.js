@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         LookMovie2 Enhancer
-// @version      1.2.0.202611032326
+// @version      1.2.0.202611120914
 // @namespace    https://github.com/lnorton89/tampermonkey-scripts
 // @description  Combines playback helpers with a persistent show watchlist for latest episode tracking.
 // @author       Lawrence
@@ -1625,9 +1625,12 @@ Error generating stack: `+l.message+`
     margin: 0 !important;
   }
 
+  /* The site sizes this box with height: 0 + padding-bottom: 150%; drop that padding so the
+     aspect-ratio box has a real height, and pin the image to it. */
   .movie-item-style-2 .image__placeholder {
     width: 100% !important;
     height: auto !important;
+    padding: 0 !important;
     aspect-ratio: 2 / 3;
     overflow: hidden;
     border-radius: 12px;
@@ -1636,6 +1639,9 @@ Error generating stack: `+l.message+`
   }
 
   .movie-item-style-2 .image__placeholder img {
+    position: absolute;
+    inset: 0;
+    margin: 0 !important;
     width: 100% !important;
     height: 100% !important;
     object-fit: cover;
