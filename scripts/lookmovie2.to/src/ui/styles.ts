@@ -2,16 +2,13 @@ import { SCRIPT_ID, UI_ROOT_ID } from '../config/constants';
 
 export function getUiStyleText() {
   return `
+        /* The launcher's rainbow border spins a gradient layer with transform, which runs on the
+           compositor. Animating a registered angle property inside conic-gradient() instead made
+           Chrome repaint every frame, and that dropped up to half the frames of fullscreen video. */
         @keyframes ${SCRIPT_ID}-rainbow-border {
             to {
-                --${SCRIPT_ID}-rainbow-angle: 360deg;
+                transform: translate(-50%, -50%) rotate(360deg);
             }
-        }
-
-        @property --${SCRIPT_ID}-rainbow-angle {
-            syntax: '<angle>';
-            initial-value: 0deg;
-            inherits: false;
         }
 
         #${UI_ROOT_ID}-launcher-host {
@@ -81,14 +78,17 @@ export function getUiStyleText() {
             cursor: pointer;
         }
 
+        /* A square well past the button's diagonal, so the button is covered at every angle. */
         #${UI_ROOT_ID}-button::before {
-            --${SCRIPT_ID}-rainbow-angle: 0deg;
             content: '';
             position: absolute;
-            inset: -70%;
+            top: 50%;
+            left: 50%;
+            width: 250%;
+            aspect-ratio: 1 / 1;
             z-index: -2;
+            transform: translate(-50%, -50%) rotate(0deg);
             background: conic-gradient(
-                from var(--${SCRIPT_ID}-rainbow-angle),
                 #ff2d95,
                 #ff7a18,
                 #ffd60a,
@@ -130,6 +130,12 @@ export function getUiStyleText() {
 
         #${UI_ROOT_ID}-button:hover::before {
             background: #ffffff;
+            animation-play-state: paused;
+        }
+
+        /* Nothing on the page needs to animate behind fullscreen (or windowed fullscreen) video. */
+        :root:has(:fullscreen) #${UI_ROOT_ID}-button::before,
+        body.${SCRIPT_ID}-fullscreen #${UI_ROOT_ID}-button::before {
             animation-play-state: paused;
         }
 
